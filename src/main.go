@@ -8,7 +8,6 @@ import (
 	"io"
 	"net/http"
 	"os"
-	"strconv"
 	"time"
 )
 
@@ -16,7 +15,7 @@ const Version = "0.1.0"
 
 type VersionResp struct {
 	Version     string `json:"version"`
-	CurrentTime string `json:"currentTime"`
+	CurrentTime int64  `json:"currentTime"`
 }
 
 func getCLIArgs() (localAddr, seedAddr *string) {
@@ -37,7 +36,7 @@ func getPing(w http.ResponseWriter, r *http.Request) {
 func getVersion(w http.ResponseWriter, r *http.Request) {
 	b, _ := json.Marshal(VersionResp{
 		Version,
-		strconv.FormatInt(time.Now().UnixNano(), 10),
+		time.Now().UnixMicro(),
 	})
 	w.Write(b)
 }
