@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 
-	"github.com/levilutz/basiccoin/utils"
+	"github.com/levilutz/basiccoin/src/utils"
 )
 
 func main() {
