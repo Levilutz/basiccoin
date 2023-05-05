@@ -9,53 +9,46 @@ import (
 	"strings"
 )
 
-func main() {
-	if len(os.Args) < 3 {
-		log.Fatal("Requires self and partner ports")
-	}
-	selfPort := os.Args[1]
-	// partnerPort := os.Args[2]
-
-	listen, err := net.Listen("tcp", "0.0.0.0:"+selfPort)
-	fmt.Printf("Up at 0.0.0.0:%s\n", selfPort)
-
+func checkErr(err error) {
 	if err != nil {
 		log.Fatal(err)
 		os.Exit(1)
-	}
-	defer listen.Close()
-	for {
-		conn, err := listen.Accept()
-		if err != nil {
-			log.Fatal(err)
-			os.Exit(1)
-		}
-		go handleRequest(conn)
 	}
 }
 
-func handleRequest(conn net.Conn) {
+func main() {
+	if len(os.Args) < 3 {
+		log.Fatal("Requires selfPort, partnerAddr")
+	}
+	selfPort := os.Args[1]
+	partnerAddr := os.Args[2]
+
+	listen, err := net.Listen("tcp", "0.0.0.0:"+selfPort)
+	checkErr(err)
+	fmt.Printf("Up at 0.0.0.0:%s\n", selfPort)
+
+	defer listen.Close()
+	for {
+		conn, err := listen.Accept()
+		checkErr(err)
+		go handleRequest(conn, partnerAddr)
+	}
+}
+
+func handleRequest(conn net.Conn, partnerAddr string) {
 	buffer := make([]byte, 32)
 	_, err := conn.Read(buffer)
-	if err != nil {
-		log.Fatal(err)
-		conn.Close()
-		os.Exit(1)
-	}
+	checkErr(err)
 
 	recv := strings.TrimRight(string(buffer), "\x00")
+	conn.Close()
 	log.Printf("Received %s", recv)
 	if recv == "done" {
-		conn.Close()
 		os.Exit(0)
 	}
 
 	recvI, err := strconv.Atoi(recv)
-	if err != nil {
-		log.Fatal(err)
-		conn.Close()
-		os.Exit(1)
-	}
+	checkErr(err)
 
 	var msg string
 	if recvI == 0 {
@@ -63,7 +56,16 @@ func handleRequest(conn net.Conn) {
 	} else {
 		msg = strconv.Itoa(recvI - 1)
 	}
-	conn.Write([]byte(msg))
+	// conn.Write([]byte(msg))
 
-	conn.Close()
+	tcpServer, err := net.ResolveTCPAddr("tcp", partnerAddr)
+	checkErr(err)
+	partnerConn, err := net.DialTCP("tcp", nil, tcpServer)
+	checkErr(err)
+	partnerConn.Write([]byte(msg))
+	partnerConn.Close()
+
+	if recvI == 0 {
+		os.Exit(0)
+	}
 }

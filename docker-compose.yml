@@ -1,4 +1,17 @@
 version: "3.9"
 services:
-  basiccoin:
+  basiccoin1:
     build: .
+    command:
+      - "/basiccoin"
+      - "21720"
+      - "basiccoin2:21720"
+    ports:
+      - 21720:21720
+
+  basiccoin2:
+    build: .
+    command:
+      - "/basiccoin"
+      - "21720"
+      - "basiccoin1:21720"
