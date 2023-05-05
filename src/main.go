@@ -41,12 +41,32 @@ func getVersion(w http.ResponseWriter, r *http.Request) {
 	w.Write(b)
 }
 
-func requestPeerVersion(peerAddr string) VersionResp {
-	resp, _ := http.Get("http://" + peerAddr + "/version")
-	body, _ := io.ReadAll(resp.Body)
-	var content VersionResp
-	json.Unmarshal(body, &content)
-	return content
+func retryGetBody[R any](url string, retries int) (*R, error) {
+	var resp_body *[]byte
+	var last_err error = nil
+	for attempts := 0; attempts < retries; attempts++ {
+		resp, err := http.Get(url)
+		if err != nil {
+			last_err = err
+			continue
+		}
+		body, err := io.ReadAll(resp.Body)
+		if err != nil {
+			last_err = err
+			continue
+		}
+		resp_body = &body
+		break
+	}
+	if resp_body == nil {
+		return nil, last_err
+	}
+	var content R
+	err := json.Unmarshal(*resp_body, &content)
+	if err != nil {
+		return nil, err
+	}
+	return &content, nil
 }
 
 func main() {
@@ -54,7 +74,12 @@ func main() {
 
 	neighbors := make(map[string]VersionResp)
 	if *seedAddr != "" {
-		neighbors[*seedAddr] = requestPeerVersion(*seedAddr)
+		resp, err := retryGetBody[VersionResp]("http://"+*seedAddr+"/version", 3)
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+		neighbors[*seedAddr] = *resp
 	}
 	fmt.Println(neighbors)
 
