@@ -9,6 +9,8 @@ import (
 	"net/http"
 	"os"
 	"time"
+
+	"github.com/levilutz/basiccoin/src/utils"
 )
 
 const Version = "0.1.0"
@@ -16,6 +18,11 @@ const Version = "0.1.0"
 type VersionResp struct {
 	Version     string `json:"version"`
 	CurrentTime int64  `json:"currentTime"`
+}
+
+type NeighborRecord struct {
+	LastUpdated time.Time
+	Version     VersionResp
 }
 
 func getCLIArgs() (localAddr, seedAddr *string) {
@@ -41,45 +48,17 @@ func getVersion(w http.ResponseWriter, r *http.Request) {
 	w.Write(b)
 }
 
-func retryGetBody[R any](url string, retries int) (*R, error) {
-	var resp_body *[]byte
-	var last_err error = nil
-	for attempts := 0; attempts < retries; attempts++ {
-		resp, err := http.Get(url)
-		if err != nil {
-			last_err = err
-			continue
-		}
-		body, err := io.ReadAll(resp.Body)
-		if err != nil {
-			last_err = err
-			continue
-		}
-		resp_body = &body
-		break
-	}
-	if resp_body == nil {
-		return nil, last_err
-	}
-	var content R
-	err := json.Unmarshal(*resp_body, &content)
-	if err != nil {
-		return nil, err
-	}
-	return &content, nil
-}
-
 func main() {
 	localAddr, seedAddr := getCLIArgs()
 
-	neighbors := make(map[string]VersionResp)
+	neighbors := make(map[string]NeighborRecord)
 	if *seedAddr != "" {
-		resp, err := retryGetBody[VersionResp]("http://"+*seedAddr+"/version", 3)
+		resp, err := utils.RetryGetBody[VersionResp]("http://"+*seedAddr+"/version", 3)
 		if err != nil {
-			fmt.Println(err)
+			fmt.Printf("Failed to connect to seed peer: %s", err)
 			os.Exit(1)
 		}
-		neighbors[*seedAddr] = *resp
+		neighbors[*seedAddr] = NeighborRecord{time.Now(), *resp}
 	}
 	fmt.Println(neighbors)
 
