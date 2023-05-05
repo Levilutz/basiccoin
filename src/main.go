@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
@@ -10,6 +11,10 @@ import (
 )
 
 const Version = "0.1.0"
+
+type VersionResp struct {
+	Version string `json:"version"`
+}
 
 func getCLIArgs() (localAddr, seedAddr *string) {
 	localAddr = flag.String(
@@ -27,7 +32,8 @@ func getPing(w http.ResponseWriter, r *http.Request) {
 }
 
 func getVersion(w http.ResponseWriter, r *http.Request) {
-	io.WriteString(w, Version)
+	b, _ := json.Marshal(VersionResp{Version})
+	w.Write(b)
 }
 
 func main() {
