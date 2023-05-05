@@ -44,7 +44,6 @@ func handleRequest(conn net.Conn) {
 	}
 
 	recv := strings.TrimRight(string(buffer), "\x00")
-	conn.Close()
 	log.Printf("Received %s", recv)
 	if recv == "done" {
 		conn.Close()
