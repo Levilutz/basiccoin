@@ -41,13 +41,22 @@ func getVersion(w http.ResponseWriter, r *http.Request) {
 	w.Write(b)
 }
 
+func requestPeerVersion(peerAddr string) VersionResp {
+	resp, _ := http.Get("http://" + peerAddr + "/version")
+	body, _ := io.ReadAll(resp.Body)
+	var content VersionResp
+	json.Unmarshal(body, &content)
+	return content
+}
+
 func main() {
 	localAddr, seedAddr := getCLIArgs()
 
-	neighbors := make([]string, 1)
+	neighbors := make(map[string]VersionResp)
 	if *seedAddr != "" {
-		neighbors[0] = *seedAddr
+		neighbors[*seedAddr] = requestPeerVersion(*seedAddr)
 	}
+	fmt.Println(neighbors)
 
 	http.HandleFunc("/ping", getPing)
 	http.HandleFunc("/version", getVersion)
