@@ -8,6 +8,8 @@ import (
 	"strings"
 )
 
+const Version = "0.1.0"
+
 func checkErr(err error) {
 	if err != nil {
 		log.Fatal(err)
@@ -15,21 +17,22 @@ func checkErr(err error) {
 	}
 }
 
-func getCLIArgs() (string, string) {
+func getCLIArgs() (string, *string) {
 	if len(os.Args) == 1 {
-		log.Fatal("Requires seedPartnerAddr, [selfPort]")
-		os.Exit(1)
+		return "21720", nil
 	} else if len(os.Args) == 2 {
-		return os.Args[1], "21720"
+		return os.Args[1], nil
 	}
-	return os.Args[1], os.Args[2]
+	return os.Args[1], &os.Args[2]
 }
 
 func main() {
-	seedPartnerAddr, selfPort := getCLIArgs()
+	selfPort, seedPartnerAddr := getCLIArgs()
 
 	neighbors := make([]string, 1)
-	neighbors[0] = seedPartnerAddr
+	if seedPartnerAddr != nil {
+		neighbors[0] = *seedPartnerAddr
+	}
 
 	listen, err := net.Listen("tcp", "0.0.0.0:"+selfPort)
 	checkErr(err)
@@ -48,8 +51,15 @@ func pingHandler(conn net.Conn, lines []string) {
 	conn.Close()
 }
 
-func abcHandler(conn net.Conn, lines []string) {
-	conn.Write([]byte("123"))
+func versionHandler(conn net.Conn, lines []string) {
+	if len(lines) < 2 || len(lines[1]) == 0 {
+		conn.Close()
+		fmt.Println("No version given")
+		return
+	}
+	theirVersion := lines[1]
+	// Send verack
+	conn.Write([]byte("verack\n" + theirVersion))
 	conn.Close()
 }
 
@@ -59,7 +69,7 @@ func fallbackHandler(conn net.Conn, lines []string) {
 }
 
 func dispatchRequest(conn net.Conn) {
-	buffer := make([]byte, 32)
+	buffer := make([]byte, 128)
 	_, err := conn.Read(buffer)
 	checkErr(err)
 
@@ -67,8 +77,8 @@ func dispatchRequest(conn net.Conn) {
 	lines := strings.Split(recv, "\n")
 
 	dispatch := map[string]func(conn net.Conn, lines []string){
-		"ping": pingHandler,
-		"abc":  abcHandler,
+		"ping":    pingHandler,
+		"version": versionHandler,
 	}
 
 	handler, ok := dispatch[lines[0]]
