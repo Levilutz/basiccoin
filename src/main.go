@@ -2,6 +2,7 @@ package main
 
 import (
 	"errors"
+	"flag"
 	"fmt"
 	"io"
 	"net/http"
@@ -10,13 +11,15 @@ import (
 
 const Version = "0.1.0"
 
-func getCLIArgs() (string, *string) {
-	if len(os.Args) == 1 {
-		return "21720", nil
-	} else if len(os.Args) == 2 {
-		return os.Args[1], nil
-	}
-	return os.Args[1], &os.Args[2]
+func getCLIArgs() (localAddr, seedAddr *string) {
+	localAddr = flag.String(
+		"localAddr", "0.0.0.0:21720", "Local address to host server",
+	)
+	seedAddr = flag.String(
+		"seedAddr", "", "Seed partner, or nothing to create new network",
+	)
+	flag.Parse()
+	return
 }
 
 func getPing(w http.ResponseWriter, r *http.Request) {
@@ -28,18 +31,18 @@ func getVersion(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
-	selfPort, seedPartnerAddr := getCLIArgs()
+	localAddr, seedAddr := getCLIArgs()
 
 	neighbors := make([]string, 1)
-	if seedPartnerAddr != nil {
-		neighbors[0] = *seedPartnerAddr
+	if *seedAddr != "" {
+		neighbors[0] = *seedAddr
 	}
 
 	http.HandleFunc("/ping", getPing)
 	http.HandleFunc("/version", getVersion)
 
-	fmt.Printf("Starting at 0.0.0.0:%s\n", selfPort)
-	err := http.ListenAndServe("0.0.0.0:"+selfPort, nil)
+	fmt.Printf("Starting at %s\n", *localAddr)
+	err := http.ListenAndServe(*localAddr, nil)
 
 	if errors.Is(err, http.ErrServerClosed) {
 		fmt.Println("Server closed")
