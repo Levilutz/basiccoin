@@ -4,13 +4,17 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
+	"time"
 )
 
-func RetryGetBody[R any](url string, retries int) (*R, error) {
-	var resp_body *[]byte
-	var last_err error = nil
+func RetryGetBody[R any](url string, retries int) (body *R, midTimeMicro int64, err error) {
+	var respBody *[]byte
+	var last_err error
 	for attempts := 0; attempts < retries; attempts++ {
+		sentTime := time.Now().UnixMicro()
 		resp, err := http.Get(url)
+		respTime := time.Now().UnixMicro()
+		midTimeMicro = (sentTime + respTime) / 2
 		if err != nil {
 			last_err = err
 			continue
@@ -20,16 +24,16 @@ func RetryGetBody[R any](url string, retries int) (*R, error) {
 			last_err = err
 			continue
 		}
-		resp_body = &body
+		respBody = &body
 		break
 	}
-	if resp_body == nil {
-		return nil, last_err
+	if respBody == nil {
+		return nil, 0, last_err
 	}
 	var content R
-	err := json.Unmarshal(*resp_body, &content)
+	err = json.Unmarshal(*respBody, &content)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
-	return &content, nil
+	return &content, midTimeMicro, nil
 }

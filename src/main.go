@@ -26,11 +26,7 @@ type VersionResp struct {
 }
 
 func updatePeerVersion(peers *p2p.Peers, addr string) error {
-	sentTime := time.Now().UnixMicro()
-	resp, err := utils.RetryGetBody[VersionResp]("http://"+addr+"/version", 3)
-	respTime := time.Now().UnixMicro()
-	// TODO: This is biased by json unmarshalling in RetryGetBody - do inside instead
-	midTime := (sentTime + respTime) / 2
+	resp, midTimeMicro, err := utils.RetryGetBody[VersionResp]("http://"+addr+"/version", 3)
 	if err != nil {
 		totalFailures := peers.IncrementFailures(addr)
 		if totalFailures > allowedFailures {
@@ -40,7 +36,7 @@ func updatePeerVersion(peers *p2p.Peers, addr string) error {
 	}
 	peers.Upsert(addr, &p2p.PeerData{
 		Version:         resp.Version,
-		TimeOffsetMicro: resp.CurrentTime - midTime,
+		TimeOffsetMicro: resp.CurrentTime - midTimeMicro,
 	})
 	return nil
 }
@@ -57,8 +53,12 @@ func updatePeerLoop(peers *p2p.Peers, interval int, kill <-chan bool) {
 				fmt.Println("All peers lost")
 			}
 			for _, addr := range addrs {
-				go updatePeerVersion(peers, addr)
-				peers.Print()
+				addr := addr
+				go func() {
+					updatePeerVersion(peers, addr)
+					fmt.Println("Peers:")
+					peers.Print()
+				}()
 			}
 		}
 	}
