@@ -78,8 +78,9 @@ func (pc *Peers) Print() {
 	defer pc.mu.Unlock()
 	for addr, record := range pc.peers {
 		fmt.Printf(
-			"%s\t%d\t%v\n",
+			"%s\t%d\t%d\t%v\n",
 			addr,
+			record.connectionFailures,
 			record.lastSuccessfullyUpdated.Unix(),
 			record.data,
 		)
