@@ -51,6 +51,7 @@ func (p *Peer) UpdateData(data PeerData) {
 	cTime := time.Now()
 	p.lastUpdated = cTime
 	p.lastSuccessfullyUpdated = cTime
+	p.connectionFailures = 0
 }
 
 func (p *Peer) IncrementFailures() (totalFailures int) {

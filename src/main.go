@@ -5,35 +5,10 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/levilutz/basiccoin/src/p2p"
-	"github.com/levilutz/basiccoin/src/utils"
 )
-
-type VersionResp struct {
-	Version     string `json:"version"`
-	CurrentTime int64  `json:"currentTime"`
-}
-
-func updatePeerLoop(pn *p2p.P2pNetwork, interval int, kill <-chan bool) {
-	ticker := time.NewTicker(time.Duration(interval) * time.Second)
-	for {
-		select {
-		case <-kill:
-			return
-		case <-ticker.C:
-			pn.Sync()
-			if pn.GetCount() == 0 {
-				fmt.Println("All peers lost")
-			} else {
-				fmt.Println("Peers:")
-				pn.Print()
-			}
-		}
-	}
-}
 
 func getCLIArgs() (localAddr, seedAddr *string) {
 	localAddr = flag.String(
@@ -53,7 +28,7 @@ func getPing(c *gin.Context) {
 func main() {
 	localAddr, seedAddr := getCLIArgs()
 
-	pn := p2p.NewPeers()
+	pn := p2p.NewP2pNetwork()
 
 	if *seedAddr != "" {
 		err := pn.RetryAddPeer(*seedAddr)
@@ -63,7 +38,7 @@ func main() {
 		}
 	}
 	pn.Print()
-	go updatePeerLoop(pn, utils.Constants.PollingPeriod, nil)
+	go pn.SyncLoop(true, nil)
 
 	r := gin.Default()
 	r.GET("/ping", getPing)

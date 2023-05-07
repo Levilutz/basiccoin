@@ -14,7 +14,7 @@ type P2pNetwork struct {
 	peers map[string]*Peer
 }
 
-func NewPeers() *P2pNetwork {
+func NewP2pNetwork() *P2pNetwork {
 	return &P2pNetwork{
 		peers: make(map[string]*Peer),
 	}
@@ -85,7 +85,7 @@ func (pn *P2pNetwork) RetryAddPeer(addr string) (err error) {
 		if err == nil {
 			return
 		}
-		time.Sleep(utils.Constants.InitialConnectRetryDelay * time.Second)
+		time.Sleep(utils.Constants.InitialConnectRetryDelay)
 	}
 	return err
 }
@@ -109,9 +109,25 @@ func (pn *P2pNetwork) Sync() {
 	wg.Wait()
 }
 
+func (pn *P2pNetwork) SyncLoop(print bool, kill <-chan bool) {
+	ticker := time.NewTicker(utils.Constants.PollingPeriod)
+	for {
+		select {
+		case <-kill:
+			return
+		case <-ticker.C:
+			pn.Sync()
+			if print {
+				pn.Print()
+			}
+		}
+	}
+}
+
 func (pn *P2pNetwork) Print() {
 	pn.mu.Lock()
 	defer pn.mu.Unlock()
+	fmt.Printf("Peers: %d\n", len(pn.peers))
 	for addr, peer := range pn.peers {
 		fmt.Printf(
 			"%s\t%d\t%v\n",
