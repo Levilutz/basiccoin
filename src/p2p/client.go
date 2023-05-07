@@ -3,56 +3,44 @@ package p2p
 import (
 	"fmt"
 	"sync"
-	"time"
 )
-
-type PeerData struct {
-	Version         string
-	TimeOffsetMicro int64
-}
-
-type PeerRecord struct {
-	lastSuccessfullyUpdated time.Time
-	connectionFailures      int
-	data                    *PeerData
-}
 
 type Peers struct {
 	mu    sync.Mutex
-	peers map[string]PeerRecord
+	peers map[string]*Peer
 }
 
 func NewPeers() *Peers {
 	return &Peers{
-		peers: make(map[string]PeerRecord),
+		peers: make(map[string]*Peer),
 	}
 }
 
 func (pc *Peers) Upsert(addr string, data *PeerData) {
 	pc.mu.Lock()
 	defer pc.mu.Unlock()
-	pc.peers[addr] = PeerRecord{time.Now(), 0, data}
+	if peer, ok := pc.peers[addr]; ok {
+		peer.UpdateData(data)
+	} else {
+		pc.peers[addr] = NewPeer(addr, data)
+	}
 }
 
 func (pc *Peers) IncrementFailures(addr string) (totalFailures int) {
 	pc.mu.Lock()
 	defer pc.mu.Unlock()
-	if record, ok := pc.peers[addr]; ok {
-		record.connectionFailures++
-		totalFailures = record.connectionFailures
-		pc.peers[addr] = record
+	if peer, ok := pc.peers[addr]; ok {
+		return peer.IncrementFailures()
 	} else {
-		pc.peers[addr] = PeerRecord{time.Time{}, 1, nil}
-		totalFailures = 1
+		pc.peers[addr] = NewFailedPeer(addr)
+		return 1
 	}
-	return
 }
 
-func (pc *Peers) Get(addr string) (record PeerRecord) {
+func (pc *Peers) GetData(addr string) (data PeerData, err error) {
 	pc.mu.Lock()
 	defer pc.mu.Unlock()
-	record = pc.peers[addr]
-	return
+	return pc.peers[addr].GetData()
 }
 
 func (pc *Peers) GetAddrs() (addrs []string) {
@@ -76,13 +64,19 @@ func (pc *Peers) DropPeer(addr string) {
 func (pc *Peers) Print() {
 	pc.mu.Lock()
 	defer pc.mu.Unlock()
-	for addr, record := range pc.peers {
+	for addr, peer := range pc.peers {
+		data, err := peer.GetData()
+		var dataStr string
+		if err != nil {
+			dataStr = err.Error()
+		} else {
+			dataStr = fmt.Sprintf("%v", data)
+		}
 		fmt.Printf(
-			"%s\t%d\t%d\t%v\n",
+			"%s\t%d\t%s\n",
 			addr,
-			record.connectionFailures,
-			record.lastSuccessfullyUpdated.Unix(),
-			record.data,
+			peer.GetFailures(),
+			dataStr,
 		)
 	}
 }
