@@ -13,13 +13,11 @@ type VersionResp struct {
 	CurrentTime int64  `json:"currentTime"`
 }
 
-func getVersion(c *gin.Context) {
-	c.JSON(http.StatusOK, VersionResp{
-		utils.Constants.AppVersion,
-		time.Now().UnixMicro(),
-	})
-}
-
 func Mount(r gin.IRouter) {
-	r.GET("/version", getVersion)
+	r.GET("/version", func(c *gin.Context) {
+		c.JSON(http.StatusOK, VersionResp{
+			utils.Constants.AppVersion,
+			time.Now().UnixMicro(),
+		})
+	})
 }
