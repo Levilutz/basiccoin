@@ -8,9 +8,9 @@ import (
 	"io"
 	"net/http"
 	"os"
-	"sync"
 	"time"
 
+	"github.com/levilutz/basiccoin/src/p2p"
 	"github.com/levilutz/basiccoin/src/utils"
 )
 
@@ -25,83 +25,12 @@ type VersionResp struct {
 	CurrentTime int64  `json:"currentTime"`
 }
 
-type PeerRecord struct {
-	LastSuccessfullyUpdated time.Time
-	ConnectionFailures      int
-	Version                 *VersionResp
-}
-
-type PeersContainer struct {
-	mu    sync.Mutex
-	peers map[string]PeerRecord
-}
-
-func NewPeersContainer() *PeersContainer {
-	return &PeersContainer{
-		peers: make(map[string]PeerRecord),
-	}
-}
-
-func (pc *PeersContainer) Upsert(addr string, resp *VersionResp) {
-	pc.mu.Lock()
-	defer pc.mu.Unlock()
-	pc.peers[addr] = PeerRecord{time.Now(), 0, resp}
-}
-
-func (pc *PeersContainer) IncrementFailures(addr string) (totalFailures int) {
-	pc.mu.Lock()
-	defer pc.mu.Unlock()
-	if record, ok := pc.peers[addr]; ok {
-		record.ConnectionFailures++
-		totalFailures = record.ConnectionFailures
-		pc.peers[addr] = record
-	} else {
-		pc.peers[addr] = PeerRecord{time.Time{}, 1, nil}
-		totalFailures = 1
-	}
-	return
-}
-
-func (pc *PeersContainer) Get(addr string) (record PeerRecord) {
-	pc.mu.Lock()
-	defer pc.mu.Unlock()
-	record = pc.peers[addr]
-	return
-}
-
-func (pc *PeersContainer) GetAddrs() (addrs []string) {
-	pc.mu.Lock()
-	defer pc.mu.Unlock()
-	addrs = make([]string, len(pc.peers))
-	i := 0
-	for k := range pc.peers {
-		addrs[i] = k
-		i++
-	}
-	return
-}
-
-func (pc *PeersContainer) DropPeer(addr string) {
-	pc.mu.Lock()
-	defer pc.mu.Unlock()
-	delete(pc.peers, addr)
-}
-
-func (pc *PeersContainer) Print() {
-	pc.mu.Lock()
-	defer pc.mu.Unlock()
-	for addr, record := range pc.peers {
-		fmt.Printf(
-			"%s\t%d\t%v\n",
-			addr,
-			record.LastSuccessfullyUpdated.Unix(),
-			record.Version,
-		)
-	}
-}
-
-func updatePeerVersion(peers *PeersContainer, addr string) error {
+func updatePeerVersion(peers *p2p.Peers, addr string) error {
+	sentTime := time.Now().UnixMicro()
 	resp, err := utils.RetryGetBody[VersionResp]("http://"+addr+"/version", 3)
+	respTime := time.Now().UnixMicro()
+	// TODO: This is biased by json unmarshalling in RetryGetBody - do inside instead
+	midTime := (sentTime + respTime) / 2
 	if err != nil {
 		totalFailures := peers.IncrementFailures(addr)
 		if totalFailures > allowedFailures {
@@ -109,11 +38,14 @@ func updatePeerVersion(peers *PeersContainer, addr string) error {
 		}
 		return err
 	}
-	peers.Upsert(addr, resp)
+	peers.Upsert(addr, &p2p.PeerData{
+		Version:         resp.Version,
+		TimeOffsetMicro: resp.CurrentTime - midTime,
+	})
 	return nil
 }
 
-func updatePeerLoop(peers *PeersContainer, interval int, kill <-chan bool) {
+func updatePeerLoop(peers *p2p.Peers, interval int, kill <-chan bool) {
 	ticker := time.NewTicker(time.Duration(interval) * time.Second)
 	for {
 		select {
@@ -158,7 +90,7 @@ func getVersion(w http.ResponseWriter, r *http.Request) {
 func main() {
 	localAddr, seedAddr := getCLIArgs()
 
-	peers := NewPeersContainer()
+	peers := p2p.NewPeers()
 
 	if *seedAddr != "" {
 		err := updatePeerVersion(peers, *seedAddr)
