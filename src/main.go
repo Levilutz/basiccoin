@@ -1,21 +1,18 @@
 package main
 
 import (
-	"encoding/json"
-	"errors"
 	"flag"
 	"fmt"
-	"io"
 	"net/http"
 	"os"
 	"time"
 
+	"github.com/gin-gonic/gin"
 	"github.com/levilutz/basiccoin/src/p2p"
 	"github.com/levilutz/basiccoin/src/utils"
 )
 
 const (
-	Version         = "0.1.0"
 	allowedFailures = 3
 	pollingPeriod   = 5
 )
@@ -75,16 +72,8 @@ func getCLIArgs() (localAddr, seedAddr *string) {
 	return
 }
 
-func getPing(w http.ResponseWriter, r *http.Request) {
-	io.WriteString(w, "pong")
-}
-
-func getVersion(w http.ResponseWriter, r *http.Request) {
-	b, _ := json.Marshal(VersionResp{
-		Version,
-		time.Now().UnixMicro(),
-	})
-	w.Write(b)
+func getPing(c *gin.Context) {
+	c.String(http.StatusOK, "pong")
 }
 
 func main() {
@@ -102,16 +91,11 @@ func main() {
 	peers.Print()
 	go updatePeerLoop(peers, pollingPeriod, nil)
 
-	http.HandleFunc("/ping", getPing)
-	http.HandleFunc("/version", getVersion)
+	r := gin.Default()
+	r.GET("/ping", getPing)
+	p2p.Mount(r)
 
 	fmt.Printf("Starting at %s\n", *localAddr)
-	err := http.ListenAndServe(*localAddr, nil)
-
-	if errors.Is(err, http.ErrServerClosed) {
-		fmt.Println("Server closed")
-	} else if err != nil {
-		fmt.Fprintf(os.Stderr, "error starting server: %v\n", err)
-		os.Exit(1)
-	}
+	r.SetTrustedProxies(nil)
+	r.Run(*localAddr)
 }
