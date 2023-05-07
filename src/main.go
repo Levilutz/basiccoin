@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"sync"
 	"time"
 
 	"github.com/levilutz/basiccoin/src/utils"
@@ -20,9 +21,41 @@ type VersionResp struct {
 	CurrentTime int64  `json:"currentTime"`
 }
 
-type NeighborRecord struct {
+type PeerRecord struct {
 	LastUpdated time.Time
 	Version     VersionResp
+}
+
+type PeersContainer struct {
+	mu    sync.Mutex
+	peers map[string]PeerRecord
+}
+
+func NewPeersContainer() *PeersContainer {
+	return &PeersContainer{
+		peers: make(map[string]PeerRecord),
+	}
+}
+
+func (pc *PeersContainer) Upsert(addr string, resp VersionResp) {
+	pc.mu.Lock()
+	defer pc.mu.Unlock()
+	pc.peers[addr] = PeerRecord{time.Now(), resp}
+}
+
+func (pc *PeersContainer) Get(addr string) (record PeerRecord) {
+	pc.mu.Lock()
+	defer pc.mu.Unlock()
+	record = pc.peers[addr]
+	return
+}
+
+func (pc *PeersContainer) Print() {
+	pc.mu.Lock()
+	defer pc.mu.Unlock()
+	for addr, record := range pc.peers {
+		fmt.Printf("%s\t%d\t%v\n", addr, record.LastUpdated.Unix(), record.Version)
+	}
 }
 
 func getCLIArgs() (localAddr, seedAddr *string) {
@@ -51,16 +84,17 @@ func getVersion(w http.ResponseWriter, r *http.Request) {
 func main() {
 	localAddr, seedAddr := getCLIArgs()
 
-	neighbors := make(map[string]NeighborRecord)
+	peers := NewPeersContainer()
+
 	if *seedAddr != "" {
 		resp, err := utils.RetryGetBody[VersionResp]("http://"+*seedAddr+"/version", 3)
 		if err != nil {
 			fmt.Printf("Failed to connect to seed peer: %s", err)
 			os.Exit(1)
 		}
-		neighbors[*seedAddr] = NeighborRecord{time.Now(), *resp}
+		peers.Upsert(*seedAddr, *resp)
 	}
-	fmt.Println(neighbors)
+	peers.Print()
 
 	http.HandleFunc("/ping", getPing)
 	http.HandleFunc("/version", getVersion)
