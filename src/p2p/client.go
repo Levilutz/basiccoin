@@ -1,82 +1,123 @@
 package p2p
 
 import (
+	"errors"
 	"fmt"
 	"sync"
+	"time"
+
+	"github.com/levilutz/basiccoin/src/utils"
 )
 
-type Peers struct {
+type P2pNetwork struct {
 	mu    sync.Mutex
 	peers map[string]*Peer
 }
 
-func NewPeers() *Peers {
-	return &Peers{
+func NewPeers() *P2pNetwork {
+	return &P2pNetwork{
 		peers: make(map[string]*Peer),
 	}
 }
 
-func (pc *Peers) Upsert(addr string, data *PeerData) {
-	pc.mu.Lock()
-	defer pc.mu.Unlock()
-	if peer, ok := pc.peers[addr]; ok {
+func (pn *P2pNetwork) Upsert(addr string, data PeerData) {
+	pn.mu.Lock()
+	defer pn.mu.Unlock()
+	if peer, ok := pn.peers[addr]; ok {
 		peer.UpdateData(data)
 	} else {
-		pc.peers[addr] = NewPeer(addr, data)
+		pn.peers[addr] = NewPeer(addr, data)
 	}
 }
 
-func (pc *Peers) IncrementFailures(addr string) (totalFailures int) {
-	pc.mu.Lock()
-	defer pc.mu.Unlock()
-	if peer, ok := pc.peers[addr]; ok {
-		return peer.IncrementFailures()
+func (pn *P2pNetwork) IncrementFailures(addr string) (totalFailures int, err error) {
+	pn.mu.Lock()
+	defer pn.mu.Unlock()
+	if peer, ok := pn.peers[addr]; ok {
+		return peer.IncrementFailures(), nil
 	} else {
-		pc.peers[addr] = NewFailedPeer(addr)
-		return 1
+		return 0, errors.New("No peer: " + addr)
 	}
 }
 
-func (pc *Peers) GetData(addr string) (data PeerData, err error) {
-	pc.mu.Lock()
-	defer pc.mu.Unlock()
-	return pc.peers[addr].GetData()
+func (pn *P2pNetwork) GetData(addr string) (data PeerData) {
+	pn.mu.Lock()
+	defer pn.mu.Unlock()
+	return pn.peers[addr].GetData()
 }
 
-func (pc *Peers) GetAddrs() (addrs []string) {
-	pc.mu.Lock()
-	defer pc.mu.Unlock()
-	addrs = make([]string, len(pc.peers))
+func (pn *P2pNetwork) GetCount() int {
+	return len(pn.peers)
+}
+
+func (pn *P2pNetwork) GetAddrs() (addrs []string) {
+	pn.mu.Lock()
+	defer pn.mu.Unlock()
+	addrs = make([]string, len(pn.peers))
 	i := 0
-	for k := range pc.peers {
+	for k := range pn.peers {
 		addrs[i] = k
 		i++
 	}
 	return
 }
 
-func (pc *Peers) DropPeer(addr string) {
-	pc.mu.Lock()
-	defer pc.mu.Unlock()
-	delete(pc.peers, addr)
+func (pn *P2pNetwork) DropPeer(addr string) {
+	pn.mu.Lock()
+	defer pn.mu.Unlock()
+	delete(pn.peers, addr)
 }
 
-func (pc *Peers) Print() {
-	pc.mu.Lock()
-	defer pc.mu.Unlock()
-	for addr, peer := range pc.peers {
-		data, err := peer.GetData()
-		var dataStr string
-		if err != nil {
-			dataStr = err.Error()
-		} else {
-			dataStr = fmt.Sprintf("%v", data)
+func (pn *P2pNetwork) AddPeer(addr string) error {
+	peer, err := DiscoverNewPeer(addr)
+	if err != nil {
+		return err
+	}
+	pn.mu.Lock()
+	defer pn.mu.Unlock()
+	pn.peers[addr] = peer
+	return nil
+}
+
+func (pn *P2pNetwork) RetryAddPeer(addr string) (err error) {
+	for i := 0; i < utils.Constants.AllowedFailures; i++ {
+		err = pn.AddPeer(addr)
+		if err == nil {
+			return
 		}
+		time.Sleep(utils.Constants.InitialConnectRetryDelay * time.Second)
+	}
+	return err
+}
+
+func (pn *P2pNetwork) Sync() {
+	pn.mu.Lock()
+	defer pn.mu.Unlock()
+	var wg sync.WaitGroup
+	for addr, peer := range pn.peers {
+		addr := addr
+		peer := peer
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			peer.Sync()
+			if peer.GetFailures() > utils.Constants.AllowedFailures {
+				delete(pn.peers, addr)
+			}
+		}()
+	}
+	wg.Wait()
+}
+
+func (pn *P2pNetwork) Print() {
+	pn.mu.Lock()
+	defer pn.mu.Unlock()
+	for addr, peer := range pn.peers {
 		fmt.Printf(
-			"%s\t%d\t%s\n",
+			"%s\t%d\t%v\n",
 			addr,
 			peer.GetFailures(),
-			dataStr,
+			peer.GetData(),
 		)
 	}
 }

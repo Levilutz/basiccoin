@@ -1,8 +1,9 @@
 package p2p
 
 import (
-	"errors"
 	"time"
+
+	"github.com/levilutz/basiccoin/src/utils"
 )
 
 type PeerData struct {
@@ -15,10 +16,10 @@ type Peer struct {
 	lastUpdated             time.Time
 	lastSuccessfullyUpdated time.Time
 	connectionFailures      int
-	data                    *PeerData
+	data                    PeerData
 }
 
-func NewPeer(addr string, data *PeerData) *Peer {
+func NewPeer(addr string, data PeerData) *Peer {
 	cTime := time.Now()
 	return &Peer{
 		addr:                    addr,
@@ -29,28 +30,23 @@ func NewPeer(addr string, data *PeerData) *Peer {
 	}
 }
 
-func NewFailedPeer(addr string) *Peer {
-	return &Peer{
-		addr:                    addr,
-		lastUpdated:             time.Now(),
-		lastSuccessfullyUpdated: time.Time{},
-		connectionFailures:      1,
-		data:                    nil,
+func DiscoverNewPeer(addr string) (peer *Peer, err error) {
+	data, err := getPeerData(addr)
+	if err != nil {
+		return nil, err
 	}
+	return NewPeer(addr, data), nil
 }
 
-func (p *Peer) GetData() (data PeerData, err error) {
-	if p.data == nil {
-		return PeerData{}, errors.New("Peer has no data")
-	}
-	return *p.data, nil
+func (p *Peer) GetData() (data PeerData) {
+	return p.data
 }
 
 func (p *Peer) GetFailures() (totalFailures int) {
 	return p.connectionFailures
 }
 
-func (p *Peer) UpdateData(data *PeerData) {
+func (p *Peer) UpdateData(data PeerData) {
 	p.data = data
 	cTime := time.Now()
 	p.lastUpdated = cTime
@@ -61,4 +57,27 @@ func (p *Peer) IncrementFailures() (totalFailures int) {
 	p.connectionFailures++
 	p.lastUpdated = time.Now()
 	return p.connectionFailures
+}
+
+func (p *Peer) Sync() (err error) {
+	data, err := getPeerData(p.addr)
+	if err != nil {
+		p.IncrementFailures()
+		return err
+	}
+	p.UpdateData(data)
+	return nil
+}
+
+func getPeerData(addr string) (data PeerData, err error) {
+	resp, midTimeMicro, err := utils.RetryGetBody[VersionResp](
+		"http://"+addr+"/version", 3,
+	)
+	if err != nil {
+		return PeerData{}, err
+	}
+	return PeerData{
+		Version:         resp.Version,
+		TimeOffsetMicro: resp.CurrentTime - midTimeMicro,
+	}, nil
 }
