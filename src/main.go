@@ -14,7 +14,11 @@ import (
 	"github.com/levilutz/basiccoin/src/utils"
 )
 
-const Version = "0.1.0"
+const (
+	Version         = "0.1.0"
+	allowedFailures = 3
+	pollingPeriod   = 5
+)
 
 type VersionResp struct {
 	Version     string `json:"version"`
@@ -22,8 +26,9 @@ type VersionResp struct {
 }
 
 type PeerRecord struct {
-	LastUpdated time.Time
-	Version     VersionResp
+	LastSuccessfullyUpdated time.Time
+	ConnectionFailures      int
+	Version                 *VersionResp
 }
 
 type PeersContainer struct {
@@ -37,10 +42,24 @@ func NewPeersContainer() *PeersContainer {
 	}
 }
 
-func (pc *PeersContainer) Upsert(addr string, resp VersionResp) {
+func (pc *PeersContainer) Upsert(addr string, resp *VersionResp) {
 	pc.mu.Lock()
 	defer pc.mu.Unlock()
-	pc.peers[addr] = PeerRecord{time.Now(), resp}
+	pc.peers[addr] = PeerRecord{time.Now(), 0, resp}
+}
+
+func (pc *PeersContainer) IncrementFailures(addr string) (totalFailures int) {
+	pc.mu.Lock()
+	defer pc.mu.Unlock()
+	if record, ok := pc.peers[addr]; ok {
+		record.ConnectionFailures++
+		totalFailures = record.ConnectionFailures
+		pc.peers[addr] = record
+	} else {
+		pc.peers[addr] = PeerRecord{time.Time{}, 1, nil}
+		totalFailures = 1
+	}
+	return
 }
 
 func (pc *PeersContainer) Get(addr string) (record PeerRecord) {
@@ -62,20 +81,35 @@ func (pc *PeersContainer) GetAddrs() (addrs []string) {
 	return
 }
 
+func (pc *PeersContainer) DropPeer(addr string) {
+	pc.mu.Lock()
+	defer pc.mu.Unlock()
+	delete(pc.peers, addr)
+}
+
 func (pc *PeersContainer) Print() {
 	pc.mu.Lock()
 	defer pc.mu.Unlock()
 	for addr, record := range pc.peers {
-		fmt.Printf("%s\t%d\t%v\n", addr, record.LastUpdated.Unix(), record.Version)
+		fmt.Printf(
+			"%s\t%d\t%v\n",
+			addr,
+			record.LastSuccessfullyUpdated.Unix(),
+			record.Version,
+		)
 	}
 }
 
 func updatePeerVersion(peers *PeersContainer, addr string) error {
 	resp, err := utils.RetryGetBody[VersionResp]("http://"+addr+"/version", 3)
 	if err != nil {
+		totalFailures := peers.IncrementFailures(addr)
+		if totalFailures > allowedFailures {
+			peers.DropPeer(addr)
+		}
 		return err
 	}
-	peers.Upsert(addr, *resp)
+	peers.Upsert(addr, resp)
 	return nil
 }
 
@@ -87,8 +121,12 @@ func updatePeerLoop(peers *PeersContainer, interval int, kill <-chan bool) {
 			return
 		case <-ticker.C:
 			addrs := peers.GetAddrs()
+			if len(addrs) == 0 {
+				fmt.Println("All peers lost")
+			}
 			for _, addr := range addrs {
 				go updatePeerVersion(peers, addr)
+				peers.Print()
 			}
 		}
 	}
@@ -130,7 +168,7 @@ func main() {
 		}
 	}
 	peers.Print()
-	go updatePeerLoop(peers, 15, nil)
+	go updatePeerLoop(peers, pollingPeriod, nil)
 
 	http.HandleFunc("/ping", getPing)
 	http.HandleFunc("/version", getVersion)
