@@ -61,8 +61,8 @@ func PostBody(url string, body any) error {
 	return nil
 }
 
-func GetOutboundIP() (string, error) {
-	cfAddr, err := net.ResolveTCPAddr("tcp", "1.1.1.1:80")
+func GetOutboundIP(dest string) (string, error) {
+	cfAddr, err := net.ResolveTCPAddr("tcp", dest)
 	if err != nil {
 		return "", err
 	}
