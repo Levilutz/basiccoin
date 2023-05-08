@@ -1,6 +1,7 @@
 package p2p
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/levilutz/basiccoin/src/utils"
@@ -34,6 +35,13 @@ func DiscoverNewPeer(addr string) (peer *Peer, err error) {
 	data, err := getPeerData(addr)
 	if err != nil {
 		return nil, err
+	}
+	err = utils.PostBody(
+		"http://"+addr+"/hello",
+		HelloReq{Addr: utils.Constants.LocalAddr},
+	)
+	if err != nil {
+		fmt.Printf("Failed to hello %s: %s\n", addr, err.Error())
 	}
 	return NewPeer(addr, data), nil
 }

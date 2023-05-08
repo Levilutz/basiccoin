@@ -46,6 +46,13 @@ func (pn *P2pNetwork) GetData(addr string) (data PeerData) {
 	return pn.peers[addr].GetData()
 }
 
+func (pn *P2pNetwork) HasPeer(addr string) bool {
+	pn.mu.Lock()
+	defer pn.mu.Unlock()
+	_, ok := pn.peers[addr]
+	return ok
+}
+
 func (pn *P2pNetwork) GetCount() int {
 	return len(pn.peers)
 }

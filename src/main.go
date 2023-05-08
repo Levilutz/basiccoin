@@ -8,6 +8,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/levilutz/basiccoin/src/p2p"
+	"github.com/levilutz/basiccoin/src/utils"
 )
 
 func getCLIArgs() (localAddr, seedAddr *string) {
@@ -27,6 +28,7 @@ func getPing(c *gin.Context) {
 
 func main() {
 	localAddr, seedAddr := getCLIArgs()
+	utils.Constants.LocalAddr = *localAddr
 
 	pn := p2p.NewP2pNetwork()
 
@@ -42,7 +44,7 @@ func main() {
 
 	r := gin.Default()
 	r.GET("/ping", getPing)
-	p2p.Mount(r)
+	p2p.Mount(r, pn)
 
 	fmt.Printf("Starting at %s\n", *localAddr)
 	r.SetTrustedProxies(nil)
