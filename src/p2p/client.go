@@ -54,6 +54,8 @@ func (pn *P2pNetwork) HasPeer(addr string) bool {
 }
 
 func (pn *P2pNetwork) GetCount() int {
+	pn.mu.Lock()
+	defer pn.mu.Unlock()
 	return len(pn.peers)
 }
 
@@ -69,26 +71,47 @@ func (pn *P2pNetwork) GetAddrs() (addrs []string) {
 	return
 }
 
+func (pn *P2pNetwork) GetPeersCopy() map[string]Peer {
+	pn.mu.Lock()
+	defer pn.mu.Unlock()
+	copiedPeers := make(map[string]Peer, len(pn.peers))
+	for addr, peer := range pn.peers {
+		copiedPeers[addr] = *peer
+	}
+	return copiedPeers
+}
+
 func (pn *P2pNetwork) DropPeer(addr string) {
 	pn.mu.Lock()
 	defer pn.mu.Unlock()
 	delete(pn.peers, addr)
 }
 
-func (pn *P2pNetwork) AddPeer(addr string) error {
-	peer, err := DiscoverNewPeer(addr)
+func (pn *P2pNetwork) AddPeer(addr string, shouldHello bool) error {
+	if addr == utils.Constants.LocalAddr {
+		return errors.New("cannot add self as peer")
+	}
+	if pn.HasPeer(addr) {
+		return errors.New("cannot add known peer")
+	}
+	peer, err := DiscoverNewPeer(addr, shouldHello)
 	if err != nil {
 		return err
 	}
 	pn.mu.Lock()
 	defer pn.mu.Unlock()
+	// Re-check that peer wasn't found
+	if _, ok := pn.peers[addr]; ok {
+		return errors.New("cannot add known peer")
+	}
 	pn.peers[addr] = peer
+	fmt.Println("added peer: " + addr)
 	return nil
 }
 
-func (pn *P2pNetwork) RetryAddPeer(addr string) (err error) {
+func (pn *P2pNetwork) RetryAddPeer(addr string, shouldHello bool) (err error) {
 	for i := 0; i < utils.Constants.AllowedFailures; i++ {
-		err = pn.AddPeer(addr)
+		err = pn.AddPeer(addr, shouldHello)
 		if err == nil {
 			return
 		}
@@ -116,6 +139,59 @@ func (pn *P2pNetwork) Sync() {
 	wg.Wait()
 }
 
+func (pn *P2pNetwork) GetSecondDegree() []string {
+	peersCopy := pn.GetPeersCopy()
+	// Trigger each peer to get their peers
+	results := make(chan string)
+	var wg sync.WaitGroup
+	for _, peer := range peersCopy {
+		peer := peer
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			addrs, err := peer.GetTheirPeers()
+			if err != nil {
+				return
+			}
+			for _, peerAddr := range addrs {
+				results <- peerAddr
+			}
+		}()
+	}
+	// Collect results from each peer's goroutine
+	candidates := make([]string, 0)
+	kill := make(chan bool)
+	go func() {
+		for {
+			select {
+			case <-results:
+				peerAddr := <-results
+				candidates = append(candidates, peerAddr)
+			case <-kill:
+				return
+			}
+		}
+	}()
+	wg.Wait()
+	kill <- true
+	// Filter for those addrs we don't already have
+	actual_results := make([]string, 0)
+	for _, addr := range candidates {
+		if _, ok := peersCopy[addr]; !ok {
+			actual_results = append(actual_results, addr)
+		}
+	}
+	return actual_results
+}
+
+func (pn *P2pNetwork) Expand() {
+	addrs := pn.GetSecondDegree()
+	// TODO remove duplicates
+	for _, addr := range addrs {
+		go pn.RetryAddPeer(addr, true)
+	}
+}
+
 func (pn *P2pNetwork) SyncLoop(print bool, kill <-chan bool) {
 	ticker := time.NewTicker(utils.Constants.PollingPeriod)
 	for {
@@ -127,6 +203,9 @@ func (pn *P2pNetwork) SyncLoop(print bool, kill <-chan bool) {
 			if print {
 				pn.Print()
 			}
+			if pn.GetCount() < utils.Constants.DesiredPeers {
+				go pn.Expand()
+			}
 		}
 	}
 }
@@ -137,7 +216,7 @@ func (pn *P2pNetwork) Print() {
 	fmt.Printf("Peers: %d\n", len(pn.peers))
 	for addr, peer := range pn.peers {
 		fmt.Printf(
-			"%s\t%d\t%v\n",
+			"| %s\t%d\t%v\n",
 			addr,
 			peer.GetFailures(),
 			peer.GetData(),

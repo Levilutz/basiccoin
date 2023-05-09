@@ -8,3 +8,7 @@ type VersionResp struct {
 type HelloReq struct {
 	Addr string `json:"addr"`
 }
+
+type PeersResp struct {
+	Addrs []string `json:"addrs"`
+}

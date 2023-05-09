@@ -28,11 +28,18 @@ func Mount(r gin.IRouter, pn *P2pNetwork) {
 			return
 		}
 		go func() {
-			err := pn.RetryAddPeer(json.Addr)
+			err := pn.RetryAddPeer(json.Addr, false)
 			if err != nil {
 				fmt.Printf("Failed to add peer %s: %s", json.Addr, err.Error())
 			}
 		}()
 		c.Status(200)
+	})
+
+	r.GET("/peers", func(c *gin.Context) {
+		peers := pn.GetAddrs()
+		c.JSON(http.StatusOK, PeersResp{
+			Addrs: peers,
+		})
 	})
 }

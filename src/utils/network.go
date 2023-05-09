@@ -15,7 +15,8 @@ func RetryGetBody[R any](url string, retries int) (body *R, midTimeMicro int64, 
 	var last_err error
 	for attempts := 0; attempts < retries; attempts++ {
 		sentTime := time.Now().UnixMicro()
-		resp, err := http.Get(url)
+		client := http.Client{Timeout: time.Duration(5) * time.Second}
+		resp, err := client.Get(url)
 		respTime := time.Now().UnixMicro()
 		midTimeMicro = (sentTime + respTime) / 2
 		if err != nil {

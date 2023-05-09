@@ -4,8 +4,7 @@ services:
     build: .
     command:
       - "/basiccoin"
-      - "21720"
-      - "basiccoin2:21720"
+      - "--localAddr=basiccoin1:21720"
     ports:
       - 21720:21720
 
@@ -13,5 +12,19 @@ services:
     build: .
     command:
       - "/basiccoin"
-      - "21720"
-      - "basiccoin1:21720"
+      - "--localAddr=basiccoin2:21720"
+      - "--seedAddr=basiccoin1:21720"
+
+  basiccoin3:
+    build: .
+    command:
+      - "/basiccoin"
+      - "--localAddr=basiccoin3:21720"
+      - "--seedAddr=basiccoin1:21720"
+
+  basiccoin4:
+    build: .
+    command:
+      - "/basiccoin"
+      - "--localAddr=basiccoin4:21720"
+      - "--seedAddr=basiccoin1:21720"

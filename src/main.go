@@ -33,7 +33,7 @@ func main() {
 	pn := p2p.NewP2pNetwork()
 
 	if *seedAddr != "" {
-		err := pn.RetryAddPeer(*seedAddr)
+		err := pn.RetryAddPeer(*seedAddr, true)
 		if err != nil {
 			fmt.Printf("Failed to connect to seed peer: %s", err)
 			os.Exit(1)
@@ -42,6 +42,7 @@ func main() {
 	pn.Print()
 	go pn.SyncLoop(true, nil)
 
+	gin.SetMode(gin.ReleaseMode)
 	r := gin.Default()
 	r.GET("/ping", getPing)
 	p2p.Mount(r, pn)

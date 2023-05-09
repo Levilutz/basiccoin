@@ -31,17 +31,19 @@ func NewPeer(addr string, data PeerData) *Peer {
 	}
 }
 
-func DiscoverNewPeer(addr string) (peer *Peer, err error) {
+func DiscoverNewPeer(addr string, shouldHello bool) (peer *Peer, err error) {
 	data, err := getPeerData(addr)
 	if err != nil {
 		return nil, err
 	}
-	err = utils.PostBody(
-		"http://"+addr+"/hello",
-		HelloReq{Addr: utils.Constants.LocalAddr},
-	)
-	if err != nil {
-		fmt.Printf("Failed to hello %s: %s\n", addr, err.Error())
+	if shouldHello {
+		err = utils.PostBody(
+			"http://"+addr+"/hello",
+			HelloReq{Addr: utils.Constants.LocalAddr},
+		)
+		if err != nil {
+			fmt.Printf("Failed to hello %s: %s\n", addr, err.Error())
+		}
 	}
 	return NewPeer(addr, data), nil
 }
@@ -66,6 +68,14 @@ func (p *Peer) IncrementFailures() (totalFailures int) {
 	p.connectionFailures++
 	p.lastUpdated = time.Now()
 	return p.connectionFailures
+}
+
+func (p *Peer) GetTheirPeers() (addrs []string, err error) {
+	resp, _, err := utils.RetryGetBody[PeersResp]("http://"+p.addr+"/peers", 3)
+	if err != nil {
+		return nil, err
+	}
+	return resp.Addrs, nil
 }
 
 func (p *Peer) Sync() (err error) {
