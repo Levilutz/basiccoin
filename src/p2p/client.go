@@ -71,6 +71,20 @@ func (pn *P2pNetwork) GetAddrs() (addrs []string) {
 	return
 }
 
+func (pn *P2pNetwork) GetAddrsIds() (addrsIds []AddrIdPair) {
+	pn.mu.Lock()
+	defer pn.mu.Unlock()
+	addrsIds = make([]AddrIdPair, len(pn.peers))
+	i := 0
+	for addr, peer := range pn.peers {
+		addrsIds[i] = AddrIdPair{
+			Addr:      addr,
+			RuntimeID: peer.GetData().RuntimeID,
+		}
+	}
+	return
+}
+
 func (pn *P2pNetwork) GetPeersCopy() map[string]Peer {
 	pn.mu.Lock()
 	defer pn.mu.Unlock()
@@ -139,7 +153,7 @@ func (pn *P2pNetwork) Sync() {
 func (pn *P2pNetwork) GetSecondDegree() []string {
 	peersCopy := pn.GetPeersCopy()
 	// Trigger each peer to get their peers
-	results := make(chan string)
+	results := make(chan AddrIdPair)
 	var wg sync.WaitGroup
 	for _, peer := range peersCopy {
 		peer := peer
@@ -150,20 +164,19 @@ func (pn *P2pNetwork) GetSecondDegree() []string {
 			if err != nil {
 				return
 			}
-			for _, peerAddr := range addrs {
-				results <- peerAddr
+			for _, theirPeer := range addrs {
+				results <- theirPeer
 			}
 		}()
 	}
 	// Collect results from each peer's goroutine
-	candidates := make([]string, 0)
+	candidates := make([]AddrIdPair, 0)
 	kill := make(chan bool)
 	go func() {
 		for {
 			select {
-			case <-results:
-				peerAddr := <-results
-				candidates = append(candidates, peerAddr)
+			case theirPeer := <-results:
+				candidates = append(candidates, theirPeer)
 			case <-kill:
 				return
 			}
@@ -173,10 +186,14 @@ func (pn *P2pNetwork) GetSecondDegree() []string {
 	kill <- true
 	// Filter for those addrs we don't already have
 	result_set := make(map[string]struct{})
-	for _, addr := range candidates {
-		if _, ok := peersCopy[addr]; ok {
-			result_set[addr] = struct{}{}
+	for _, theirPeer := range candidates {
+		if _, ok := peersCopy[theirPeer.Addr]; ok {
+			continue // Peer known
 		}
+		if theirPeer.RuntimeID == utils.Constants.RuntimeID {
+			continue // Peer is us
+		}
+		result_set[theirPeer.Addr] = struct{}{}
 	}
 	actual_results := make([]string, len(result_set))
 	for addr := range result_set {
@@ -186,10 +203,11 @@ func (pn *P2pNetwork) GetSecondDegree() []string {
 }
 
 func (pn *P2pNetwork) Expand() {
+	fmt.Println("seeking new peers...")
 	addrs := pn.GetSecondDegree()
-	fmt.Printf("found %d potential new peers\n", len(addrs))
+	fmt.Printf("found %d potential new peers %v\n", len(addrs), addrs)
 	for _, addr := range addrs {
-		go pn.RetryAddPeer(addr, true)
+		go pn.AddPeer(addr, true)
 	}
 }
 

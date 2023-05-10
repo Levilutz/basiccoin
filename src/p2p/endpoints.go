@@ -38,9 +38,9 @@ func Mount(r gin.IRouter, pn *P2pNetwork) {
 	})
 
 	r.GET("/peers", func(c *gin.Context) {
-		peers := pn.GetAddrs()
+		peers := pn.GetAddrsIds()
 		c.JSON(http.StatusOK, PeersResp{
-			Addrs: peers,
+			Peers: peers,
 		})
 	})
 }

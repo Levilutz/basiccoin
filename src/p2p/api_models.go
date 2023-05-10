@@ -10,6 +10,11 @@ type HelloReq struct {
 	Addr string `json:"addr"`
 }
 
+type AddrIdPair struct {
+	Addr      string `json:"addr"`
+	RuntimeID string `json:"runtimeID"`
+}
+
 type PeersResp struct {
-	Addrs []string `json:"addrs"`
+	Peers []AddrIdPair `json:"peers"`
 }

@@ -76,12 +76,12 @@ func (p *Peer) IncrementFailures() (totalFailures int) {
 	return p.connectionFailures
 }
 
-func (p *Peer) GetTheirPeers() (addrs []string, err error) {
+func (p *Peer) GetTheirPeers() (peers []AddrIdPair, err error) {
 	resp, _, err := utils.RetryGetBody[PeersResp]("http://"+p.addr+"/peers", 3)
 	if err != nil {
 		return nil, err
 	}
-	return resp.Addrs, nil
+	return resp.Peers, nil
 }
 
 func (p *Peer) Sync() (err error) {
