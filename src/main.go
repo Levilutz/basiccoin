@@ -40,7 +40,7 @@ func main() {
 		}
 	}
 	pn.Print()
-	go pn.SyncLoop(true, nil)
+	go pn.SyncLoop(false, nil)
 
 	gin.SetMode(gin.ReleaseMode)
 	r := gin.Default()

@@ -1,7 +1,11 @@
 version: "3.9"
 services:
-  node1:
+  baseimage:
     build: .
+    image: basiccoin:latest
+
+  node1:
+    image: basiccoin:latest
     command:
       - "/basiccoin"
       - "--localAddr=node1:21720"
@@ -9,21 +13,21 @@ services:
       - 21720:21720
 
   node2:
-    build: .
+    image: basiccoin:latest
     command:
       - "/basiccoin"
       - "--localAddr=node2:21720"
       - "--seedAddr=node1:21720"
 
   node3:
-    build: .
+    image: basiccoin:latest
     command:
       - "/basiccoin"
       - "--localAddr=node3:21720"
       - "--seedAddr=node1:21720"
 
   node4:
-    build: .
+    image: basiccoin:latest
     command:
       - "/basiccoin"
       - "--localAddr=node4:21720"
