@@ -81,6 +81,7 @@ func (pn *P2pNetwork) GetAddrsIds() (addrsIds []AddrIdPair) {
 			Addr:      addr,
 			RuntimeID: peer.GetData().RuntimeID,
 		}
+		i++
 	}
 	return
 }
@@ -205,7 +206,6 @@ func (pn *P2pNetwork) GetSecondDegree() []string {
 func (pn *P2pNetwork) Expand() {
 	fmt.Println("seeking new peers...")
 	addrs := pn.GetSecondDegree()
-	fmt.Printf("found %d potential new peers %v\n", len(addrs), addrs)
 	for _, addr := range addrs {
 		go pn.AddPeer(addr, true)
 	}
