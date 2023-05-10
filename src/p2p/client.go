@@ -36,7 +36,7 @@ func (pn *P2pNetwork) IncrementFailures(addr string) (totalFailures int, err err
 	if peer, ok := pn.peers[addr]; ok {
 		return peer.IncrementFailures(), nil
 	} else {
-		return 0, errors.New("No peer: " + addr)
+		return 0, errors.New("no peer: " + addr)
 	}
 }
 
@@ -172,18 +172,22 @@ func (pn *P2pNetwork) GetSecondDegree() []string {
 	wg.Wait()
 	kill <- true
 	// Filter for those addrs we don't already have
-	actual_results := make([]string, 0)
+	result_set := make(map[string]struct{})
 	for _, addr := range candidates {
-		if _, ok := peersCopy[addr]; !ok {
-			actual_results = append(actual_results, addr)
+		if _, ok := peersCopy[addr]; ok {
+			result_set[addr] = struct{}{}
 		}
+	}
+	actual_results := make([]string, len(result_set))
+	for addr := range result_set {
+		actual_results = append(actual_results, addr)
 	}
 	return actual_results
 }
 
 func (pn *P2pNetwork) Expand() {
 	addrs := pn.GetSecondDegree()
-	// TODO remove duplicates
+	fmt.Printf("found %d potential new peers\n", len(addrs))
 	for _, addr := range addrs {
 		go pn.RetryAddPeer(addr, true)
 	}
@@ -210,7 +214,7 @@ func (pn *P2pNetwork) SyncLoop(print bool, kill <-chan bool) {
 func (pn *P2pNetwork) Print() {
 	pn.mu.Lock()
 	defer pn.mu.Unlock()
-	fmt.Printf("Peers: %d\n", len(pn.peers))
+	fmt.Printf("peers: %d\n", len(pn.peers))
 	for addr, peer := range pn.peers {
 		fmt.Printf(
 			"| %s\t%d\t%v\n",

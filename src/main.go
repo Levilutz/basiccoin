@@ -35,7 +35,7 @@ func main() {
 	if *seedAddr != "" {
 		err := pn.RetryAddPeer(*seedAddr, true)
 		if err != nil {
-			fmt.Printf("Failed to connect to seed peer: %s", err)
+			fmt.Printf("failed to connect to seed peer: %s", err)
 			os.Exit(1)
 		}
 	}
@@ -47,7 +47,7 @@ func main() {
 	r.GET("/ping", getPing)
 	p2p.Mount(r, pn)
 
-	fmt.Printf("Starting at %s\n", *localAddr)
+	fmt.Printf("starting at %s\n", *localAddr)
 	r.SetTrustedProxies(nil)
 	r.Run(*localAddr)
 }

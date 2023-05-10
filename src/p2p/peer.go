@@ -48,7 +48,7 @@ func DiscoverNewPeer(addr string, shouldHello bool) (peer *Peer, err error) {
 			HelloReq{Addr: utils.Constants.LocalAddr},
 		)
 		if err != nil {
-			fmt.Printf("Failed to hello %s: %s\n", addr, err.Error())
+			fmt.Printf("failed to hello %s: %s\n", addr, err.Error())
 		}
 	}
 	return NewPeer(addr, data), nil

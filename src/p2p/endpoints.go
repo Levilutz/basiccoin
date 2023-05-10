@@ -31,7 +31,7 @@ func Mount(r gin.IRouter, pn *P2pNetwork) {
 		go func() {
 			err := pn.RetryAddPeer(json.Addr, false)
 			if err != nil {
-				fmt.Printf("Failed to add peer %s: %s", json.Addr, err.Error())
+				fmt.Printf("failed to add peer %s: %s", json.Addr, err.Error())
 			}
 		}()
 		c.Status(200)
