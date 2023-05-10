@@ -1,6 +1,10 @@
 package utils
 
-import "time"
+import (
+	"time"
+
+	"github.com/google/uuid"
+)
 
 type ConstantsType struct {
 	AllowedFailures          int
@@ -9,6 +13,7 @@ type ConstantsType struct {
 	InitialConnectRetryDelay time.Duration
 	LocalAddr                string
 	PollingPeriod            time.Duration
+	RuntimeID                string
 }
 
 var Constants = ConstantsType{
@@ -18,4 +23,5 @@ var Constants = ConstantsType{
 	InitialConnectRetryDelay: time.Duration(15) * time.Second,
 	LocalAddr:                "", // Must initialize
 	PollingPeriod:            time.Duration(5) * time.Second,
+	RuntimeID:                uuid.New().String(),
 }

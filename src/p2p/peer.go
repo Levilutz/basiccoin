@@ -1,6 +1,7 @@
 package p2p
 
 import (
+	"errors"
 	"fmt"
 	"time"
 
@@ -8,6 +9,7 @@ import (
 )
 
 type PeerData struct {
+	RuntimeID       string
 	Version         string
 	TimeOffsetMicro int64
 }
@@ -35,6 +37,10 @@ func DiscoverNewPeer(addr string, shouldHello bool) (peer *Peer, err error) {
 	data, err := getPeerData(addr)
 	if err != nil {
 		return nil, err
+	}
+	if data.RuntimeID == utils.Constants.RuntimeID ||
+		addr == utils.Constants.LocalAddr {
+		return nil, errors.New("cannot add self as peer")
 	}
 	if shouldHello {
 		err = utils.PostBody(
@@ -96,6 +102,7 @@ func getPeerData(addr string) (data PeerData, err error) {
 		return PeerData{}, err
 	}
 	return PeerData{
+		RuntimeID:       resp.RuntimeID,
 		Version:         resp.Version,
 		TimeOffsetMicro: resp.CurrentTime - midTimeMicro,
 	}, nil

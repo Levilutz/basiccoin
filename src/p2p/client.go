@@ -88,9 +88,6 @@ func (pn *P2pNetwork) DropPeer(addr string) {
 }
 
 func (pn *P2pNetwork) AddPeer(addr string, shouldHello bool) error {
-	if addr == utils.Constants.LocalAddr {
-		return errors.New("cannot add self as peer")
-	}
 	if pn.HasPeer(addr) {
 		return errors.New("cannot add known peer")
 	}

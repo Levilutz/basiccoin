@@ -14,6 +14,7 @@ func Mount(r gin.IRouter, pn *P2pNetwork) {
 		c.JSON(http.StatusOK, VersionResp{
 			utils.Constants.AppVersion,
 			time.Now().UnixMicro(),
+			utils.Constants.RuntimeID,
 		})
 	})
 
