@@ -33,7 +33,7 @@ func NewPeer(addr string, data PeerData) *Peer {
 	}
 }
 
-func DiscoverNewPeer(addr string, shouldHello bool) (peer *Peer, err error) {
+func DiscoverNewPeer(addr string, areWeInitiator bool) (peer *Peer, err error) {
 	data, err := getPeerData(addr)
 	if err != nil {
 		return nil, err
@@ -42,7 +42,7 @@ func DiscoverNewPeer(addr string, shouldHello bool) (peer *Peer, err error) {
 		addr == utils.Constants.LocalAddr {
 		return nil, errors.New("cannot add self as peer")
 	}
-	if shouldHello {
+	if areWeInitiator {
 		err = utils.PostBody(
 			"http://"+addr+"/hello",
 			HelloReq{Addr: utils.Constants.LocalAddr},

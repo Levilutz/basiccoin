@@ -102,11 +102,11 @@ func (pn *P2pNetwork) DropPeer(addr string) {
 	delete(pn.peers, addr)
 }
 
-func (pn *P2pNetwork) AddPeer(addr string, shouldHello bool) error {
+func (pn *P2pNetwork) AddPeer(addr string, areWeInitiator bool) error {
 	if pn.HasPeer(addr) {
 		return errors.New("cannot add known peer")
 	}
-	peer, err := DiscoverNewPeer(addr, shouldHello)
+	peer, err := DiscoverNewPeer(addr, areWeInitiator)
 	if err != nil {
 		return err
 	}
@@ -121,9 +121,9 @@ func (pn *P2pNetwork) AddPeer(addr string, shouldHello bool) error {
 	return nil
 }
 
-func (pn *P2pNetwork) RetryAddPeer(addr string, shouldHello bool) (err error) {
+func (pn *P2pNetwork) RetryAddPeer(addr string, areWeInitiator bool) (err error) {
 	for i := 0; i < utils.Constants.AllowedFailures; i++ {
-		err = pn.AddPeer(addr, shouldHello)
+		err = pn.AddPeer(addr, areWeInitiator)
 		if err == nil {
 			return
 		}

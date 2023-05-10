@@ -32,12 +32,14 @@ func main() {
 
 	pn := p2p.NewP2pNetwork()
 
+	// Connect to seed if given one
 	if *seedAddr != "" {
 		err := pn.RetryAddPeer(*seedAddr, true)
 		if err != nil {
 			fmt.Printf("failed to connect to seed peer: %s", err)
 			os.Exit(1)
 		}
+		go pn.Expand()
 	}
 	pn.Print()
 	go pn.SyncLoop(false, nil)
