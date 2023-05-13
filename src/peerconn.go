@@ -67,7 +67,7 @@ func (pc PeerConn) TransmitStringLine(msg string) error {
 }
 
 // Receive base64(json(message)) from a single line
-func PeerConnReceiveStandardMessage[R any](pc PeerConn, msgName string) (R, error) {
+func PeerConnReceiveStandardMessage[R Message](pc PeerConn) (R, error) {
 	// Cannot be method until golang allows type params on methods
 	var content R
 	data, err := pc.RetryReadLine(7)
@@ -78,12 +78,12 @@ func PeerConnReceiveStandardMessage[R any](pc PeerConn, msgName string) (R, erro
 }
 
 // Transmit msgName then base64(json(message)) in a single line each
-func (pc PeerConn) TransmitStandardMessage(msgName string, msg any) error {
+func (pc PeerConn) TransmitStandardMessage(msg Message) error {
 	data, err := util.JsonB64(msg)
 	if err != nil {
 		return err
 	}
-	content := []byte(msgName + "\n")
+	content := []byte(msg.GetName() + "\n")
 	content = append(content, data...)
 	content = append(content, byte('\n'))
 	_, err = pc.W.Write(content)

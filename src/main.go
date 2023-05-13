@@ -30,7 +30,8 @@ func main() {
 			go ReceivePeerGreeting(NewPeerConn(conn))
 		}
 	}
-	// TODO: Move ^ listen into goroutine that emits conns on a channel
+
+	// TODO
 	// Make main loop receive events from 1. listener channel and
 	// 2. peer bus kill signals
 	// 3. all peer buses (flattened?? and randomly shuffled per round)

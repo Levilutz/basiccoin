@@ -4,9 +4,12 @@ import (
 	"github.com/levilutz/basiccoin/src/util"
 )
 
-// HelloMessage
+type Message interface {
+	GetName() string
+	Transmit(pc PeerConn) error
+}
 
-var HelloMessageName = "hello"
+// HelloMessage
 
 type HelloMessage struct {
 	RuntimeID string `json:"runtimeID"`
@@ -23,12 +26,17 @@ func NewHelloMessage() HelloMessage {
 	}
 }
 
+// Get the HelloMessage's name
+func (msg HelloMessage) GetName() string {
+	return "hello"
+}
+
 // Receive a HelloMessage from the channel
 func ReceiveHelloMessage(pc PeerConn) (HelloMessage, error) {
-	return PeerConnReceiveStandardMessage[HelloMessage](pc, HelloMessageName)
+	return PeerConnReceiveStandardMessage[HelloMessage](pc)
 }
 
 // Transmit a HelloMessage over the channel, including name
 func (msg HelloMessage) Transmit(pc PeerConn) error {
-	return pc.TransmitStandardMessage(HelloMessageName, msg)
+	return pc.TransmitStandardMessage(msg)
 }
