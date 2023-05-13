@@ -1,11 +1,15 @@
 package util
 
 import (
+	"bufio"
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
+	"time"
 )
 
 // Generate UUID
@@ -45,4 +49,26 @@ func PrettyPrint(content any) {
 		panic(err)
 	}
 	fmt.Println(string(b))
+}
+
+// Retry reading a line from a bufio reader, exponential wait.
+// Attempts begin at 1ms and multiply by 10.
+// 5 Attempts is 11.111s total time, 6 attempts is 111.111s total time, etc.
+func RetryReadBytes(r *bufio.Reader, attempts int) ([]byte, error) {
+	delay := time.Duration(1) * time.Millisecond
+	for i := 0; i < attempts; i++ {
+		fmt.Println("trying...")
+		data, err := r.ReadBytes(byte('\n'))
+		if err == nil {
+			return data, nil
+		} else if errors.Is(err, io.EOF) {
+			fmt.Println(delay)
+			time.Sleep(delay)
+			delay *= time.Duration(10)
+			continue
+		} else {
+			return nil, err
+		}
+	}
+	return nil, io.EOF
 }
