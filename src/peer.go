@@ -15,7 +15,6 @@ func shouldConnect(helloMsg HelloMessage) bool {
 	}
 	// Don't connect if version incompatible
 	if helloMsg.Version != util.Constants.Version {
-		// TODO: Actually check compat, not equality
 		return false
 	}
 	// TODO: Don't connect if peer already known
@@ -26,33 +25,24 @@ func shouldConnect(helloMsg HelloMessage) bool {
 // want to continue the connection.
 func verifyConnWanted(pc *PeerConn, helloMsg HelloMessage) (bool, error) {
 	// Decide if we want to continue and tell them
-	var err error
 	shouldConn := shouldConnect(helloMsg)
 	if shouldConn {
 		pc.TransmitStringLine("continue")
 	} else {
 		pc.TransmitStringLine("close")
 	}
-	if pc.Err() != nil {
-		return false, err
-	}
 
 	// Receive whether they want to continue
 	contMsg := pc.RetryReadLine(7)
 	if err := pc.Err(); err != nil {
 		return false, err
-	}
-	theyWantConn := false
-	switch string(contMsg) {
-	case "continue":
-		theyWantConn = true
-	case "close":
-		theyWantConn = false
-	default:
+	} else if string(contMsg) == "continue" {
+		return true, nil
+	} else if string(contMsg) == "close" {
+		return false, nil
+	} else {
 		return false, fmt.Errorf("expected 'continue'|'close', received '%s'", contMsg)
 	}
-
-	return theyWantConn, nil
 }
 
 func GreetPeer(pc *PeerConn) error {

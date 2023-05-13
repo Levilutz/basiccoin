@@ -44,9 +44,6 @@ func ResolvePeerConn(addr string) (*PeerConn, error) {
 // Consume the next line and assert that it matches msg.
 // Do not include \n in msg.
 func (pc *PeerConn) ConsumeExpected(msg string) {
-	if pc.E != nil {
-		return
-	}
 	data := pc.RetryReadLine(7)
 	if pc.E != nil {
 		return
@@ -88,8 +85,7 @@ func (pc *PeerConn) TransmitStringLine(msg string) {
 
 // Retry reading a line, exponential wait.
 // Attempt delays begin at 100ms and multiply by 2.
-// Max total runtime: 1 > 100ms, 2 > 300ms, 3 > 700ms, 4 > 1.5s, 5 > 3.1s, 6 > 6.3s,
-// 7 > 12.7s, 8 > 25.5s, 9 > 51.1s, 10 > 102.3s, etc.
+// Estimated max total runtime = (2^attempts - 1) * 0.1 seconds
 func (pc *PeerConn) RetryReadLine(attempts int) []byte {
 	if pc.E != nil {
 		return nil
@@ -100,15 +96,9 @@ func (pc *PeerConn) RetryReadLine(attempts int) []byte {
 		pc.C.SetReadDeadline(time.Now().Add(delay))
 		data, err := pc.R.ReadBytes(byte('\n'))
 		if err == nil {
-			if len(data) > 0 {
-				return data[:len(data)-1]
-			} else {
-				return data
-			}
-		} else if (errors.Is(err, io.EOF) || errors.Is(err, os.ErrDeadlineExceeded)) &&
-			i != attempts-1 {
+			return data[:len(data)-1] // len(data) will always be at least 1
+		} else if errors.Is(err, io.EOF) || errors.Is(err, os.ErrDeadlineExceeded) {
 			delay *= time.Duration(2)
-			continue
 		} else {
 			pc.E = err
 			return nil
