@@ -24,7 +24,7 @@ func shouldConnect(helloMsg HelloMessage) bool {
 
 // Transmit continue|close, and receive their continue|close. Return whether both peers
 // want to continue the connection.
-func verifyConnWanted(pc PeerConn, helloMsg HelloMessage) (bool, error) {
+func verifyConnWanted(pc *PeerConn, helloMsg HelloMessage) (bool, error) {
 	// Decide if we want to continue and tell them
 	var err error
 	shouldConn := shouldConnect(helloMsg)
@@ -55,7 +55,7 @@ func verifyConnWanted(pc PeerConn, helloMsg HelloMessage) (bool, error) {
 	return theyWantConn, nil
 }
 
-func GreetPeer(pc PeerConn) error {
+func GreetPeer(pc *PeerConn) error {
 	defer func() {
 		if r := recover(); r != nil {
 			// TODO: signal peer dead on bus
@@ -105,7 +105,7 @@ func GreetPeer(pc PeerConn) error {
 	return nil
 }
 
-func ReceivePeerGreeting(pc PeerConn) {
+func ReceivePeerGreeting(pc *PeerConn) {
 	defer func() {
 		if r := recover(); r != nil {
 			// TODO: signal peer dead on bus
@@ -137,7 +137,7 @@ func ReceivePeerGreeting(pc PeerConn) {
 	go PeerRoutine(pc, helloMsg)
 }
 
-func PeerRoutine(pc PeerConn, data HelloMessage) {
+func PeerRoutine(pc *PeerConn, data HelloMessage) {
 	defer func() {
 		// TODO: signal peer dead on bus
 		if r := recover(); r != nil {

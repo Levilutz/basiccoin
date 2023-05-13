@@ -6,7 +6,7 @@ import (
 
 type Message interface {
 	GetName() string
-	Transmit(pc PeerConn) error
+	Transmit(pc *PeerConn) error
 }
 
 // HelloMessage
@@ -27,7 +27,7 @@ func NewHelloMessage() HelloMessage {
 }
 
 // Receive a HelloMessage from the channel
-func ReceiveHelloMessage(pc PeerConn) (HelloMessage, error) {
+func ReceiveHelloMessage(pc *PeerConn) (HelloMessage, error) {
 	return PeerConnReceiveStandardMessage[HelloMessage](pc)
 }
 
@@ -37,6 +37,6 @@ func (msg HelloMessage) GetName() string {
 }
 
 // Transmit a HelloMessage over the channel, including name
-func (msg HelloMessage) Transmit(pc PeerConn) error {
+func (msg HelloMessage) Transmit(pc *PeerConn) error {
 	return pc.TransmitStandardMessage(msg)
 }

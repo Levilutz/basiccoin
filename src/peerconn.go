@@ -20,8 +20,8 @@ type PeerConn struct {
 }
 
 // Create a peer connection from a TCP Connection.
-func NewPeerConn(c *net.TCPConn) PeerConn {
-	return PeerConn{
+func NewPeerConn(c *net.TCPConn) *PeerConn {
+	return &PeerConn{
 		C: c,
 		R: bufio.NewReader(c),
 		W: bufio.NewWriter(c),
@@ -29,21 +29,21 @@ func NewPeerConn(c *net.TCPConn) PeerConn {
 }
 
 // Resolve and dial a TCP Address then make a peer connection if successful.
-func ResolvePeerConn(addr string) (PeerConn, error) {
+func ResolvePeerConn(addr string) (*PeerConn, error) {
 	tcpAddr, err := net.ResolveTCPAddr("tcp", addr)
 	if err != nil {
-		return PeerConn{}, err
+		return nil, err
 	}
 	conn, err := net.DialTCP("tcp", nil, tcpAddr)
 	if err != nil {
-		return PeerConn{}, err
+		return nil, err
 	}
 	return NewPeerConn(conn), nil
 }
 
 // Consume the next line and assert that it matches msg.
 // Do not include \n in msg.
-func (pc PeerConn) ConsumeExpected(msg string) error {
+func (pc *PeerConn) ConsumeExpected(msg string) error {
 	data, err := pc.RetryReadLine(7)
 	if err != nil {
 		return err
@@ -57,13 +57,13 @@ func (pc PeerConn) ConsumeExpected(msg string) error {
 }
 
 // Transmit a Message.
-func (pc PeerConn) TransmitMessage(msg Message) error {
+func (pc *PeerConn) TransmitMessage(msg Message) error {
 	return msg.Transmit(pc)
 }
 
 // Transmit a simple string as a line.
 // Do not include \n in msg.
-func (pc PeerConn) TransmitStringLine(msg string) error {
+func (pc *PeerConn) TransmitStringLine(msg string) error {
 	_, err := pc.W.Write([]byte(msg + "\n"))
 	if err != nil {
 		return err
@@ -72,7 +72,7 @@ func (pc PeerConn) TransmitStringLine(msg string) error {
 }
 
 // Receive base64(json(message)) from a single line
-func PeerConnReceiveStandardMessage[R Message](pc PeerConn) (R, error) {
+func PeerConnReceiveStandardMessage[R Message](pc *PeerConn) (R, error) {
 	// Cannot be method until golang allows type params on methods
 	var content R
 	data, err := pc.RetryReadLine(7)
@@ -83,7 +83,7 @@ func PeerConnReceiveStandardMessage[R Message](pc PeerConn) (R, error) {
 }
 
 // Transmit msgName then base64(json(message)) in a single line each
-func (pc PeerConn) TransmitStandardMessage(msg Message) error {
+func (pc *PeerConn) TransmitStandardMessage(msg Message) error {
 	data, err := util.JsonB64(msg)
 	if err != nil {
 		return err
@@ -102,7 +102,7 @@ func (pc PeerConn) TransmitStandardMessage(msg Message) error {
 // Attempt delays begin at 100ms and multiply by 2.
 // Max total runtime: 1 > 100ms, 2 > 300ms, 3 > 700ms, 4 > 1.5s, 5 > 3.1s, 6 > 6.3s,
 // 7 > 12.7s, 8 > 25.5s, 9 > 51.1s, 10 > 102.3s, etc.
-func (pc PeerConn) RetryReadLine(attempts int) ([]byte, error) {
+func (pc *PeerConn) RetryReadLine(attempts int) ([]byte, error) {
 	defer pc.C.SetReadDeadline(time.Time{})
 	delay := time.Duration(100) * time.Millisecond
 	for i := 0; i < attempts; i++ {
