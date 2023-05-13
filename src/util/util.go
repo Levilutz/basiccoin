@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"os"
 	"time"
 )
 
@@ -83,8 +84,10 @@ func PrettyPrint(content any) {
 // Total time: 2 > 100ms, 3 > 300ms, 4 > 700ms, 5 > 1.5s, 6 > 3.1s, 7 > 6.3s, 8 > 12.7s,
 // 9 > 25.5s, 10 > 51.1s, 11 > 102.3s
 func RetryReadLine(pc PeerConn, attempts int) ([]byte, error) {
+	defer pc.C.SetReadDeadline(time.Time{})
 	delay := time.Duration(100) * time.Millisecond
 	for i := 0; i < attempts; i++ {
+		pc.C.SetReadDeadline(time.Now().Add(delay))
 		data, err := pc.R.ReadBytes(byte('\n'))
 		if err == nil {
 			if len(data) > 0 {
@@ -92,8 +95,8 @@ func RetryReadLine(pc PeerConn, attempts int) ([]byte, error) {
 			} else {
 				return data, nil
 			}
-		} else if errors.Is(err, io.EOF) && i != attempts-1 {
-			time.Sleep(delay)
+		} else if (errors.Is(err, io.EOF) || errors.Is(err, os.ErrDeadlineExceeded)) &&
+			i != attempts-1 {
 			delay *= time.Duration(2)
 			continue
 		} else {
