@@ -23,16 +23,9 @@ func ConsumeExpected(r *bufio.Reader, msg string) error {
 	return nil
 }
 
-// Receive msgName then base64(json(message)) in a single line each
-func ReceiveStandardMessage[R any](
-	msgName string, r *bufio.Reader, nameConsumed bool,
-) (R, error) {
+// Receive base64(json(message)) from a single line
+func ReceiveStandardMessage[R any](msgName string, r *bufio.Reader) (R, error) {
 	var content R
-	if !nameConsumed {
-		if err := ConsumeExpected(r, msgName); err != nil {
-			return content, err
-		}
-	}
 	data, err := util.RetryReadLine(r, 5)
 	if err != nil {
 		return content, err
@@ -66,11 +59,9 @@ type HelloMessage struct {
 	Addr      string `json:"addr"`
 }
 
-// Receive the HelloMessage from the channel, consuming name if not done yet
-func ReceiveHelloMessage(r *bufio.Reader, nameConsumed bool) (HelloMessage, error) {
-	return ReceiveStandardMessage[HelloMessage](
-		HelloMessageName, r, nameConsumed,
-	)
+// Receive the HelloMessage from the channel
+func ReceiveHelloMessage(r *bufio.Reader) (HelloMessage, error) {
+	return ReceiveStandardMessage[HelloMessage](HelloMessageName, r)
 }
 
 // Transmit the HelloMessage over the channel, including name
