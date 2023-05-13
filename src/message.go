@@ -28,7 +28,8 @@ func NewHelloMessage() HelloMessage {
 
 // Receive a HelloMessage from the channel
 func ReceiveHelloMessage(pc *PeerConn) (HelloMessage, error) {
-	return PeerConnReceiveStandardMessage[HelloMessage](pc)
+	helloMsg := PeerConnReceiveStandardMessage[HelloMessage](pc)
+	return helloMsg, pc.Err()
 }
 
 // Get the HelloMessage's name
@@ -38,5 +39,6 @@ func (msg HelloMessage) GetName() string {
 
 // Transmit a HelloMessage over the channel, including name
 func (msg HelloMessage) Transmit(pc *PeerConn) error {
-	return pc.TransmitStandardMessage(msg)
+	pc.TransmitStandardMessage(msg)
+	return pc.Err()
 }

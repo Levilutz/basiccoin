@@ -17,6 +17,7 @@ type PeerConn struct {
 	C *net.TCPConn
 	R *bufio.Reader
 	W *bufio.Writer
+	E error
 }
 
 // Create a peer connection from a TCP Connection.
@@ -25,6 +26,7 @@ func NewPeerConn(c *net.TCPConn) *PeerConn {
 		C: c,
 		R: bufio.NewReader(c),
 		W: bufio.NewWriter(c),
+		E: nil,
 	}
 }
 
@@ -43,66 +45,90 @@ func ResolvePeerConn(addr string) (*PeerConn, error) {
 
 // Consume the next line and assert that it matches msg.
 // Do not include \n in msg.
-func (pc *PeerConn) ConsumeExpected(msg string) error {
-	data, err := pc.RetryReadLine(7)
-	if err != nil {
-		return err
+func (pc *PeerConn) ConsumeExpected(msg string) {
+	if pc.E != nil {
+		return
+	}
+	data := pc.RetryReadLine(7)
+	if pc.E != nil {
+		return
 	}
 	if string(data) != msg {
-		return fmt.Errorf(
+		pc.E = fmt.Errorf(
 			"expected '%s', received '%s'", msg, string(data),
 		)
 	}
-	return nil
 }
 
 // Transmit a Message.
-func (pc *PeerConn) TransmitMessage(msg Message) error {
-	return msg.Transmit(pc)
+func (pc *PeerConn) TransmitMessage(msg Message) {
+	if pc.E != nil {
+		return
+	}
+	pc.E = msg.Transmit(pc)
 }
 
 // Transmit a simple string as a line.
 // Do not include \n in msg.
-func (pc *PeerConn) TransmitStringLine(msg string) error {
+func (pc *PeerConn) TransmitStringLine(msg string) {
+	if pc.E != nil {
+		return
+	}
 	_, err := pc.W.Write([]byte(msg + "\n"))
 	if err != nil {
-		return err
+		pc.E = err
+		return
 	}
-	return pc.W.Flush()
+	pc.E = pc.W.Flush()
 }
 
 // Receive base64(json(message)) from a single line
-func PeerConnReceiveStandardMessage[R Message](pc *PeerConn) (R, error) {
+func PeerConnReceiveStandardMessage[R Message](pc *PeerConn) R {
 	// Cannot be method until golang allows type params on methods
 	var content R
-	data, err := pc.RetryReadLine(7)
-	if err != nil {
-		return content, err
+	if pc.E != nil {
+		return content
 	}
-	return util.UnJsonB64[R](data)
+	data := pc.RetryReadLine(7)
+	if pc.E != nil {
+		return content
+	}
+	content, err := util.UnJsonB64[R](data)
+	if err != nil {
+		pc.E = err
+	}
+	return content
 }
 
 // Transmit msgName then base64(json(message)) in a single line each
-func (pc *PeerConn) TransmitStandardMessage(msg Message) error {
+func (pc *PeerConn) TransmitStandardMessage(msg Message) {
+	if pc.E != nil {
+		return
+	}
 	data, err := util.JsonB64(msg)
 	if err != nil {
-		return err
+		pc.E = err
+		return
 	}
 	content := []byte(msg.GetName() + "\n")
 	content = append(content, data...)
 	content = append(content, byte('\n'))
 	_, err = pc.W.Write(content)
 	if err != nil {
-		return err
+		pc.E = err
+		return
 	}
-	return pc.W.Flush()
+	pc.E = pc.W.Flush()
 }
 
 // Retry reading a line, exponential wait.
 // Attempt delays begin at 100ms and multiply by 2.
 // Max total runtime: 1 > 100ms, 2 > 300ms, 3 > 700ms, 4 > 1.5s, 5 > 3.1s, 6 > 6.3s,
 // 7 > 12.7s, 8 > 25.5s, 9 > 51.1s, 10 > 102.3s, etc.
-func (pc *PeerConn) RetryReadLine(attempts int) ([]byte, error) {
+func (pc *PeerConn) RetryReadLine(attempts int) []byte {
+	if pc.E != nil {
+		return nil
+	}
 	defer pc.C.SetReadDeadline(time.Time{})
 	delay := time.Duration(100) * time.Millisecond
 	for i := 0; i < attempts; i++ {
@@ -110,17 +136,25 @@ func (pc *PeerConn) RetryReadLine(attempts int) ([]byte, error) {
 		data, err := pc.R.ReadBytes(byte('\n'))
 		if err == nil {
 			if len(data) > 0 {
-				return data[:len(data)-1], nil
+				return data[:len(data)-1]
 			} else {
-				return data, nil
+				return data
 			}
 		} else if (errors.Is(err, io.EOF) || errors.Is(err, os.ErrDeadlineExceeded)) &&
 			i != attempts-1 {
 			delay *= time.Duration(2)
 			continue
 		} else {
-			return nil, err
+			pc.E = err
+			return nil
 		}
 	}
-	return nil, io.EOF
+	pc.E = io.EOF
+	return nil
+}
+
+// Pop the stored error
+func (pc *PeerConn) Err() error {
+	defer func() { pc.E = nil }()
+	return pc.E
 }

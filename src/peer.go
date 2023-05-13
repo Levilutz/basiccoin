@@ -29,17 +29,17 @@ func verifyConnWanted(pc *PeerConn, helloMsg HelloMessage) (bool, error) {
 	var err error
 	shouldConn := shouldConnect(helloMsg)
 	if shouldConn {
-		err = pc.TransmitStringLine("continue")
+		pc.TransmitStringLine("continue")
 	} else {
-		err = pc.TransmitStringLine("close")
+		pc.TransmitStringLine("close")
 	}
-	if err != nil {
+	if pc.Err() != nil {
 		return false, err
 	}
 
 	// Receive whether they want to continue
-	contMsg, err := pc.RetryReadLine(7)
-	if err != nil {
+	contMsg := pc.RetryReadLine(7)
+	if err := pc.Err(); err != nil {
 		return false, err
 	}
 	theyWantConn := false
@@ -64,18 +64,10 @@ func GreetPeer(pc *PeerConn) error {
 	}()
 
 	// Hello handshake
-	err := pc.TransmitMessage(NewHelloMessage())
-	if err != nil {
-		// TODO: signal peer dead on bus
-		return err
-	}
-	err = pc.ConsumeExpected("ack:hello")
-	if err != nil {
-		// TODO: signal peer dead on bus
-		return err
-	}
-	err = pc.ConsumeExpected("hello")
-	if err != nil {
+	pc.TransmitMessage(NewHelloMessage())
+	pc.ConsumeExpected("ack:hello")
+	pc.ConsumeExpected("hello")
+	if err := pc.Err(); err != nil {
 		// TODO: signal peer dead on bus
 		return err
 	}
@@ -84,8 +76,8 @@ func GreetPeer(pc *PeerConn) error {
 		// TODO: signal peer dead on bus
 		return err
 	}
-	err = pc.TransmitStringLine("ack:hello")
-	if err != nil {
+	pc.TransmitStringLine("ack:hello")
+	if err = pc.Err(); err != nil {
 		// TODO: signal peer dead on bus
 		return err
 	}
@@ -114,16 +106,14 @@ func ReceivePeerGreeting(pc *PeerConn) {
 	}()
 
 	// Hello handshake
-	err := pc.ConsumeExpected("hello")
-	util.PanicErr(err)
+	pc.ConsumeExpected("hello")
+	util.PanicErr(pc.Err())
 	helloMsg, err := ReceiveHelloMessage(pc)
 	util.PanicErr(err)
-	err = pc.TransmitStringLine("ack:hello")
-	util.PanicErr(err)
-	err = pc.TransmitMessage(NewHelloMessage())
-	util.PanicErr(err)
-	err = pc.ConsumeExpected("ack:hello")
-	util.PanicErr(err)
+	pc.TransmitStringLine("ack:hello")
+	pc.TransmitMessage(NewHelloMessage())
+	pc.ConsumeExpected("ack:hello")
+	util.PanicErr(pc.Err())
 
 	// Close if either peer wants
 	conWanted, err := verifyConnWanted(pc, helloMsg)
