@@ -9,20 +9,28 @@ import (
 
 // Generic helpers
 
+// Consume the next line and assert that it matches msg
+func ConsumeExpected(r *bufio.Reader, msg string) error {
+	data, err := util.RetryReadLine(r, 5)
+	if err != nil {
+		return err
+	}
+	if string(data) != msg {
+		return fmt.Errorf(
+			"expected '%s', received '%s'", msg, string(data),
+		)
+	}
+	return nil
+}
+
 // Receive msgName then base64(json(message)) in a single line each
 func ReceiveStandardMessage[R any](
 	msgName string, r *bufio.Reader, nameConsumed bool,
 ) (R, error) {
 	var content R
 	if !nameConsumed {
-		data, err := util.RetryReadLine(r, 5)
-		if err != nil {
+		if err := ConsumeExpected(r, msgName); err != nil {
 			return content, err
-		}
-		if string(data) != HelloMessageName {
-			return content, fmt.Errorf(
-				"expected '%s', received '%s'", msgName, string(data),
-			)
 		}
 	}
 	data, err := util.RetryReadLine(r, 5)

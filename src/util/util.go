@@ -69,7 +69,6 @@ func PrettyPrint(content any) {
 func RetryReadLine(r *bufio.Reader, attempts int) ([]byte, error) {
 	delay := time.Duration(1) * time.Millisecond
 	for i := 0; i < attempts; i++ {
-		fmt.Println("trying...")
 		data, err := r.ReadBytes(byte('\n'))
 		if err == nil {
 			if len(data) > 0 {
@@ -78,7 +77,6 @@ func RetryReadLine(r *bufio.Reader, attempts int) ([]byte, error) {
 				return data, nil
 			}
 		} else if errors.Is(err, io.EOF) {
-			fmt.Println(delay)
 			time.Sleep(delay)
 			delay *= time.Duration(10)
 			continue
