@@ -3,6 +3,7 @@ package utils
 import (
 	"crypto/rand"
 	"encoding/hex"
+	"encoding/json"
 )
 
 func UUID() (string, error) {
@@ -23,11 +24,19 @@ func AssertUUID() string {
 }
 
 type ConstantsType struct {
-	AppVersion string
-	RuntimeID  string
+	RuntimeID string `json:"runtimeID"`
+	Version   string `json:"version"`
+}
+
+func (ct ConstantsType) AsJSON() string {
+	b, err := json.MarshalIndent(ct, "", "    ")
+	if err != nil {
+		panic(err)
+	}
+	return string(b)
 }
 
 var Constants = ConstantsType{
-	AppVersion: "0.1.0",
-	RuntimeID:  AssertUUID(),
+	RuntimeID: AssertUUID(),
+	Version:   "0.1.0",
 }

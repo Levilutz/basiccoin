@@ -7,5 +7,5 @@ import (
 )
 
 func main() {
-	fmt.Println("RuntimeID:", utils.Constants.RuntimeID)
+	fmt.Println(utils.Constants.AsJSON())
 }
