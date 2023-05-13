@@ -11,7 +11,7 @@ import (
 
 // Consume the next line and assert that it matches msg
 func ConsumeExpected(r *bufio.Reader, msg string) error {
-	data, err := util.RetryReadLine(r, 5)
+	data, err := util.RetryReadLine(r, 8)
 	if err != nil {
 		return err
 	}
@@ -23,10 +23,20 @@ func ConsumeExpected(r *bufio.Reader, msg string) error {
 	return nil
 }
 
+// Transmit a simple string
+func TransmitSimpleMessage(w *bufio.Writer, msg string) error {
+	content := []byte(msg + "\n")
+	_, err := w.Write(content)
+	if err != nil {
+		return err
+	}
+	return w.Flush()
+}
+
 // Receive base64(json(message)) from a single line
-func ReceiveStandardMessage[R any](msgName string, r *bufio.Reader) (R, error) {
+func ReceiveStandardMessage[R any](r *bufio.Reader, msgName string) (R, error) {
 	var content R
-	data, err := util.RetryReadLine(r, 5)
+	data, err := util.RetryReadLine(r, 8)
 	if err != nil {
 		return content, err
 	}
@@ -34,7 +44,7 @@ func ReceiveStandardMessage[R any](msgName string, r *bufio.Reader) (R, error) {
 }
 
 // Transmit msgName then base64(json(message)) in a single line each
-func TransmitStandardMessage(msgName string, msg any, w *bufio.Writer) error {
+func TransmitStandardMessage(w *bufio.Writer, msgName string, msg any) error {
 	data, err := util.JsonB64(msg)
 	if err != nil {
 		return err
@@ -70,10 +80,10 @@ func NewHelloMessage() HelloMessage {
 
 // Receive a HelloMessage from the channel
 func ReceiveHelloMessage(r *bufio.Reader) (HelloMessage, error) {
-	return ReceiveStandardMessage[HelloMessage](HelloMessageName, r)
+	return ReceiveStandardMessage[HelloMessage](r, HelloMessageName)
 }
 
 // Transmit a HelloMessage over the channel, including name
 func (msg HelloMessage) Transmit(w *bufio.Writer) error {
-	return TransmitStandardMessage(HelloMessageName, msg, w)
+	return TransmitStandardMessage(w, HelloMessageName, msg)
 }

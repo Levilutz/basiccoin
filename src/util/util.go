@@ -65,10 +65,11 @@ func PrettyPrint(content any) {
 }
 
 // Retry reading a line from a bufio reader, exponential wait.
-// Attempts begin at 1ms and multiply by 10.
-// 5 Attempts is 11.111s total time, 6 attempts is 111.111s total time, etc.
+// Attempt delays begin at 100ms and multiply by 2.
+// Total time: 2 > 100ms, 3 > 300ms, 4 > 700ms, 5 > 1.5s, 6 > 3.1s, 7 > 6.3s, 8 > 12.7s,
+// 9 > 25.5s, 10 > 51.1s, 11 > 102.3s
 func RetryReadLine(r *bufio.Reader, attempts int) ([]byte, error) {
-	delay := time.Duration(1) * time.Millisecond
+	delay := time.Duration(100) * time.Millisecond
 	for i := 0; i < attempts; i++ {
 		data, err := r.ReadBytes(byte('\n'))
 		if err == nil {
@@ -77,9 +78,9 @@ func RetryReadLine(r *bufio.Reader, attempts int) ([]byte, error) {
 			} else {
 				return data, nil
 			}
-		} else if errors.Is(err, io.EOF) {
+		} else if errors.Is(err, io.EOF) && i != attempts-1 {
 			time.Sleep(delay)
-			delay *= time.Duration(10)
+			delay *= time.Duration(2)
 			continue
 		} else {
 			return nil, err
@@ -98,11 +99,26 @@ func ResolveDialTCP(addr string) (*net.TCPConn, error) {
 		return nil, err
 	}
 	return c, nil
-
 }
 
 func PanicErr(err error) {
 	if err != nil {
 		panic(err)
+	}
+}
+
+func ListenTCP(conns chan<- *net.TCPConn) {
+	addr, err := net.ResolveTCPAddr("tcp", Constants.LocalAddr)
+	PanicErr(err)
+	listen, err := net.ListenTCP("tcp", addr)
+	PanicErr(err)
+	defer listen.Close()
+	for {
+		conn, err := listen.AcceptTCP()
+		if err != nil {
+			fmt.Println("Failure to connect:", err.Error())
+			continue
+		}
+		conns <- conn
 	}
 }
