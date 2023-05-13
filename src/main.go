@@ -17,9 +17,9 @@ func main() {
 
 	// Greet seed peer
 	if cli_args.SeedAddr != "" {
-		conn, err := util.ResolveDialTCP(cli_args.SeedAddr)
+		conn, err := ResolvePeerConn(cli_args.SeedAddr)
 		util.PanicErr(err)
-		err = GreetPeer(NewPeerConn(conn))
+		err = GreetPeer(conn)
 		util.PanicErr(err)
 	}
 

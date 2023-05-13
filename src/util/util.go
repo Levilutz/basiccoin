@@ -1,32 +1,13 @@
 package util
 
 import (
-	"bufio"
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
-	"errors"
 	"fmt"
-	"io"
 	"net"
-	"os"
-	"time"
 )
-
-type PeerConn struct {
-	C *net.TCPConn
-	R *bufio.Reader
-	W *bufio.Writer
-}
-
-func NewPeerConn(c *net.TCPConn) PeerConn {
-	return PeerConn{
-		C: c,
-		R: bufio.NewReader(c),
-		W: bufio.NewWriter(c),
-	}
-}
 
 // Generate UUID
 func UUID() (string, error) {
@@ -77,45 +58,6 @@ func PrettyPrint(content any) {
 		panic(err)
 	}
 	fmt.Println(string(b))
-}
-
-// Retry reading a line from a bufio reader, exponential wait.
-// Attempt delays begin at 100ms and multiply by 2.
-// Max total runtime: 1 > 100ms, 2 > 300ms, 3 > 700ms, 4 > 1.5s, 5 > 3.1s, 6 > 6.3s,
-// 7 > 12.7s, 8 > 25.5s, 9 > 51.1s, 10 > 102.3s
-func RetryReadLine(pc PeerConn, attempts int) ([]byte, error) {
-	defer pc.C.SetReadDeadline(time.Time{})
-	delay := time.Duration(100) * time.Millisecond
-	for i := 0; i < attempts; i++ {
-		pc.C.SetReadDeadline(time.Now().Add(delay))
-		data, err := pc.R.ReadBytes(byte('\n'))
-		if err == nil {
-			if len(data) > 0 {
-				return data[:len(data)-1], nil
-			} else {
-				return data, nil
-			}
-		} else if (errors.Is(err, io.EOF) || errors.Is(err, os.ErrDeadlineExceeded)) &&
-			i != attempts-1 {
-			delay *= time.Duration(2)
-			continue
-		} else {
-			return nil, err
-		}
-	}
-	return nil, io.EOF
-}
-
-func ResolveDialTCP(addr string) (*net.TCPConn, error) {
-	tcpAddr, err := net.ResolveTCPAddr("tcp", addr)
-	if err != nil {
-		return nil, err
-	}
-	c, err := net.DialTCP("tcp", nil, tcpAddr)
-	if err != nil {
-		return nil, err
-	}
-	return c, nil
 }
 
 func PanicErr(err error) {
