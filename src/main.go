@@ -1,7 +1,11 @@
 package main
 
-import "fmt"
+import (
+	"fmt"
+
+	"github.com/levilutz/basiccoin/src/utils"
+)
 
 func main() {
-	fmt.Println("starting...")
+	fmt.Println("RuntimeID:", utils.Constants.RuntimeID)
 }
