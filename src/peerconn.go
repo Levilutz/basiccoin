@@ -8,8 +8,6 @@ import (
 	"net"
 	"os"
 	"time"
-
-	"github.com/levilutz/basiccoin/src/util"
 )
 
 // Encapsulate a successful initial connection to peer
@@ -68,57 +66,24 @@ func (pc *PeerConn) TransmitMessage(msg Message) {
 	pc.E = msg.Transmit(pc)
 }
 
-// Transmit a simple string as a line.
+// Transmit bytes as a line.
+// Do not include \n in msg.
+func (pc *PeerConn) TransmitLine(msg []byte) {
+	if pc.E != nil {
+		return
+	}
+	_, err := pc.W.Write(append(msg, byte('\n')))
+	if err != nil {
+		pc.E = err
+		return
+	}
+	pc.E = pc.W.Flush()
+}
+
+// Transmit a string as a line.
 // Do not include \n in msg.
 func (pc *PeerConn) TransmitStringLine(msg string) {
-	if pc.E != nil {
-		return
-	}
-	_, err := pc.W.Write([]byte(msg + "\n"))
-	if err != nil {
-		pc.E = err
-		return
-	}
-	pc.E = pc.W.Flush()
-}
-
-// Receive base64(json(message)) from a single line
-func PeerConnReceiveStandardMessage[R Message](pc *PeerConn) R {
-	// Cannot be method until golang allows type params on methods
-	var content R
-	if pc.E != nil {
-		return content
-	}
-	data := pc.RetryReadLine(7)
-	if pc.E != nil {
-		return content
-	}
-	content, err := util.UnJsonB64[R](data)
-	if err != nil {
-		pc.E = err
-	}
-	return content
-}
-
-// Transmit msgName then base64(json(message)) in a single line each
-func (pc *PeerConn) TransmitStandardMessage(msg Message) {
-	if pc.E != nil {
-		return
-	}
-	data, err := util.JsonB64(msg)
-	if err != nil {
-		pc.E = err
-		return
-	}
-	content := []byte(msg.GetName() + "\n")
-	content = append(content, data...)
-	content = append(content, byte('\n'))
-	_, err = pc.W.Write(content)
-	if err != nil {
-		pc.E = err
-		return
-	}
-	pc.E = pc.W.Flush()
+	pc.TransmitLine([]byte(msg))
 }
 
 // Retry reading a line, exponential wait.
