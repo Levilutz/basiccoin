@@ -3,6 +3,7 @@ package main
 import (
 	"net"
 
+	"github.com/levilutz/basiccoin/src/peer"
 	"github.com/levilutz/basiccoin/src/util"
 )
 
@@ -17,9 +18,9 @@ func main() {
 
 	// Greet seed peer
 	if cli_args.SeedAddr != "" {
-		conn, err := ResolvePeerConn(cli_args.SeedAddr)
+		conn, err := peer.ResolvePeerConn(cli_args.SeedAddr)
 		util.PanicErr(err)
-		err = GreetPeer(conn)
+		err = peer.GreetPeer(conn)
 		util.PanicErr(err)
 	}
 
@@ -27,7 +28,7 @@ func main() {
 		select {
 		case conn := <-conns:
 			// TODO make bus
-			go ReceivePeerGreeting(NewPeerConn(conn))
+			go peer.ReceivePeerGreeting(peer.NewPeerConn(conn))
 		}
 	}
 

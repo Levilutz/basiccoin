@@ -1,4 +1,4 @@
-package main
+package peer
 
 import (
 	"github.com/levilutz/basiccoin/src/util"
