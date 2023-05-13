@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"time"
 )
 
@@ -85,4 +86,23 @@ func RetryReadLine(r *bufio.Reader, attempts int) ([]byte, error) {
 		}
 	}
 	return nil, io.EOF
+}
+
+func ResolveDialTCP(addr string) (*net.TCPConn, error) {
+	tcpAddr, err := net.ResolveTCPAddr("tcp", addr)
+	if err != nil {
+		return nil, err
+	}
+	c, err := net.DialTCP("tcp", nil, tcpAddr)
+	if err != nil {
+		return nil, err
+	}
+	return c, nil
+
+}
+
+func PanicErr(err error) {
+	if err != nil {
+		panic(err)
+	}
 }

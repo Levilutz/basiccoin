@@ -59,12 +59,21 @@ type HelloMessage struct {
 	Addr      string `json:"addr"`
 }
 
-// Receive the HelloMessage from the channel
+// Construct a HelloMessage
+func NewHelloMessage() HelloMessage {
+	return HelloMessage{
+		RuntimeID: util.Constants.RuntimeID,
+		Version:   util.Constants.Version,
+		Addr:      util.Constants.LocalAddr,
+	}
+}
+
+// Receive a HelloMessage from the channel
 func ReceiveHelloMessage(r *bufio.Reader) (HelloMessage, error) {
 	return ReceiveStandardMessage[HelloMessage](HelloMessageName, r)
 }
 
-// Transmit the HelloMessage over the channel, including name
+// Transmit a HelloMessage over the channel, including name
 func (msg HelloMessage) Transmit(w *bufio.Writer) error {
 	return TransmitStandardMessage(HelloMessageName, msg, w)
 }
