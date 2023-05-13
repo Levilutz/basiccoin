@@ -1,27 +1,33 @@
 package utils
 
 import (
-	"time"
-
-	"github.com/google/uuid"
+	"crypto/rand"
+	"encoding/hex"
 )
 
+func UUID() (string, error) {
+	b := make([]byte, 16)
+	_, err := rand.Read(b)
+	if err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(b), nil
+}
+
+func AssertUUID() string {
+	uuid, err := UUID()
+	if err != nil {
+		panic(err)
+	}
+	return uuid
+}
+
 type ConstantsType struct {
-	AllowedFailures          int
-	AppVersion               string
-	DesiredPeers             int
-	InitialConnectRetryDelay time.Duration
-	LocalAddr                string
-	PollingPeriod            time.Duration
-	RuntimeID                string
+	AppVersion string
+	RuntimeID  string
 }
 
 var Constants = ConstantsType{
-	AllowedFailures:          3,
-	AppVersion:               "0.1.0",
-	DesiredPeers:             3,
-	InitialConnectRetryDelay: time.Duration(15) * time.Second,
-	LocalAddr:                "", // Must initialize
-	PollingPeriod:            time.Duration(5) * time.Second,
-	RuntimeID:                uuid.New().String(),
+	AppVersion: "0.1.0",
+	RuntimeID:  AssertUUID(),
 }
