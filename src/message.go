@@ -9,11 +9,9 @@ import (
 
 // Generic helpers
 
-// Receive messageName then base64(json(message)) in a single line
-func ReceiveSingleStandardMessage[R any](
-	messageName string,
-	r *bufio.Reader,
-	nameConsumed bool,
+// Receive msgName then base64(json(message)) in a single line each
+func ReceiveStandardMessage[R any](
+	msgName string, r *bufio.Reader, nameConsumed bool,
 ) (R, error) {
 	var content R
 	if !nameConsumed {
@@ -23,7 +21,7 @@ func ReceiveSingleStandardMessage[R any](
 		}
 		if string(data) != HelloMessageName {
 			return content, fmt.Errorf(
-				"expected '%s', received '%s'", messageName, string(data),
+				"expected '%s', received '%s'", msgName, string(data),
 			)
 		}
 	}
@@ -32,6 +30,22 @@ func ReceiveSingleStandardMessage[R any](
 		return content, err
 	}
 	return util.UnJsonB64[R](data)
+}
+
+// Transmit msgName then base64(json(message)) in a single line each
+func TransmitStandardMessage(msgName string, msg any, w *bufio.Writer) error {
+	data, err := util.JsonB64(msg)
+	if err != nil {
+		return err
+	}
+	content := []byte(msgName + "\n")
+	content = append(content, data...)
+	content = append(content, byte('\n'))
+	_, err = w.Write(content)
+	if err != nil {
+		return err
+	}
+	return w.Flush()
 }
 
 // HelloMessage
@@ -46,23 +60,12 @@ type HelloMessage struct {
 
 // Receive the HelloMessage from the channel, consuming name if not done yet
 func ReceiveHelloMessage(r *bufio.Reader, nameConsumed bool) (HelloMessage, error) {
-	return ReceiveSingleStandardMessage[HelloMessage](
+	return ReceiveStandardMessage[HelloMessage](
 		HelloMessageName, r, nameConsumed,
 	)
 }
 
 // Transmit the HelloMessage over the channel, including name
 func (msg HelloMessage) Transmit(w *bufio.Writer) error {
-	data, err := util.JsonB64(msg)
-	if err != nil {
-		return err
-	}
-	content := []byte(HelloMessageName + "\n")
-	content = append(content, data...)
-	content = append(content, byte('\n'))
-	_, err = w.Write(content)
-	if err != nil {
-		return err
-	}
-	return w.Flush()
+	return TransmitStandardMessage(HelloMessageName, msg, w)
 }
