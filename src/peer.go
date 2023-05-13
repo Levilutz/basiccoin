@@ -38,7 +38,7 @@ func verifyConnWanted(pc util.PeerConn, helloMsg HelloMessage) (bool, error) {
 	}
 
 	// Receive whether they want to continue
-	contMsg, err := util.RetryReadLine(pc, 8)
+	contMsg, err := util.RetryReadLine(pc, 7)
 	if err != nil {
 		return false, err
 	}

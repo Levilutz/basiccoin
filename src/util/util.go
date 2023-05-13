@@ -81,8 +81,8 @@ func PrettyPrint(content any) {
 
 // Retry reading a line from a bufio reader, exponential wait.
 // Attempt delays begin at 100ms and multiply by 2.
-// Total time: 2 > 100ms, 3 > 300ms, 4 > 700ms, 5 > 1.5s, 6 > 3.1s, 7 > 6.3s, 8 > 12.7s,
-// 9 > 25.5s, 10 > 51.1s, 11 > 102.3s
+// Max total runtime: 1 > 100ms, 2 > 300ms, 3 > 700ms, 4 > 1.5s, 5 > 3.1s, 6 > 6.3s,
+// 7 > 12.7s, 8 > 25.5s, 9 > 51.1s, 10 > 102.3s
 func RetryReadLine(pc PeerConn, attempts int) ([]byte, error) {
 	defer pc.C.SetReadDeadline(time.Time{})
 	delay := time.Duration(100) * time.Millisecond

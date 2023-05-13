@@ -10,7 +10,7 @@ import (
 
 // Consume the next line and assert that it matches msg
 func ConsumeExpected(pc util.PeerConn, msg string) error {
-	data, err := util.RetryReadLine(pc, 8)
+	data, err := util.RetryReadLine(pc, 7)
 	if err != nil {
 		return err
 	}
@@ -35,7 +35,7 @@ func TransmitSimpleMessage(pc util.PeerConn, msg string) error {
 // Receive base64(json(message)) from a single line
 func ReceiveStandardMessage[R any](pc util.PeerConn, msgName string) (R, error) {
 	var content R
-	data, err := util.RetryReadLine(pc, 8)
+	data, err := util.RetryReadLine(pc, 7)
 	if err != nil {
 		return content, err
 	}
