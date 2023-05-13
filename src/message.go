@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bufio"
 	"fmt"
 
 	"github.com/levilutz/basiccoin/src/util"
@@ -10,8 +9,8 @@ import (
 // Generic helpers
 
 // Consume the next line and assert that it matches msg
-func ConsumeExpected(r *bufio.Reader, msg string) error {
-	data, err := util.RetryReadLine(r, 8)
+func ConsumeExpected(pc util.PeerConn, msg string) error {
+	data, err := util.RetryReadLine(pc, 8)
 	if err != nil {
 		return err
 	}
@@ -24,19 +23,19 @@ func ConsumeExpected(r *bufio.Reader, msg string) error {
 }
 
 // Transmit a simple string
-func TransmitSimpleMessage(w *bufio.Writer, msg string) error {
+func TransmitSimpleMessage(pc util.PeerConn, msg string) error {
 	content := []byte(msg + "\n")
-	_, err := w.Write(content)
+	_, err := pc.W.Write(content)
 	if err != nil {
 		return err
 	}
-	return w.Flush()
+	return pc.W.Flush()
 }
 
 // Receive base64(json(message)) from a single line
-func ReceiveStandardMessage[R any](r *bufio.Reader, msgName string) (R, error) {
+func ReceiveStandardMessage[R any](pc util.PeerConn, msgName string) (R, error) {
 	var content R
-	data, err := util.RetryReadLine(r, 8)
+	data, err := util.RetryReadLine(pc, 8)
 	if err != nil {
 		return content, err
 	}
@@ -44,7 +43,7 @@ func ReceiveStandardMessage[R any](r *bufio.Reader, msgName string) (R, error) {
 }
 
 // Transmit msgName then base64(json(message)) in a single line each
-func TransmitStandardMessage(w *bufio.Writer, msgName string, msg any) error {
+func TransmitStandardMessage(pc util.PeerConn, msgName string, msg any) error {
 	data, err := util.JsonB64(msg)
 	if err != nil {
 		return err
@@ -52,11 +51,11 @@ func TransmitStandardMessage(w *bufio.Writer, msgName string, msg any) error {
 	content := []byte(msgName + "\n")
 	content = append(content, data...)
 	content = append(content, byte('\n'))
-	_, err = w.Write(content)
+	_, err = pc.W.Write(content)
 	if err != nil {
 		return err
 	}
-	return w.Flush()
+	return pc.W.Flush()
 }
 
 // HelloMessage
@@ -79,11 +78,11 @@ func NewHelloMessage() HelloMessage {
 }
 
 // Receive a HelloMessage from the channel
-func ReceiveHelloMessage(r *bufio.Reader) (HelloMessage, error) {
-	return ReceiveStandardMessage[HelloMessage](r, HelloMessageName)
+func ReceiveHelloMessage(pc util.PeerConn) (HelloMessage, error) {
+	return ReceiveStandardMessage[HelloMessage](pc, HelloMessageName)
 }
 
 // Transmit a HelloMessage over the channel, including name
-func (msg HelloMessage) Transmit(w *bufio.Writer) error {
-	return TransmitStandardMessage(w, HelloMessageName, msg)
+func (msg HelloMessage) Transmit(pc util.PeerConn) error {
+	return TransmitStandardMessage(pc, HelloMessageName, msg)
 }

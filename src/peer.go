@@ -1,10 +1,8 @@
 package main
 
 import (
-	"bufio"
 	"errors"
 	"fmt"
-	"net"
 
 	"github.com/levilutz/basiccoin/src/util"
 )
@@ -26,23 +24,21 @@ func shouldConnect(helloMsg HelloMessage) bool {
 
 // Transmit continue|close, and receive their continue|close. Return whether both peers
 // want to continue the connection.
-func verifyConnWanted(
-	r *bufio.Reader, w *bufio.Writer, helloMsg HelloMessage,
-) (bool, error) {
+func verifyConnWanted(pc util.PeerConn, helloMsg HelloMessage) (bool, error) {
 	// Decide if we want to continue and tell them
 	var err error
 	shouldConn := shouldConnect(helloMsg)
 	if shouldConn {
-		err = TransmitSimpleMessage(w, "continue")
+		err = TransmitSimpleMessage(pc, "continue")
 	} else {
-		err = TransmitSimpleMessage(w, "close")
+		err = TransmitSimpleMessage(pc, "close")
 	}
 	if err != nil {
 		return false, err
 	}
 
 	// Receive whether they want to continue
-	contMsg, err := util.RetryReadLine(r, 8)
+	contMsg, err := util.RetryReadLine(pc, 8)
 	if err != nil {
 		return false, err
 	}
@@ -59,7 +55,7 @@ func verifyConnWanted(
 	return theyWantConn, nil
 }
 
-func GreetPeer(c *net.TCPConn) error {
+func GreetPeer(pc util.PeerConn) error {
 	defer func() {
 		if r := recover(); r != nil {
 			// TODO: signal peer dead on bus
@@ -67,38 +63,35 @@ func GreetPeer(c *net.TCPConn) error {
 		}
 	}()
 
-	r := bufio.NewReader(c)
-	w := bufio.NewWriter(c)
-
 	// Hello handshake
-	err := NewHelloMessage().Transmit(w)
+	err := NewHelloMessage().Transmit(pc)
 	if err != nil {
 		// TODO: signal peer dead on bus
 		return err
 	}
-	err = ConsumeExpected(r, "ack:hello")
+	err = ConsumeExpected(pc, "ack:hello")
 	if err != nil {
 		// TODO: signal peer dead on bus
 		return err
 	}
-	err = ConsumeExpected(r, "hello")
+	err = ConsumeExpected(pc, "hello")
 	if err != nil {
 		// TODO: signal peer dead on bus
 		return err
 	}
-	helloMsg, err := ReceiveHelloMessage(r)
+	helloMsg, err := ReceiveHelloMessage(pc)
 	if err != nil {
 		// TODO: signal peer dead on bus
 		return err
 	}
-	err = TransmitSimpleMessage(w, "ack:hello")
+	err = TransmitSimpleMessage(pc, "ack:hello")
 	if err != nil {
 		// TODO: signal peer dead on bus
 		return err
 	}
 
 	// Close if either peer wants
-	conWanted, err := verifyConnWanted(r, w, helloMsg)
+	conWanted, err := verifyConnWanted(pc, helloMsg)
 	if err != nil {
 		// TODO: signal peer dead on bus
 		return err
@@ -108,11 +101,11 @@ func GreetPeer(c *net.TCPConn) error {
 		return errors.New("peer does not want connection")
 	}
 
-	go PeerRoutine(r, w, helloMsg)
+	go PeerRoutine(pc, helloMsg)
 	return nil
 }
 
-func ReceivePeerGreeting(c *net.TCPConn) {
+func ReceivePeerGreeting(pc util.PeerConn) {
 	defer func() {
 		if r := recover(); r != nil {
 			// TODO: signal peer dead on bus
@@ -120,23 +113,20 @@ func ReceivePeerGreeting(c *net.TCPConn) {
 		}
 	}()
 
-	r := bufio.NewReader(c)
-	w := bufio.NewWriter(c)
-
 	// Hello handshake
-	err := ConsumeExpected(r, "hello")
+	err := ConsumeExpected(pc, "hello")
 	util.PanicErr(err)
-	helloMsg, err := ReceiveHelloMessage(r)
+	helloMsg, err := ReceiveHelloMessage(pc)
 	util.PanicErr(err)
-	err = TransmitSimpleMessage(w, "ack:hello")
+	err = TransmitSimpleMessage(pc, "ack:hello")
 	util.PanicErr(err)
-	err = NewHelloMessage().Transmit(w)
+	err = NewHelloMessage().Transmit(pc)
 	util.PanicErr(err)
-	err = ConsumeExpected(r, "ack:hello")
+	err = ConsumeExpected(pc, "ack:hello")
 	util.PanicErr(err)
 
 	// Close if either peer wants
-	conWanted, err := verifyConnWanted(r, w, helloMsg)
+	conWanted, err := verifyConnWanted(pc, helloMsg)
 	util.PanicErr(err)
 	if !conWanted {
 		// TODO: signal peer dead on bus
@@ -144,10 +134,10 @@ func ReceivePeerGreeting(c *net.TCPConn) {
 	}
 
 	// Does PeerRoutine start with different conditions?
-	go PeerRoutine(r, w, helloMsg)
+	go PeerRoutine(pc, helloMsg)
 }
 
-func PeerRoutine(r *bufio.Reader, w *bufio.Writer, data HelloMessage) {
+func PeerRoutine(pc util.PeerConn, data HelloMessage) {
 	defer func() {
 		// TODO: signal peer dead on bus
 		if r := recover(); r != nil {
