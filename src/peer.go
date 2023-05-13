@@ -8,7 +8,7 @@ import (
 )
 
 // Whether we should connect, based on their hello info
-func shouldConnect(helloMsg HelloMessage) bool {
+func shouldConnect(helloMsg HelloPeerMessage) bool {
 	// Don't connect to self
 	if helloMsg.RuntimeID == util.Constants.RuntimeID {
 		return false
@@ -23,7 +23,7 @@ func shouldConnect(helloMsg HelloMessage) bool {
 
 // Transmit continue|close, and receive their continue|close. Return whether both peers
 // want to continue the connection.
-func verifyConnWanted(pc *PeerConn, helloMsg HelloMessage) (bool, error) {
+func verifyConnWanted(pc *PeerConn, helloMsg HelloPeerMessage) (bool, error) {
 	// Decide if we want to continue and tell them
 	shouldConn := shouldConnect(helloMsg)
 	if shouldConn {
@@ -117,7 +117,7 @@ func ReceivePeerGreeting(pc *PeerConn) {
 	go PeerRoutine(pc, helloMsg)
 }
 
-func PeerRoutine(pc *PeerConn, data HelloMessage) {
+func PeerRoutine(pc *PeerConn, data HelloPeerMessage) {
 	defer func() {
 		// TODO: signal peer dead on bus
 		if r := recover(); r != nil {

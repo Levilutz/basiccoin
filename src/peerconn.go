@@ -56,7 +56,7 @@ func (pc *PeerConn) ConsumeExpected(msg string) {
 }
 
 // Transmit a Message.
-func (pc *PeerConn) TransmitMessage(msg Message) {
+func (pc *PeerConn) TransmitMessage(msg PeerMessage) {
 	if pc.E != nil {
 		return
 	}

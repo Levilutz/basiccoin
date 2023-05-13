@@ -4,13 +4,13 @@ import (
 	"github.com/levilutz/basiccoin/src/util"
 )
 
-type Message interface {
+type PeerMessage interface {
 	GetName() string
 	Transmit(pc *PeerConn) error
 }
 
 // Receive base64(json(message)) from a single line
-func receiveStandardMessage[R Message](pc *PeerConn) (R, error) {
+func receiveStandardMessage[R PeerMessage](pc *PeerConn) (R, error) {
 	// Cannot be method until golang allows type params on methods
 	var content R
 	data := pc.RetryReadLine(7)
@@ -22,15 +22,15 @@ func receiveStandardMessage[R Message](pc *PeerConn) (R, error) {
 
 // HelloMessage
 
-type HelloMessage struct {
+type HelloPeerMessage struct {
 	RuntimeID string `json:"runtimeID"`
 	Version   string `json:"version"`
 	Addr      string `json:"addr"`
 }
 
 // Construct a HelloMessage
-func NewHelloMessage() HelloMessage {
-	return HelloMessage{
+func NewHelloMessage() HelloPeerMessage {
+	return HelloPeerMessage{
 		RuntimeID: util.Constants.RuntimeID,
 		Version:   util.Constants.Version,
 		Addr:      util.Constants.LocalAddr,
@@ -38,17 +38,17 @@ func NewHelloMessage() HelloMessage {
 }
 
 // Receive a HelloMessage from the channel
-func ReceiveHelloMessage(pc *PeerConn) (HelloMessage, error) {
-	return receiveStandardMessage[HelloMessage](pc)
+func ReceiveHelloMessage(pc *PeerConn) (HelloPeerMessage, error) {
+	return receiveStandardMessage[HelloPeerMessage](pc)
 }
 
 // Get the HelloMessage's name
-func (msg HelloMessage) GetName() string {
+func (msg HelloPeerMessage) GetName() string {
 	return "hello"
 }
 
 // Transmit a HelloMessage over the channel, including name
-func (msg HelloMessage) Transmit(pc *PeerConn) error {
+func (msg HelloPeerMessage) Transmit(pc *PeerConn) error {
 	pc.TransmitStringLine(msg.GetName())
 	data, err := util.JsonB64(msg)
 	if err != nil {
