@@ -19,7 +19,7 @@ func main() {
 	if cli_args.SeedAddr != "" {
 		conn, err := util.ResolveDialTCP(cli_args.SeedAddr)
 		util.PanicErr(err)
-		err = GreetPeer(util.NewPeerConn(conn))
+		err = GreetPeer(NewPeerConn(conn))
 		util.PanicErr(err)
 	}
 
@@ -27,7 +27,7 @@ func main() {
 		select {
 		case conn := <-conns:
 			// TODO make bus
-			go ReceivePeerGreeting(util.NewPeerConn(conn))
+			go ReceivePeerGreeting(NewPeerConn(conn))
 		}
 	}
 	// TODO: Move ^ listen into goroutine that emits conns on a channel

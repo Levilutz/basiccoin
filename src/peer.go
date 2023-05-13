@@ -24,21 +24,21 @@ func shouldConnect(helloMsg HelloMessage) bool {
 
 // Transmit continue|close, and receive their continue|close. Return whether both peers
 // want to continue the connection.
-func verifyConnWanted(pc util.PeerConn, helloMsg HelloMessage) (bool, error) {
+func verifyConnWanted(pc PeerConn, helloMsg HelloMessage) (bool, error) {
 	// Decide if we want to continue and tell them
 	var err error
 	shouldConn := shouldConnect(helloMsg)
 	if shouldConn {
-		err = TransmitSimpleMessage(pc, "continue")
+		err = pc.TransmitStringLine("continue")
 	} else {
-		err = TransmitSimpleMessage(pc, "close")
+		err = pc.TransmitStringLine("close")
 	}
 	if err != nil {
 		return false, err
 	}
 
 	// Receive whether they want to continue
-	contMsg, err := util.RetryReadLine(pc, 7)
+	contMsg, err := pc.RetryReadLine(7)
 	if err != nil {
 		return false, err
 	}
@@ -55,7 +55,7 @@ func verifyConnWanted(pc util.PeerConn, helloMsg HelloMessage) (bool, error) {
 	return theyWantConn, nil
 }
 
-func GreetPeer(pc util.PeerConn) error {
+func GreetPeer(pc PeerConn) error {
 	defer func() {
 		if r := recover(); r != nil {
 			// TODO: signal peer dead on bus
@@ -69,12 +69,12 @@ func GreetPeer(pc util.PeerConn) error {
 		// TODO: signal peer dead on bus
 		return err
 	}
-	err = ConsumeExpected(pc, "ack:hello")
+	err = pc.ConsumeExpected("ack:hello")
 	if err != nil {
 		// TODO: signal peer dead on bus
 		return err
 	}
-	err = ConsumeExpected(pc, "hello")
+	err = pc.ConsumeExpected("hello")
 	if err != nil {
 		// TODO: signal peer dead on bus
 		return err
@@ -84,7 +84,7 @@ func GreetPeer(pc util.PeerConn) error {
 		// TODO: signal peer dead on bus
 		return err
 	}
-	err = TransmitSimpleMessage(pc, "ack:hello")
+	err = pc.TransmitStringLine("ack:hello")
 	if err != nil {
 		// TODO: signal peer dead on bus
 		return err
@@ -105,7 +105,7 @@ func GreetPeer(pc util.PeerConn) error {
 	return nil
 }
 
-func ReceivePeerGreeting(pc util.PeerConn) {
+func ReceivePeerGreeting(pc PeerConn) {
 	defer func() {
 		if r := recover(); r != nil {
 			// TODO: signal peer dead on bus
@@ -114,15 +114,15 @@ func ReceivePeerGreeting(pc util.PeerConn) {
 	}()
 
 	// Hello handshake
-	err := ConsumeExpected(pc, "hello")
+	err := pc.ConsumeExpected("hello")
 	util.PanicErr(err)
 	helloMsg, err := ReceiveHelloMessage(pc)
 	util.PanicErr(err)
-	err = TransmitSimpleMessage(pc, "ack:hello")
+	err = pc.TransmitStringLine("ack:hello")
 	util.PanicErr(err)
 	err = NewHelloMessage().Transmit(pc)
 	util.PanicErr(err)
-	err = ConsumeExpected(pc, "ack:hello")
+	err = pc.ConsumeExpected("ack:hello")
 	util.PanicErr(err)
 
 	// Close if either peer wants
@@ -137,7 +137,7 @@ func ReceivePeerGreeting(pc util.PeerConn) {
 	go PeerRoutine(pc, helloMsg)
 }
 
-func PeerRoutine(pc util.PeerConn, data HelloMessage) {
+func PeerRoutine(pc PeerConn, data HelloMessage) {
 	defer func() {
 		// TODO: signal peer dead on bus
 		if r := recover(); r != nil {
