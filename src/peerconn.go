@@ -28,7 +28,7 @@ func NewPeerConn(c *net.TCPConn) PeerConn {
 	}
 }
 
-// Dial a TCP Address and make a peer connection if successful.
+// Resolve and dial a TCP Address then make a peer connection if successful.
 func ResolvePeerConn(addr string) (PeerConn, error) {
 	tcpAddr, err := net.ResolveTCPAddr("tcp", addr)
 	if err != nil {
@@ -54,6 +54,11 @@ func (pc PeerConn) ConsumeExpected(msg string) error {
 		)
 	}
 	return nil
+}
+
+// Transmit a Message.
+func (pc PeerConn) TransmitMessage(msg Message) error {
+	return msg.Transmit(pc)
 }
 
 // Transmit a simple string as a line.

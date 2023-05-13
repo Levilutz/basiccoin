@@ -64,7 +64,7 @@ func GreetPeer(pc PeerConn) error {
 	}()
 
 	// Hello handshake
-	err := NewHelloMessage().Transmit(pc)
+	err := pc.TransmitMessage(NewHelloMessage())
 	if err != nil {
 		// TODO: signal peer dead on bus
 		return err
@@ -120,7 +120,7 @@ func ReceivePeerGreeting(pc PeerConn) {
 	util.PanicErr(err)
 	err = pc.TransmitStringLine("ack:hello")
 	util.PanicErr(err)
-	err = NewHelloMessage().Transmit(pc)
+	err = pc.TransmitMessage(NewHelloMessage())
 	util.PanicErr(err)
 	err = pc.ConsumeExpected("ack:hello")
 	util.PanicErr(err)

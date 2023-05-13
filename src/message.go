@@ -26,14 +26,14 @@ func NewHelloMessage() HelloMessage {
 	}
 }
 
-// Get the HelloMessage's name
-func (msg HelloMessage) GetName() string {
-	return "hello"
-}
-
 // Receive a HelloMessage from the channel
 func ReceiveHelloMessage(pc PeerConn) (HelloMessage, error) {
 	return PeerConnReceiveStandardMessage[HelloMessage](pc)
+}
+
+// Get the HelloMessage's name
+func (msg HelloMessage) GetName() string {
+	return "hello"
 }
 
 // Transmit a HelloMessage over the channel, including name
