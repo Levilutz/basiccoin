@@ -37,9 +37,21 @@ func JsonB64(content any) ([]byte, error) {
 	if err != nil {
 		return []byte{}, err
 	}
-	body := make([]byte, 0)
+	body := make([]byte, base64.StdEncoding.EncodedLen(len(bodyJson)))
 	base64.StdEncoding.Encode(body, bodyJson)
 	return body, nil
+}
+
+// Recovers unjson(unb64(body))
+func UnJsonB64[R any](body []byte) (R, error) {
+	var content R
+	bodyJson := make([]byte, base64.StdEncoding.DecodedLen(len(body)))
+	n, err := base64.StdEncoding.Decode(bodyJson, body)
+	if err != nil {
+		return content, err
+	}
+	err = json.Unmarshal(bodyJson[:n], &content)
+	return content, err
 }
 
 // Pretty print json-able content
@@ -54,13 +66,17 @@ func PrettyPrint(content any) {
 // Retry reading a line from a bufio reader, exponential wait.
 // Attempts begin at 1ms and multiply by 10.
 // 5 Attempts is 11.111s total time, 6 attempts is 111.111s total time, etc.
-func RetryReadBytes(r *bufio.Reader, attempts int) ([]byte, error) {
+func RetryReadLine(r *bufio.Reader, attempts int) ([]byte, error) {
 	delay := time.Duration(1) * time.Millisecond
 	for i := 0; i < attempts; i++ {
 		fmt.Println("trying...")
 		data, err := r.ReadBytes(byte('\n'))
 		if err == nil {
-			return data, nil
+			if len(data) > 0 {
+				return data[:len(data)-1], nil
+			} else {
+				return data, nil
+			}
 		} else if errors.Is(err, io.EOF) {
 			fmt.Println(delay)
 			time.Sleep(delay)
