@@ -57,44 +57,48 @@ func NewPeerInbound(conn *net.TCPConn, mainBus *mainbus.MainBus) (*Peer, error) 
 }
 
 func (p *Peer) Loop() {
-	defer func() {
-		// TODO: signal peer dead on bus
-		if r := recover(); r != nil {
-			fmt.Printf("Failed PeerRoutine: %v\n", r)
-		}
-	}()
-	fmt.Println("Successful connection to:")
-	util.PrettyPrint(p.HelloMsg)
-	ticker := time.NewTicker(time.Millisecond * time.Duration(100))
+	listenTicker := time.NewTicker(util.Constants.PeerListenFreq)
+	pingTicker := time.NewTicker(util.Constants.PeerPingFreq)
 	for {
 		select {
 		case event := <-p.EventBus:
-			fmt.Println(event)
-		case <-ticker.C:
+			p.handlePeerBusEvent(event)
+		case <-listenTicker.C:
 			line := p.conn.ReadLineTimeout(25)
 			if p.conn.Err() != nil {
 				continue
 			}
-			cmd := string(line)
-
-			if cmd == "close" {
-				p.conn.TransmitStringLine("close")
-				p.mainBus.Events <- mainbus.MainBusEvent{
-					PeerClosing: &mainbus.PeerClosingEvent{
-						RuntimeID: p.HelloMsg.RuntimeID,
-					},
-				}
-				return
-
-			} else if cmd == "ping" {
-				p.conn.TransmitStringLine("pong")
-
+			p.handleReceivedCommand(string(line))
+		case <-pingTicker.C:
+			p.conn.TransmitStringLine("ping")
+			p.conn.ConsumeExpected("pong")
+			if err := p.conn.Err(); err == nil {
+				fmt.Println("ping success")
 			} else {
-				fmt.Println("Unexpected peer message:", cmd)
+				fmt.Println("ping err", err.Error())
 			}
 		}
 	}
-	// Should be less of a dance here (shouldn't need ConsumeExpected)
-	// We emit things, and respond to requests. Is memory/state rly necessary? hope not
-	// Loop select new messages in channel, messages from bus channel, ping timer
+}
+
+func (p *Peer) handlePeerBusEvent(event PeerEvent) {
+	fmt.Println(event)
+}
+
+func (p *Peer) handleReceivedCommand(command string) {
+	if command == "close" {
+		p.conn.TransmitStringLine("close")
+		p.mainBus.Events <- mainbus.MainBusEvent{
+			PeerClosing: &mainbus.PeerClosingEvent{
+				RuntimeID: p.HelloMsg.RuntimeID,
+			},
+		}
+		return
+
+	} else if command == "ping" {
+		p.conn.TransmitStringLine("pong")
+
+	} else {
+		fmt.Println("Unexpected peer message:", command)
+	}
 }
