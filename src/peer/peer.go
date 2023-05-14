@@ -3,6 +3,7 @@ package peer
 import (
 	"errors"
 	"fmt"
+	"net"
 	"time"
 
 	"github.com/levilutz/basiccoin/src/mainbus"
@@ -64,6 +65,40 @@ func NewPeerOutbound(addr string, mainBus *mainbus.MainBus) (*Peer, error) {
 	return p, nil
 }
 
+func NewPeerInbound(conn *net.TCPConn, mainBus *mainbus.MainBus) (*Peer, error) {
+	// Make PeerConn
+	pc := NewPeerConn(conn)
+
+	// Hello handshake
+	pc.ConsumeExpected("hello")
+	if err := pc.Err(); err != nil {
+		return nil, err
+	}
+	helloMsg, err := ReceiveHelloMessage(pc)
+	if err != nil {
+		return nil, err
+	}
+	pc.TransmitStringLine("ack:hello")
+	pc.TransmitMessage(NewHelloMessage())
+	pc.ConsumeExpected("ack:hello")
+	if err := pc.Err(); err != nil {
+		return nil, err
+	}
+
+	p := NewPeer(&helloMsg, pc, 100, mainBus)
+
+	// Close if either peer wants
+	conWanted, err := p.verifyConnWanted()
+	if err != nil {
+		return nil, err
+	}
+	if !conWanted {
+		return nil, errors.New("peer does not want connection")
+	}
+
+	return p, nil
+}
+
 // Whether we should connect, based on their hello info
 func (p *Peer) shouldConnect() bool {
 	// Don't connect to self
@@ -99,38 +134,6 @@ func (p *Peer) verifyConnWanted() (bool, error) {
 	} else {
 		return false, fmt.Errorf("expected 'continue'|'close', received '%s'", contMsg)
 	}
-}
-
-func ReceivePeerGreeting(pc *PeerConn, mainBus *mainbus.MainBus) (*Peer, error) {
-	// Hello handshake
-	pc.ConsumeExpected("hello")
-	if err := pc.Err(); err != nil {
-		return nil, err
-	}
-	helloMsg, err := ReceiveHelloMessage(pc)
-	if err != nil {
-		return nil, err
-	}
-	pc.TransmitStringLine("ack:hello")
-	pc.TransmitMessage(NewHelloMessage())
-	pc.ConsumeExpected("ack:hello")
-	if err := pc.Err(); err != nil {
-		return nil, err
-	}
-
-	p := NewPeer(&helloMsg, pc, 100, mainBus)
-
-	// Close if either peer wants
-	conWanted, err := p.verifyConnWanted()
-	if err != nil {
-		return nil, err
-	}
-	if !conWanted {
-		return nil, errors.New("peer does not want connection")
-	}
-
-	go p.Loop()
-	return p, nil
 }
 
 func (p *Peer) Loop() {

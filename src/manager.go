@@ -33,11 +33,12 @@ func addPeer(
 	state *MainState,
 	conn *net.TCPConn,
 ) {
-	p, err := peer.ReceivePeerGreeting(peer.NewPeerConn(conn), state.mainBus)
+	p, err := peer.NewPeerInbound(conn, state.mainBus)
 	if err != nil {
 		fmt.Println("Failed to establish with new peer:", err.Error())
 		return
 	}
+	go p.Loop()
 	state.peersMutex.Lock()
 	defer state.peersMutex.Unlock()
 	if _, ok := state.peers[p.HelloMsg.RuntimeID]; !ok {
