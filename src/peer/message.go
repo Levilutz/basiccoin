@@ -49,7 +49,7 @@ func (msg HelloPeerMessage) GetName() string {
 
 // Transmit a HelloMessage over the channel, including name
 func (msg HelloPeerMessage) Transmit(pc *PeerConn) error {
-	pc.TransmitStringLine(msg.GetName())
+	pc.TransmitStringLine("cmd:" + msg.GetName())
 	data, err := util.JsonB64(msg)
 	if err != nil {
 		return err

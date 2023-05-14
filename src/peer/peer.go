@@ -76,8 +76,8 @@ func (p *Peer) Loop() {
 			}
 			p.handleReceivedCommand(string(line))
 		case <-pingTicker.C:
-			p.conn.TransmitStringLine("ping")
-			p.conn.ConsumeExpected("pong")
+			p.conn.TransmitStringLine("cmd:ping")
+			p.conn.ConsumeExpected("ack:ping")
 			if err := p.conn.Err(); err == nil {
 				fmt.Println("ping success")
 			} else {
@@ -94,8 +94,8 @@ func (p *Peer) handlePeerBusEvent(event events.PeerEvent) {
 
 // Handle command received from peer
 func (p *Peer) handleReceivedCommand(command string) {
-	if command == "close" {
-		p.conn.TransmitStringLine("close")
+	if command == "cmd:close" {
+		p.conn.TransmitStringLine("ack:close")
 		p.mainBus <- events.MainEvent{
 			PeerClosing: &events.PeerClosingMainEvent{
 				RuntimeID: p.HelloMsg.RuntimeID,
@@ -103,8 +103,8 @@ func (p *Peer) handleReceivedCommand(command string) {
 		}
 		return
 
-	} else if command == "ping" {
-		p.conn.TransmitStringLine("pong")
+	} else if command == "cmd:ping" {
+		p.conn.TransmitStringLine("ack:ping")
 
 	} else {
 		fmt.Println("Unexpected peer message:", command)

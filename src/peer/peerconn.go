@@ -50,7 +50,7 @@ func (pc *PeerConn) GiveHandshake() *HelloPeerMessage {
 	}
 	pc.TransmitMessage(NewHelloMessage())
 	pc.ConsumeExpected("ack:hello")
-	pc.ConsumeExpected("hello")
+	pc.ConsumeExpected("cmd:hello")
 	if pc.E != nil {
 		return nil
 	}
@@ -72,7 +72,7 @@ func (pc *PeerConn) ReceiveHandshake() *HelloPeerMessage {
 	if pc.E != nil {
 		return nil
 	}
-	pc.ConsumeExpected("hello")
+	pc.ConsumeExpected("cmd:hello")
 	if pc.E != nil {
 		return nil
 	}
@@ -98,10 +98,10 @@ func (pc *PeerConn) VerifyConnWanted(msg HelloPeerMessage) {
 		return
 	}
 	// Decide if we want to continue and tell them
-	sendMsg := "continue"
+	sendMsg := "cmd:continue"
 	if msg.RuntimeID == util.Constants.RuntimeID ||
 		msg.Version != util.Constants.Version {
-		sendMsg = "close"
+		sendMsg = "cmd:close"
 	}
 	pc.TransmitStringLine(sendMsg)
 
@@ -109,12 +109,12 @@ func (pc *PeerConn) VerifyConnWanted(msg HelloPeerMessage) {
 	contMsg := pc.RetryReadLine(7)
 	if pc.E != nil {
 		return
-	} else if string(contMsg) == "continue" {
+	} else if string(contMsg) == "cmd:continue" {
 		return
-	} else if string(contMsg) == "close" {
+	} else if string(contMsg) == "cmd:close" {
 		pc.E = errors.New("peer does not want connection")
 	} else {
-		pc.E = fmt.Errorf("expected 'continue'|'close', received '%s'", contMsg)
+		pc.E = fmt.Errorf("expected 'cmd:continue'|'cmd:close', received '%s'", contMsg)
 	}
 }
 
