@@ -3,7 +3,7 @@ package main
 import (
 	"net"
 
-	"github.com/levilutz/basiccoin/src/mainbus"
+	"github.com/levilutz/basiccoin/src/events"
 	"github.com/levilutz/basiccoin/src/peer"
 	"github.com/levilutz/basiccoin/src/util"
 )
@@ -18,7 +18,7 @@ func main() {
 	go util.ListenTCP(conns)
 
 	// Buses
-	mainBus := mainbus.NewMainBus(100)
+	mainBus := make(chan events.MainEvent)
 	peers := make(map[string]*peer.Peer)
 
 	// Greet seed peer

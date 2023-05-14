@@ -5,13 +5,13 @@ import (
 	"net"
 	"sync"
 
-	"github.com/levilutz/basiccoin/src/mainbus"
+	"github.com/levilutz/basiccoin/src/events"
 	"github.com/levilutz/basiccoin/src/peer"
 )
 
 type MainState struct {
 	newConnChannel          chan *net.TCPConn
-	mainBus                 *mainbus.MainBus
+	mainBus                 chan events.MainEvent
 	peers                   map[string]*peer.Peer
 	peersMutex              sync.Mutex
 	candidatePeerAddrs      map[string]struct{}
@@ -23,7 +23,7 @@ func managerRoutine(state *MainState) {
 		select {
 		case conn := <-state.newConnChannel:
 			go addPeer(state, conn)
-		case event := <-state.mainBus.Events:
+		case event := <-state.mainBus:
 			go handleMainBusEvent(state, event)
 		}
 	}
@@ -53,7 +53,7 @@ func addPeer(
 	}
 }
 
-func handleMainBusEvent(state *MainState, event mainbus.MainBusEvent) {
+func handleMainBusEvent(state *MainState, event events.MainEvent) {
 	if msg := event.PeerClosing; msg != nil {
 		state.peersMutex.Lock()
 		delete(state.peers, msg.RuntimeID)

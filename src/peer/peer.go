@@ -5,7 +5,7 @@ import (
 	"net"
 	"time"
 
-	"github.com/levilutz/basiccoin/src/mainbus"
+	"github.com/levilutz/basiccoin/src/events"
 	"github.com/levilutz/basiccoin/src/util"
 )
 
@@ -14,13 +14,13 @@ type Peer struct {
 	HelloMsg *HelloPeerMessage
 	EventBus chan PeerEvent
 	conn     *PeerConn
-	mainBus  *mainbus.MainBus
+	mainBus  chan<- events.MainEvent
 }
 
 // Create a Peer from the result of a successfull handshake on a PeerConn, the
 // associated PeerConn, and a bus to emit events back to the manager loop.
 func NewPeer(
-	msg *HelloPeerMessage, pc *PeerConn, mainBus *mainbus.MainBus,
+	msg *HelloPeerMessage, pc *PeerConn, mainBus chan events.MainEvent,
 ) *Peer {
 	return &Peer{
 		HelloMsg: msg,
@@ -31,7 +31,7 @@ func NewPeer(
 }
 
 // Attempt to initialize an outbound connection given a remote address.
-func NewPeerOutbound(addr string, mainBus *mainbus.MainBus) (*Peer, error) {
+func NewPeerOutbound(addr string, mainBus chan events.MainEvent) (*Peer, error) {
 	// Resolve host
 	pc, err := ResolvePeerConn(addr)
 	if err != nil {
@@ -48,7 +48,7 @@ func NewPeerOutbound(addr string, mainBus *mainbus.MainBus) (*Peer, error) {
 }
 
 // Attempt to initialize a new inbound connection given the TCP Conn.
-func NewPeerInbound(conn *net.TCPConn, mainBus *mainbus.MainBus) (*Peer, error) {
+func NewPeerInbound(conn *net.TCPConn, mainBus chan events.MainEvent) (*Peer, error) {
 	// Make PeerConn
 	pc := NewPeerConn(conn)
 
@@ -96,8 +96,8 @@ func (p *Peer) handlePeerBusEvent(event PeerEvent) {
 func (p *Peer) handleReceivedCommand(command string) {
 	if command == "close" {
 		p.conn.TransmitStringLine("close")
-		p.mainBus.Events <- mainbus.MainBusEvent{
-			PeerClosing: &mainbus.PeerClosingEvent{
+		p.mainBus <- events.MainEvent{
+			PeerClosing: &events.PeerClosingMainEvent{
 				RuntimeID: p.HelloMsg.RuntimeID,
 			},
 		}
