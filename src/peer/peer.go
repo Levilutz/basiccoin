@@ -3,6 +3,7 @@ package peer
 import (
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/levilutz/basiccoin/src/mainbus"
 	"github.com/levilutz/basiccoin/src/util"
@@ -119,17 +120,17 @@ func PeerRoutine(
 	}()
 	fmt.Println("Successful connection to:")
 	util.PrettyPrint(data)
+	ticker := time.NewTicker(time.Millisecond * time.Duration(100))
 	for {
 		select {
-		case event := <-bus.UrgentEvents:
-			fmt.Println("urgent1", event)
-		default:
-			select {
-			case event := <-bus.UrgentEvents:
-				fmt.Println("urgent2", event)
-			case event := <-bus.Events:
-				fmt.Println("regular", event)
+		case event := <-bus.Events:
+			fmt.Println(event)
+		case <-ticker.C:
+			line, err := pc.ReadLineTimeout(25)
+			if err != nil {
+				continue
 			}
+			fmt.Println(line)
 		}
 	}
 	// Should be less of a dance here (shouldn't need ConsumeExpected)

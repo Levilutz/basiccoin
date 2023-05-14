@@ -26,7 +26,7 @@ func addPeer(
 	if _, ok := peerBuses[bus.PeerRuntimeID]; !ok {
 		peerBuses[bus.PeerRuntimeID] = bus
 	} else {
-		bus.UrgentEvents <- peer.PeerBusEvent{
+		bus.Events <- peer.PeerBusEvent{
 			ShouldEnd: &peer.ShouldEndEvent{
 				SendClose:     true,
 				NotifyMainBus: false,
@@ -66,30 +66,8 @@ func main() {
 			peerBusesMutex.Lock()
 			delete(peerBuses, closedID)
 			peerBusesMutex.Unlock()
-		default:
-			select {
-			case conn := <-conns:
-				go addPeer(conn, peerBuses, &peerBusesMutex, mainBus)
-			case closedID := <-mainBus.PeerClosings:
-				peerBusesMutex.Lock()
-				delete(peerBuses, closedID)
-				peerBusesMutex.Unlock()
-			case event := <-mainBus.UrgentEvents:
-				fmt.Println(event)
-			default:
-				select {
-				case conn := <-conns:
-					go addPeer(conn, peerBuses, &peerBusesMutex, mainBus)
-				case closedID := <-mainBus.PeerClosings:
-					peerBusesMutex.Lock()
-					delete(peerBuses, closedID)
-					peerBusesMutex.Unlock()
-				case event := <-mainBus.UrgentEvents:
-					fmt.Println(event)
-				case event := <-mainBus.Events:
-					fmt.Println(event)
-				}
-			}
+		case event := <-mainBus.Events:
+			fmt.Println(event)
 		}
 	}
 

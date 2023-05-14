@@ -3,14 +3,12 @@ package peer
 type PeerBus struct {
 	PeerRuntimeID string
 	Events        chan PeerBusEvent
-	UrgentEvents  chan PeerBusEvent
 }
 
 func NewPeerBus(peerRuntimeID string, bufferSize int) *PeerBus {
 	return &PeerBus{
 		PeerRuntimeID: peerRuntimeID,
 		Events:        make(chan PeerBusEvent, bufferSize),
-		UrgentEvents:  make(chan PeerBusEvent, bufferSize),
 	}
 }
 

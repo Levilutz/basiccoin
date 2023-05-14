@@ -90,11 +90,9 @@ func (pc *PeerConn) RetryReadLine(attempts int) []byte {
 	if pc.E != nil {
 		return nil
 	}
-	defer pc.C.SetReadDeadline(time.Time{})
 	delay := time.Duration(100) * time.Millisecond
 	for i := 0; i < attempts; i++ {
-		pc.C.SetReadDeadline(time.Now().Add(delay))
-		data, err := pc.R.ReadBytes(byte('\n'))
+		data, err := pc.ReadLineTimeout(delay)
 		if err == nil {
 			return data[:len(data)-1] // len(data) will always be at least 1
 		} else if errors.Is(err, io.EOF) || errors.Is(err, os.ErrDeadlineExceeded) {
@@ -106,6 +104,12 @@ func (pc *PeerConn) RetryReadLine(attempts int) []byte {
 	}
 	pc.E = io.EOF
 	return nil
+}
+
+func (pc *PeerConn) ReadLineTimeout(timeout time.Duration) ([]byte, error) {
+	defer pc.C.SetReadDeadline(time.Time{})
+	pc.C.SetReadDeadline(time.Now().Add(timeout))
+	return pc.R.ReadBytes(byte('\n'))
 }
 
 // Pop the stored error

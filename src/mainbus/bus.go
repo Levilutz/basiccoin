@@ -3,14 +3,12 @@ package mainbus
 type MainBus struct {
 	PeerClosings chan string
 	Events       chan MainBusEvent
-	UrgentEvents chan MainBusEvent
 }
 
 func NewMainBus(bufferSize int) *MainBus {
 	return &MainBus{
 		PeerClosings: make(chan string, bufferSize),
 		Events:       make(chan MainBusEvent, bufferSize),
-		UrgentEvents: make(chan MainBusEvent, bufferSize),
 	}
 }
 
