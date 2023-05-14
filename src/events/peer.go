@@ -16,7 +16,9 @@ type PeerEvent struct {
 
 // Command to terminate the connection.
 type ShouldEndPeerEvent struct {
-	SendClose     bool
+	// Whether we should send the peer a "close" message.
+	SendClose bool
+	// Whether we should notify the main bus of the closure.
 	NotifyMainBus bool
 }
 

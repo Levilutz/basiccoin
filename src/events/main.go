@@ -14,6 +14,7 @@ type MainEvent struct {
 
 // A Peer is closing its connection, remove from table.
 type PeerClosingMainEvent struct {
+	// ID of the Peer that's closing.
 	RuntimeID string
 }
 
@@ -34,17 +35,22 @@ type PeersReceivedMainEvent struct {
 // Query Events
 
 // Retrieve our currently known peers.
-// Responds on PeerBus:PeerData.
+// Responds on PeerBus:PeersData.
 type PeersWantedMainEvent struct {
+	// ID of Peer that wants response.
 	PeerRuntimeID string
 }
 
 // Retrieve a known Block with its Merkle tree and Txs.
 // Responds on PeerBus:BlockData.
 type BlockWantedMainEvent struct {
+	// ID of Peer that wants response.
+	PeerRuntimeID string
 }
 
 // Retrieve our mempool's Txs.
-// Responds on PeerBus:MempoolDataEvent
+// Responds on PeerBus:MempoolData.
 type MempoolWantedMainEvent struct {
+	// ID of Peer that wants response.
+	PeerRuntimeID string
 }
