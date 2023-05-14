@@ -11,16 +11,57 @@ import (
 
 type Peer struct {
 	HelloMsg *HelloPeerMessage
-	Events   chan PeerEvent
+	EventBus chan PeerEvent
 	conn     *PeerConn
+	mainBus  *mainbus.MainBus
 }
 
-func NewPeer(msg *HelloPeerMessage, pc *PeerConn, bufferSize int) *Peer {
+func NewPeer(
+	msg *HelloPeerMessage, pc *PeerConn, bufferSize int, mainBus *mainbus.MainBus,
+) *Peer {
 	return &Peer{
 		HelloMsg: msg,
-		Events:   make(chan PeerEvent, bufferSize),
+		EventBus: make(chan PeerEvent, bufferSize),
 		conn:     pc,
+		mainBus:  mainBus,
 	}
+}
+
+func NewPeerOutbound(addr string, mainBus *mainbus.MainBus) (*Peer, error) {
+	// Resolve host
+	pc, err := ResolvePeerConn(addr)
+	if err != nil {
+		return nil, err
+	}
+
+	// Hello handshake
+	pc.TransmitMessage(NewHelloMessage())
+	pc.ConsumeExpected("ack:hello")
+	pc.ConsumeExpected("hello")
+	if err := pc.Err(); err != nil {
+		return nil, err
+	}
+	helloMsg, err := ReceiveHelloMessage(pc)
+	if err != nil {
+		return nil, err
+	}
+	pc.TransmitStringLine("ack:hello")
+	if err = pc.Err(); err != nil {
+		return nil, err
+	}
+
+	p := NewPeer(&helloMsg, pc, 100, mainBus)
+
+	// Close if either peer wants
+	conWanted, err := p.verifyConnWanted()
+	if err != nil {
+		return nil, err
+	}
+	if !conWanted {
+		return nil, errors.New("peer does not want connection")
+	}
+
+	return p, nil
 }
 
 // Whether we should connect, based on their hello info
@@ -60,38 +101,6 @@ func (p *Peer) verifyConnWanted() (bool, error) {
 	}
 }
 
-func GreetPeer(pc *PeerConn, mainBus *mainbus.MainBus) (*Peer, error) {
-	// Hello handshake
-	pc.TransmitMessage(NewHelloMessage())
-	pc.ConsumeExpected("ack:hello")
-	pc.ConsumeExpected("hello")
-	if err := pc.Err(); err != nil {
-		return nil, err
-	}
-	helloMsg, err := ReceiveHelloMessage(pc)
-	if err != nil {
-		return nil, err
-	}
-	pc.TransmitStringLine("ack:hello")
-	if err = pc.Err(); err != nil {
-		return nil, err
-	}
-
-	p := NewPeer(&helloMsg, pc, 100)
-
-	// Close if either peer wants
-	conWanted, err := p.verifyConnWanted()
-	if err != nil {
-		return nil, err
-	}
-	if !conWanted {
-		return nil, errors.New("peer does not want connection")
-	}
-
-	go PeerRoutine(p, mainBus)
-	return p, nil
-}
-
 func ReceivePeerGreeting(pc *PeerConn, mainBus *mainbus.MainBus) (*Peer, error) {
 	// Hello handshake
 	pc.ConsumeExpected("hello")
@@ -109,7 +118,7 @@ func ReceivePeerGreeting(pc *PeerConn, mainBus *mainbus.MainBus) (*Peer, error) 
 		return nil, err
 	}
 
-	p := NewPeer(&helloMsg, pc, 100)
+	p := NewPeer(&helloMsg, pc, 100, mainBus)
 
 	// Close if either peer wants
 	conWanted, err := p.verifyConnWanted()
@@ -120,11 +129,11 @@ func ReceivePeerGreeting(pc *PeerConn, mainBus *mainbus.MainBus) (*Peer, error) 
 		return nil, errors.New("peer does not want connection")
 	}
 
-	go PeerRoutine(p, mainBus)
+	go p.Loop()
 	return p, nil
 }
 
-func PeerRoutine(p *Peer, mainBus *mainbus.MainBus) {
+func (p *Peer) Loop() {
 	defer func() {
 		// TODO: signal peer dead on bus
 		if r := recover(); r != nil {
@@ -136,7 +145,7 @@ func PeerRoutine(p *Peer, mainBus *mainbus.MainBus) {
 	ticker := time.NewTicker(time.Millisecond * time.Duration(100))
 	for {
 		select {
-		case event := <-p.Events:
+		case event := <-p.EventBus:
 			fmt.Println(event)
 		case <-ticker.C:
 			line, err := p.conn.ReadLineTimeout(25)
@@ -147,7 +156,7 @@ func PeerRoutine(p *Peer, mainBus *mainbus.MainBus) {
 
 			if cmd == "close" {
 				p.conn.TransmitStringLine("close")
-				mainBus.Events <- mainbus.MainBusEvent{
+				p.mainBus.Events <- mainbus.MainBusEvent{
 					PeerClosing: &mainbus.PeerClosingEvent{
 						RuntimeID: p.HelloMsg.RuntimeID,
 					},

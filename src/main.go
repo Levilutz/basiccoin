@@ -23,10 +23,9 @@ func main() {
 
 	// Greet seed peer
 	if cli_args.SeedAddr != "" {
-		conn, err := peer.ResolvePeerConn(cli_args.SeedAddr)
+		p, err := peer.NewPeerOutbound(cli_args.SeedAddr, mainBus)
 		util.PanicErr(err)
-		p, err := peer.GreetPeer(conn, mainBus)
-		util.PanicErr(err)
+		go p.Loop()
 		peers[p.HelloMsg.RuntimeID] = p
 	}
 
