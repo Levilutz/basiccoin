@@ -5,7 +5,7 @@ import (
 	"net"
 	"sync"
 
-	"github.com/levilutz/basiccoin/src/manager"
+	"github.com/levilutz/basiccoin/src/mainbus"
 	"github.com/levilutz/basiccoin/src/peer"
 	"github.com/levilutz/basiccoin/src/util"
 )
@@ -14,7 +14,7 @@ func addPeer(
 	conn *net.TCPConn,
 	peerBuses map[string]*peer.PeerBus,
 	peerBusesMutex *sync.Mutex,
-	mainBus *manager.MainBus,
+	mainBus *mainbus.MainBus,
 ) {
 	bus, err := peer.ReceivePeerGreeting(peer.NewPeerConn(conn), mainBus)
 	if err != nil {
@@ -45,7 +45,7 @@ func main() {
 	go util.ListenTCP(conns)
 
 	// Buses
-	mainBus := manager.NewMainBus(100)
+	mainBus := mainbus.NewMainBus(100)
 	peerBuses := make(map[string]*peer.PeerBus)
 	peerBusesMutex := sync.Mutex{}
 

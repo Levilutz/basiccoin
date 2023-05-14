@@ -1,4 +1,4 @@
-package manager
+package mainbus
 
 type MainBus struct {
 	Events chan MainBusEvent
