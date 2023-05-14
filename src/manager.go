@@ -44,8 +44,8 @@ func addPeer(
 	if _, ok := state.peers[p.HelloMsg.RuntimeID]; !ok {
 		state.peers[p.HelloMsg.RuntimeID] = p
 	} else {
-		p.EventBus <- peer.PeerEvent{
-			ShouldEnd: &peer.ShouldEndEvent{
+		p.EventBus <- events.PeerEvent{
+			ShouldEnd: &events.ShouldEndPeerEvent{
 				SendClose:     true,
 				NotifyMainBus: false,
 			},

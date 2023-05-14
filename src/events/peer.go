@@ -1,52 +1,52 @@
-package peer
+package events
 
 type PeerEvent struct {
 	// True Events
-	ShouldEnd   *ShouldEndEvent
-	BlockData   *BlockDataEvent
-	MempoolData *MempoolDataEvent
-	PeersData   *PeersDataEvent
+	ShouldEnd   *ShouldEndPeerEvent
+	BlockData   *BlockDataPeerEvent
+	MempoolData *MempoolDataPeerEvent
+	PeersData   *PeersDataPeerEvent
 	// Query Events
-	PeersWanted   *PeersWantedEvent
-	BlockWanted   *BlockWantedEvent
-	MempoolWanted *MempoolWantedEvent
+	PeersWanted   *PeersWantedPeerEvent
+	BlockWanted   *BlockWantedPeerEvent
+	MempoolWanted *MempoolWantedPeerEvent
 }
 
 // True Events
 
 // Command to terminate the connection.
-type ShouldEndEvent struct {
+type ShouldEndPeerEvent struct {
 	SendClose     bool
 	NotifyMainBus bool
 }
 
 // Inform the peer of a Block with its Merkle tree and Txs.
-type BlockDataEvent struct {
+type BlockDataPeerEvent struct {
 	// Block, Merkle, Txs
 }
 
 // Inform the peer of our mempool's Txs.
-type MempoolDataEvent struct {
+type MempoolDataPeerEvent struct {
 	// Mempool, Txs
 }
 
 // Inform the peer of other peers.
-type PeersDataEvent struct {
+type PeersDataPeerEvent struct {
 }
 
 // Query Events
 
 // Retrieve other peers from the peer.
 // Responds on MainBus:PeersReceived.
-type PeersWantedEvent struct {
+type PeersWantedPeerEvent struct {
 }
 
 // Retrieve a Block with its Merkle tree and Txs from the peer.
 // Responds on MainBus:BlockReceived.
-type BlockWantedEvent struct {
+type BlockWantedPeerEvent struct {
 }
 
 // Retrieve the peer's mempool.
 // Responds on MainBus:TxsReceived.
-type MempoolWantedEvent struct {
+type MempoolWantedPeerEvent struct {
 }

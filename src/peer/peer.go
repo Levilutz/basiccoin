@@ -12,7 +12,7 @@ import (
 // Encapsulate a high-level connection to a peer.
 type Peer struct {
 	HelloMsg *HelloPeerMessage
-	EventBus chan PeerEvent
+	EventBus chan events.PeerEvent
 	conn     *PeerConn
 	mainBus  chan<- events.MainEvent
 }
@@ -24,7 +24,7 @@ func NewPeer(
 ) *Peer {
 	return &Peer{
 		HelloMsg: msg,
-		EventBus: make(chan PeerEvent, util.Constants.PeerBusBufferSize),
+		EventBus: make(chan events.PeerEvent, util.Constants.PeerBusBufferSize),
 		conn:     pc,
 		mainBus:  mainBus,
 	}
@@ -88,7 +88,7 @@ func (p *Peer) Loop() {
 }
 
 // Handle event from our message bus
-func (p *Peer) handlePeerBusEvent(event PeerEvent) {
+func (p *Peer) handlePeerBusEvent(event events.PeerEvent) {
 	fmt.Println(event)
 }
 
