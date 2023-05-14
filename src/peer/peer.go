@@ -9,6 +9,7 @@ import (
 	"github.com/levilutz/basiccoin/src/util"
 )
 
+// Encapsulate a high-level connection to a peer.
 type Peer struct {
 	HelloMsg *HelloPeerMessage
 	EventBus chan PeerEvent
@@ -16,6 +17,8 @@ type Peer struct {
 	mainBus  *mainbus.MainBus
 }
 
+// Create a Peer from the result of a successfull handshake on a PeerConn, the
+// associated PeerConn, and a bus to emit events back to the manager loop.
 func NewPeer(
 	msg *HelloPeerMessage, pc *PeerConn, mainBus *mainbus.MainBus,
 ) *Peer {
@@ -27,6 +30,7 @@ func NewPeer(
 	}
 }
 
+// Attempt to initialize an outbound connection given a remote address.
 func NewPeerOutbound(addr string, mainBus *mainbus.MainBus) (*Peer, error) {
 	// Resolve host
 	pc, err := ResolvePeerConn(addr)
@@ -43,6 +47,7 @@ func NewPeerOutbound(addr string, mainBus *mainbus.MainBus) (*Peer, error) {
 	return NewPeer(helloMsg, pc, mainBus), nil
 }
 
+// Attempt to initialize a new inbound connection given the TCP Conn.
 func NewPeerInbound(conn *net.TCPConn, mainBus *mainbus.MainBus) (*Peer, error) {
 	// Make PeerConn
 	pc := NewPeerConn(conn)
@@ -56,6 +61,7 @@ func NewPeerInbound(conn *net.TCPConn, mainBus *mainbus.MainBus) (*Peer, error) 
 	return NewPeer(helloMsg, pc, mainBus), nil
 }
 
+// Loop handling events from our message bus and the peer
 func (p *Peer) Loop() {
 	listenTicker := time.NewTicker(util.Constants.PeerListenFreq)
 	pingTicker := time.NewTicker(util.Constants.PeerPingFreq)
@@ -81,10 +87,12 @@ func (p *Peer) Loop() {
 	}
 }
 
+// Handle event from our message bus
 func (p *Peer) handlePeerBusEvent(event PeerEvent) {
 	fmt.Println(event)
 }
 
+// Handle command received from peer
 func (p *Peer) handleReceivedCommand(command string) {
 	if command == "close" {
 		p.conn.TransmitStringLine("close")
