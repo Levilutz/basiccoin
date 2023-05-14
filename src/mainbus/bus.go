@@ -38,6 +38,7 @@ type TxsReceivedEvent struct {
 
 // Save the newly-discovered peer addresses.
 type PeersReceivedEvent struct {
+	PeerAddrs []string
 }
 
 // Query Events
@@ -45,6 +46,7 @@ type PeersReceivedEvent struct {
 // Retrieve our currently known peers.
 // Responds on PeerBus:PeerData.
 type PeersWantedEvent struct {
+	PeerRuntimeID string
 }
 
 // Retrieve a known Block with its Merkle tree and Txs.

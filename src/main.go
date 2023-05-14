@@ -2,7 +2,6 @@ package main
 
 import (
 	"net"
-	"sync"
 
 	"github.com/levilutz/basiccoin/src/mainbus"
 	"github.com/levilutz/basiccoin/src/peer"
@@ -21,21 +20,20 @@ func main() {
 	// Buses
 	mainBus := mainbus.NewMainBus(100)
 	peerBuses := make(map[string]*peer.PeerBus)
-	peerBusesMutex := sync.Mutex{}
 
 	// Greet seed peer
 	if cli_args.SeedAddr != "" {
 		conn, err := peer.ResolvePeerConn(cli_args.SeedAddr)
 		util.PanicErr(err)
-		bus, err := peer.GreetPeer(conn, mainBus)
+		msg, bus, err := peer.GreetPeer(conn, mainBus)
 		util.PanicErr(err)
-		peerBuses[bus.PeerRuntimeID] = bus
+		peerBuses[msg.RuntimeID] = bus
 	}
 
 	managerRoutine(MainState{
-		newConnChannel: conns,
-		mainBus:        mainBus,
-		peerBuses:      peerBuses,
-		peerBusesMutex: &peerBusesMutex,
+		newConnChannel:     conns,
+		mainBus:            mainBus,
+		peerBuses:          peerBuses,
+		candidatePeerAddrs: make(map[string]struct{}, 0),
 	})
 }
