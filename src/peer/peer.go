@@ -9,14 +9,28 @@ import (
 	"github.com/levilutz/basiccoin/src/util"
 )
 
+type Peer struct {
+	HelloMsg *HelloPeerMessage
+	Events   chan PeerEvent
+	conn     *PeerConn
+}
+
+func NewPeer(msg *HelloPeerMessage, pc *PeerConn, bufferSize int) *Peer {
+	return &Peer{
+		HelloMsg: msg,
+		Events:   make(chan PeerEvent, bufferSize),
+		conn:     pc,
+	}
+}
+
 // Whether we should connect, based on their hello info
-func shouldConnect(helloMsg HelloPeerMessage) bool {
+func (p *Peer) shouldConnect() bool {
 	// Don't connect to self
-	if helloMsg.RuntimeID == util.Constants.RuntimeID {
+	if p.HelloMsg.RuntimeID == util.Constants.RuntimeID {
 		return false
 	}
 	// Don't connect if version incompatible
-	if helloMsg.Version != util.Constants.Version {
+	if p.HelloMsg.Version != util.Constants.Version {
 		return false
 	}
 	// TODO: Don't connect if peer already known
@@ -25,18 +39,17 @@ func shouldConnect(helloMsg HelloPeerMessage) bool {
 
 // Transmit continue|close, and receive their continue|close. Return whether both peers
 // want to continue the connection.
-func verifyConnWanted(pc *PeerConn, helloMsg HelloPeerMessage) (bool, error) {
+func (p *Peer) verifyConnWanted() (bool, error) {
 	// Decide if we want to continue and tell them
-	shouldConn := shouldConnect(helloMsg)
-	if shouldConn {
-		pc.TransmitStringLine("continue")
+	if p.shouldConnect() {
+		p.conn.TransmitStringLine("continue")
 	} else {
-		pc.TransmitStringLine("close")
+		p.conn.TransmitStringLine("close")
 	}
 
 	// Receive whether they want to continue
-	contMsg := pc.RetryReadLine(7)
-	if err := pc.Err(); err != nil {
+	contMsg := p.conn.RetryReadLine(7)
+	if err := p.conn.Err(); err != nil {
 		return false, err
 	} else if string(contMsg) == "continue" {
 		return true, nil
@@ -47,75 +60,71 @@ func verifyConnWanted(pc *PeerConn, helloMsg HelloPeerMessage) (bool, error) {
 	}
 }
 
-func GreetPeer(
-	pc *PeerConn, mainBus *mainbus.MainBus,
-) (*HelloPeerMessage, *PeerBus, error) {
+func GreetPeer(pc *PeerConn, mainBus *mainbus.MainBus) (*Peer, error) {
 	// Hello handshake
 	pc.TransmitMessage(NewHelloMessage())
 	pc.ConsumeExpected("ack:hello")
 	pc.ConsumeExpected("hello")
 	if err := pc.Err(); err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 	helloMsg, err := ReceiveHelloMessage(pc)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 	pc.TransmitStringLine("ack:hello")
 	if err = pc.Err(); err != nil {
-		return nil, nil, err
+		return nil, err
 	}
+
+	p := NewPeer(&helloMsg, pc, 100)
 
 	// Close if either peer wants
-	conWanted, err := verifyConnWanted(pc, helloMsg)
+	conWanted, err := p.verifyConnWanted()
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 	if !conWanted {
-		return nil, nil, errors.New("peer does not want connection")
+		return nil, errors.New("peer does not want connection")
 	}
 
-	bus := NewPeerBus(100)
-	go PeerRoutine(pc, bus, mainBus, helloMsg)
-	return &helloMsg, bus, nil
+	go PeerRoutine(p, mainBus)
+	return p, nil
 }
 
-func ReceivePeerGreeting(
-	pc *PeerConn, mainBus *mainbus.MainBus,
-) (*HelloPeerMessage, *PeerBus, error) {
+func ReceivePeerGreeting(pc *PeerConn, mainBus *mainbus.MainBus) (*Peer, error) {
 	// Hello handshake
 	pc.ConsumeExpected("hello")
 	if err := pc.Err(); err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 	helloMsg, err := ReceiveHelloMessage(pc)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 	pc.TransmitStringLine("ack:hello")
 	pc.TransmitMessage(NewHelloMessage())
 	pc.ConsumeExpected("ack:hello")
 	if err := pc.Err(); err != nil {
-		return nil, nil, err
+		return nil, err
 	}
+
+	p := NewPeer(&helloMsg, pc, 100)
 
 	// Close if either peer wants
-	conWanted, err := verifyConnWanted(pc, helloMsg)
+	conWanted, err := p.verifyConnWanted()
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 	if !conWanted {
-		return nil, nil, errors.New("peer does not want connection")
+		return nil, errors.New("peer does not want connection")
 	}
 
-	bus := NewPeerBus(100)
-	go PeerRoutine(pc, bus, mainBus, helloMsg)
-	return &helloMsg, bus, nil
+	go PeerRoutine(p, mainBus)
+	return p, nil
 }
 
-func PeerRoutine(
-	pc *PeerConn, bus *PeerBus, mainBus *mainbus.MainBus, data HelloPeerMessage,
-) {
+func PeerRoutine(p *Peer, mainBus *mainbus.MainBus) {
 	defer func() {
 		// TODO: signal peer dead on bus
 		if r := recover(); r != nil {
@@ -123,30 +132,30 @@ func PeerRoutine(
 		}
 	}()
 	fmt.Println("Successful connection to:")
-	util.PrettyPrint(data)
+	util.PrettyPrint(p.HelloMsg)
 	ticker := time.NewTicker(time.Millisecond * time.Duration(100))
 	for {
 		select {
-		case event := <-bus.Events:
+		case event := <-p.Events:
 			fmt.Println(event)
 		case <-ticker.C:
-			line, err := pc.ReadLineTimeout(25)
+			line, err := p.conn.ReadLineTimeout(25)
 			if err != nil {
 				continue
 			}
 			cmd := string(line)
 
 			if cmd == "close" {
-				pc.TransmitStringLine("close")
+				p.conn.TransmitStringLine("close")
 				mainBus.Events <- mainbus.MainBusEvent{
 					PeerClosing: &mainbus.PeerClosingEvent{
-						RuntimeID: data.RuntimeID,
+						RuntimeID: p.HelloMsg.RuntimeID,
 					},
 				}
 				return
 
 			} else if cmd == "ping" {
-				pc.TransmitStringLine("pong")
+				p.conn.TransmitStringLine("pong")
 
 			} else {
 				fmt.Println("Unexpected peer message:", cmd)

@@ -12,17 +12,17 @@ import (
 type MainState struct {
 	newConnChannel          chan *net.TCPConn
 	mainBus                 *mainbus.MainBus
-	peerBuses               map[string]*peer.PeerBus
-	peerBusesMutex          *sync.Mutex
+	peers                   map[string]*peer.Peer
+	peersMutex              sync.Mutex
 	candidatePeerAddrs      map[string]struct{}
-	candidatePeerAddrsMutex *sync.Mutex
+	candidatePeerAddrsMutex sync.Mutex
 }
 
-func managerRoutine(state MainState) {
+func managerRoutine(state *MainState) {
 	for {
 		select {
 		case conn := <-state.newConnChannel:
-			go addPeer(conn, state.peerBuses, state.peerBusesMutex, state.mainBus)
+			go addPeer(state, conn)
 		case event := <-state.mainBus.Events:
 			go handleMainBusEvent(state, event)
 		}
@@ -30,22 +30,20 @@ func managerRoutine(state MainState) {
 }
 
 func addPeer(
+	state *MainState,
 	conn *net.TCPConn,
-	peerBuses map[string]*peer.PeerBus,
-	peerBusesMutex *sync.Mutex,
-	mainBus *mainbus.MainBus,
 ) {
-	msg, bus, err := peer.ReceivePeerGreeting(peer.NewPeerConn(conn), mainBus)
+	p, err := peer.ReceivePeerGreeting(peer.NewPeerConn(conn), state.mainBus)
 	if err != nil {
 		fmt.Println("Failed to establish with new peer:", err.Error())
 		return
 	}
-	peerBusesMutex.Lock()
-	defer peerBusesMutex.Unlock()
-	if _, ok := peerBuses[msg.RuntimeID]; !ok {
-		peerBuses[msg.RuntimeID] = bus
+	state.peersMutex.Lock()
+	defer state.peersMutex.Unlock()
+	if _, ok := state.peers[p.HelloMsg.RuntimeID]; !ok {
+		state.peers[p.HelloMsg.RuntimeID] = p
 	} else {
-		bus.Events <- peer.PeerBusEvent{
+		p.Events <- peer.PeerEvent{
 			ShouldEnd: &peer.ShouldEndEvent{
 				SendClose:     true,
 				NotifyMainBus: false,
@@ -54,11 +52,11 @@ func addPeer(
 	}
 }
 
-func handleMainBusEvent(state MainState, event mainbus.MainBusEvent) {
+func handleMainBusEvent(state *MainState, event mainbus.MainBusEvent) {
 	if msg := event.PeerClosing; msg != nil {
-		state.peerBusesMutex.Lock()
-		delete(state.peerBuses, msg.RuntimeID)
-		state.peerBusesMutex.Unlock()
+		state.peersMutex.Lock()
+		delete(state.peers, msg.RuntimeID)
+		state.peersMutex.Unlock()
 
 	} else if msg := event.PeersReceived; msg != nil {
 		state.candidatePeerAddrsMutex.Lock()

@@ -1,16 +1,6 @@
 package peer
 
-type PeerBus struct {
-	Events chan PeerBusEvent
-}
-
-func NewPeerBus(bufferSize int) *PeerBus {
-	return &PeerBus{
-		Events: make(chan PeerBusEvent, bufferSize),
-	}
-}
-
-type PeerBusEvent struct {
+type PeerEvent struct {
 	// True Events
 	ShouldEnd   *ShouldEndEvent
 	BlockData   *BlockDataEvent

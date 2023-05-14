@@ -19,21 +19,21 @@ func main() {
 
 	// Buses
 	mainBus := mainbus.NewMainBus(100)
-	peerBuses := make(map[string]*peer.PeerBus)
+	peers := make(map[string]*peer.Peer)
 
 	// Greet seed peer
 	if cli_args.SeedAddr != "" {
 		conn, err := peer.ResolvePeerConn(cli_args.SeedAddr)
 		util.PanicErr(err)
-		msg, bus, err := peer.GreetPeer(conn, mainBus)
+		p, err := peer.GreetPeer(conn, mainBus)
 		util.PanicErr(err)
-		peerBuses[msg.RuntimeID] = bus
+		peers[p.HelloMsg.RuntimeID] = p
 	}
 
-	managerRoutine(MainState{
+	managerRoutine(&MainState{
 		newConnChannel:     conns,
 		mainBus:            mainBus,
-		peerBuses:          peerBuses,
+		peers:              peers,
 		candidatePeerAddrs: make(map[string]struct{}, 0),
 	})
 }
