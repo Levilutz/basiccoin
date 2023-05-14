@@ -119,6 +119,19 @@ func PeerRoutine(
 	}()
 	fmt.Println("Successful connection to:")
 	util.PrettyPrint(data)
+	for {
+		select {
+		case event := <-bus.UrgentEvents:
+			fmt.Println("urgent1", event)
+		default:
+			select {
+			case event := <-bus.UrgentEvents:
+				fmt.Println("urgent2", event)
+			case event := <-bus.Events:
+				fmt.Println("regular", event)
+			}
+		}
+	}
 	// Should be less of a dance here (shouldn't need ConsumeExpected)
 	// We emit things, and respond to requests. Is memory/state rly necessary? hope not
 	// Loop select new messages in channel, messages from bus channel, ping timer
