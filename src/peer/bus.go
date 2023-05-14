@@ -1,14 +1,12 @@
 package peer
 
 type PeerBus struct {
-	PeerRuntimeID string
-	Events        chan PeerBusEvent
+	Events chan PeerBusEvent
 }
 
-func NewPeerBus(peerRuntimeID string, bufferSize int) *PeerBus {
+func NewPeerBus(bufferSize int) *PeerBus {
 	return &PeerBus{
-		PeerRuntimeID: peerRuntimeID,
-		Events:        make(chan PeerBusEvent, bufferSize),
+		Events: make(chan PeerBusEvent, bufferSize),
 	}
 }
 

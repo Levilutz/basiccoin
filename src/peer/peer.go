@@ -47,66 +47,70 @@ func verifyConnWanted(pc *PeerConn, helloMsg HelloPeerMessage) (bool, error) {
 	}
 }
 
-func GreetPeer(pc *PeerConn, mainBus *mainbus.MainBus) (*PeerBus, error) {
+func GreetPeer(
+	pc *PeerConn, mainBus *mainbus.MainBus,
+) (*HelloPeerMessage, *PeerBus, error) {
 	// Hello handshake
 	pc.TransmitMessage(NewHelloMessage())
 	pc.ConsumeExpected("ack:hello")
 	pc.ConsumeExpected("hello")
 	if err := pc.Err(); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	helloMsg, err := ReceiveHelloMessage(pc)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	pc.TransmitStringLine("ack:hello")
 	if err = pc.Err(); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	// Close if either peer wants
 	conWanted, err := verifyConnWanted(pc, helloMsg)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	if !conWanted {
-		return nil, errors.New("peer does not want connection")
+		return nil, nil, errors.New("peer does not want connection")
 	}
 
-	bus := NewPeerBus(helloMsg.RuntimeID, 100)
+	bus := NewPeerBus(100)
 	go PeerRoutine(pc, bus, mainBus, helloMsg)
-	return bus, nil
+	return &helloMsg, bus, nil
 }
 
-func ReceivePeerGreeting(pc *PeerConn, mainBus *mainbus.MainBus) (*PeerBus, error) {
+func ReceivePeerGreeting(
+	pc *PeerConn, mainBus *mainbus.MainBus,
+) (*HelloPeerMessage, *PeerBus, error) {
 	// Hello handshake
 	pc.ConsumeExpected("hello")
 	if err := pc.Err(); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	helloMsg, err := ReceiveHelloMessage(pc)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	pc.TransmitStringLine("ack:hello")
 	pc.TransmitMessage(NewHelloMessage())
 	pc.ConsumeExpected("ack:hello")
 	if err := pc.Err(); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	// Close if either peer wants
 	conWanted, err := verifyConnWanted(pc, helloMsg)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	if !conWanted {
-		return nil, errors.New("peer does not want connection")
+		return nil, nil, errors.New("peer does not want connection")
 	}
 
-	bus := NewPeerBus(helloMsg.RuntimeID, 100)
+	bus := NewPeerBus(100)
 	go PeerRoutine(pc, bus, mainBus, helloMsg)
-	return bus, nil
+	return &helloMsg, bus, nil
 }
 
 func PeerRoutine(
@@ -136,7 +140,7 @@ func PeerRoutine(
 				pc.TransmitStringLine("close")
 				mainBus.Events <- mainbus.MainBusEvent{
 					PeerClosing: &mainbus.PeerClosingEvent{
-						RuntimeID: bus.PeerRuntimeID,
+						RuntimeID: data.RuntimeID,
 					},
 				}
 				return

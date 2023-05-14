@@ -10,10 +10,12 @@ import (
 )
 
 type MainState struct {
-	newConnChannel chan *net.TCPConn
-	mainBus        *mainbus.MainBus
-	peerBuses      map[string]*peer.PeerBus
-	peerBusesMutex *sync.Mutex
+	newConnChannel          chan *net.TCPConn
+	mainBus                 *mainbus.MainBus
+	peerBuses               map[string]*peer.PeerBus
+	peerBusesMutex          *sync.Mutex
+	candidatePeerAddrs      map[string]struct{}
+	candidatePeerAddrsMutex *sync.Mutex
 }
 
 func managerRoutine(state MainState) {
@@ -33,15 +35,15 @@ func addPeer(
 	peerBusesMutex *sync.Mutex,
 	mainBus *mainbus.MainBus,
 ) {
-	bus, err := peer.ReceivePeerGreeting(peer.NewPeerConn(conn), mainBus)
+	msg, bus, err := peer.ReceivePeerGreeting(peer.NewPeerConn(conn), mainBus)
 	if err != nil {
 		fmt.Println("Failed to establish with new peer:", err.Error())
 		return
 	}
 	peerBusesMutex.Lock()
 	defer peerBusesMutex.Unlock()
-	if _, ok := peerBuses[bus.PeerRuntimeID]; !ok {
-		peerBuses[bus.PeerRuntimeID] = bus
+	if _, ok := peerBuses[msg.RuntimeID]; !ok {
+		peerBuses[msg.RuntimeID] = bus
 	} else {
 		bus.Events <- peer.PeerBusEvent{
 			ShouldEnd: &peer.ShouldEndEvent{
@@ -57,7 +59,17 @@ func handleMainBusEvent(state MainState, event mainbus.MainBusEvent) {
 		state.peerBusesMutex.Lock()
 		delete(state.peerBuses, msg.RuntimeID)
 		state.peerBusesMutex.Unlock()
+
+	} else if msg := event.PeersReceived; msg != nil {
+		state.candidatePeerAddrsMutex.Lock()
+		for _, addr := range msg.PeerAddrs {
+			state.candidatePeerAddrs[addr] = struct{}{}
+		}
+		state.candidatePeerAddrsMutex.Unlock()
+
+	} else if msg := event.PeersWanted; msg != nil {
+
 	} else {
-		fmt.Println("Unrecognized event", msg)
+		fmt.Println("Unhandled event", event)
 	}
 }
