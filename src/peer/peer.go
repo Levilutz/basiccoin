@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/levilutz/basiccoin/src/mainbus"
+	"github.com/levilutz/basiccoin/src/manager"
 	"github.com/levilutz/basiccoin/src/util"
 )
 
@@ -47,7 +47,7 @@ func verifyConnWanted(pc *PeerConn, helloMsg HelloPeerMessage) (bool, error) {
 	}
 }
 
-func GreetPeer(pc *PeerConn, mainBus *mainbus.MainBus) (*PeerBus, error) {
+func GreetPeer(pc *PeerConn, mainBus *manager.MainBus) (*PeerBus, error) {
 	// Hello handshake
 	pc.TransmitMessage(NewHelloMessage())
 	pc.ConsumeExpected("ack:hello")
@@ -78,7 +78,7 @@ func GreetPeer(pc *PeerConn, mainBus *mainbus.MainBus) (*PeerBus, error) {
 	return bus, nil
 }
 
-func ReceivePeerGreeting(pc *PeerConn, mainBus *mainbus.MainBus) (*PeerBus, error) {
+func ReceivePeerGreeting(pc *PeerConn, mainBus *manager.MainBus) (*PeerBus, error) {
 	// Hello handshake
 	pc.ConsumeExpected("hello")
 	if err := pc.Err(); err != nil {
@@ -110,7 +110,7 @@ func ReceivePeerGreeting(pc *PeerConn, mainBus *mainbus.MainBus) (*PeerBus, erro
 }
 
 func PeerRoutine(
-	pc *PeerConn, bus *PeerBus, mainBus *mainbus.MainBus, data HelloPeerMessage,
+	pc *PeerConn, bus *PeerBus, mainBus *manager.MainBus, data HelloPeerMessage,
 ) {
 	defer func() {
 		// TODO: signal peer dead on bus
@@ -134,8 +134,8 @@ func PeerRoutine(
 
 			if cmd == "close" {
 				pc.TransmitStringLine("close")
-				mainBus.Events <- mainbus.MainBusEvent{
-					PeerClosing: &mainbus.PeerClosingEvent{
+				mainBus.Events <- manager.MainBusEvent{
+					PeerClosing: &manager.PeerClosingEvent{
 						RuntimeID: bus.PeerRuntimeID,
 					},
 				}
