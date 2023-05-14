@@ -8,6 +8,8 @@ import (
 	"net"
 	"os"
 	"time"
+
+	"github.com/levilutz/basiccoin/src/util"
 )
 
 // Encapsulate a low-level connection to peer.
@@ -55,6 +57,7 @@ func (pc *PeerConn) GiveHandshake() *HelloPeerMessage {
 		return nil
 	}
 	pc.TransmitStringLine("ack:hello")
+	pc.VerifyConnWanted(helloMsg)
 	if pc.E != nil {
 		return nil
 	}
@@ -75,10 +78,35 @@ func (pc *PeerConn) ReceiveHandshake() *HelloPeerMessage {
 	pc.TransmitStringLine("ack:hello")
 	pc.TransmitMessage(NewHelloMessage())
 	pc.ConsumeExpected("ack:hello")
+	pc.VerifyConnWanted(helloMsg)
 	if pc.E != nil {
 		return nil
 	}
 	return &helloMsg
+}
+
+// Transmit continue|close, and receive their continue|close. Return nil if both peers
+// want to connect, or a reason not to otherwise.
+func (pc *PeerConn) VerifyConnWanted(msg HelloPeerMessage) {
+	// Decide if we want to continue and tell them
+	sendMsg := "continue"
+	if msg.RuntimeID == util.Constants.RuntimeID ||
+		msg.Version != util.Constants.Version {
+		sendMsg = "close"
+	}
+	pc.TransmitStringLine(sendMsg)
+
+	// Receive whether they want to continue
+	contMsg := pc.RetryReadLine(7)
+	if pc.E != nil {
+		return
+	} else if string(contMsg) == "continue" {
+		return
+	} else if string(contMsg) == "close" {
+		pc.E = errors.New("peer does not want connection")
+	} else {
+		pc.E = fmt.Errorf("expected 'continue'|'close', received '%s'", contMsg)
+	}
 }
 
 // Consume the next line and assert that it matches msg.

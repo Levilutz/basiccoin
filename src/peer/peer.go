@@ -1,7 +1,6 @@
 package peer
 
 import (
-	"errors"
 	"fmt"
 	"net"
 	"time"
@@ -18,11 +17,11 @@ type Peer struct {
 }
 
 func NewPeer(
-	msg *HelloPeerMessage, pc *PeerConn, bufferSize int, mainBus *mainbus.MainBus,
+	msg *HelloPeerMessage, pc *PeerConn, mainBus *mainbus.MainBus,
 ) *Peer {
 	return &Peer{
 		HelloMsg: msg,
-		EventBus: make(chan PeerEvent, bufferSize),
+		EventBus: make(chan PeerEvent, util.Constants.PeerBusBufferSize),
 		conn:     pc,
 		mainBus:  mainBus,
 	}
@@ -41,18 +40,7 @@ func NewPeerOutbound(addr string, mainBus *mainbus.MainBus) (*Peer, error) {
 		return nil, err
 	}
 
-	p := NewPeer(helloMsg, pc, 100, mainBus)
-
-	// Close if either peer wants
-	conWanted, err := p.verifyConnWanted()
-	if err != nil {
-		return nil, err
-	}
-	if !conWanted {
-		return nil, errors.New("peer does not want connection")
-	}
-
-	return p, nil
+	return NewPeer(helloMsg, pc, mainBus), nil
 }
 
 func NewPeerInbound(conn *net.TCPConn, mainBus *mainbus.MainBus) (*Peer, error) {
@@ -65,55 +53,7 @@ func NewPeerInbound(conn *net.TCPConn, mainBus *mainbus.MainBus) (*Peer, error) 
 		return nil, err
 	}
 
-	p := NewPeer(helloMsg, pc, 100, mainBus)
-
-	// Close if either peer wants
-	conWanted, err := p.verifyConnWanted()
-	if err != nil {
-		return nil, err
-	}
-	if !conWanted {
-		return nil, errors.New("peer does not want connection")
-	}
-
-	return p, nil
-}
-
-// Whether we should connect, based on their hello info
-func (p *Peer) shouldConnect() bool {
-	// Don't connect to self
-	if p.HelloMsg.RuntimeID == util.Constants.RuntimeID {
-		return false
-	}
-	// Don't connect if version incompatible
-	if p.HelloMsg.Version != util.Constants.Version {
-		return false
-	}
-	// TODO: Don't connect if peer already known
-	return true
-}
-
-// Transmit continue|close, and receive their continue|close. Return whether both peers
-// want to continue the connection.
-func (p *Peer) verifyConnWanted() (bool, error) {
-	// Decide if we want to continue and tell them
-	if p.shouldConnect() {
-		p.conn.TransmitStringLine("continue")
-	} else {
-		p.conn.TransmitStringLine("close")
-	}
-
-	// Receive whether they want to continue
-	contMsg := p.conn.RetryReadLine(7)
-	if err := p.conn.Err(); err != nil {
-		return false, err
-	} else if string(contMsg) == "continue" {
-		return true, nil
-	} else if string(contMsg) == "close" {
-		return false, nil
-	} else {
-		return false, fmt.Errorf("expected 'continue'|'close', received '%s'", contMsg)
-	}
+	return NewPeer(helloMsg, pc, mainBus), nil
 }
 
 func (p *Peer) Loop() {
