@@ -14,43 +14,51 @@ func NewPeerBus(peerRuntimeID string, bufferSize int) *PeerBus {
 
 type PeerBusEvent struct {
 	// True Events
-	ShouldEnd  *ShouldEndEvent
-	BlockData  *BlockDataEvent
-	MerkleData *MerkleDataEvent
-	TxsData    *TxsDataEvent
+	ShouldEnd   *ShouldEndEvent
+	BlockData   *BlockDataEvent
+	MempoolData *MempoolDataEvent
+	PeersData   *PeersDataEvent
 	// Query Events
-	PeersWanted  *PeersWantedEvent
-	BlockWanted  *BlockWantedEvent
-	MerkleWanted *MerkleWantedEvent
-	TxsWanted    *TxsWantedEvent
+	PeersWanted   *PeersWantedEvent
+	BlockWanted   *BlockWantedEvent
+	MempoolWanted *MempoolWantedEvent
 }
 
 // True Events
 
+// Command to terminate the connection.
 type ShouldEndEvent struct {
 	SendClose     bool
 	NotifyMainBus bool
 }
 
+// Inform the peer of a Block with its Merkle tree and Txs.
 type BlockDataEvent struct {
+	// Block, Merkle, Txs
 }
 
-type MerkleDataEvent struct {
+// Inform the peer of our mempool's Txs.
+type MempoolDataEvent struct {
+	// Mempool, Txs
 }
 
-type TxsDataEvent struct {
+// Inform the peer of other peers.
+type PeersDataEvent struct {
 }
 
 // Query Events
 
+// Retrieve other peers from the peer.
+// Responds on MainBus:PeersReceived.
 type PeersWantedEvent struct {
 }
 
+// Retrieve a Block with its Merkle tree and Txs from the peer.
+// Responds on MainBus:BlockReceived.
 type BlockWantedEvent struct {
 }
 
-type MerkleWantedEvent struct {
-}
-
-type TxsWantedEvent struct {
+// Retrieve the peer's mempool.
+// Responds on MainBus:TxsReceived.
+type MempoolWantedEvent struct {
 }

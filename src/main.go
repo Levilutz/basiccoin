@@ -62,12 +62,12 @@ func main() {
 		select {
 		case conn := <-conns:
 			go addPeer(conn, peerBuses, &peerBusesMutex, mainBus)
-		case closedID := <-mainBus.PeerClosings:
-			peerBusesMutex.Lock()
-			delete(peerBuses, closedID)
-			peerBusesMutex.Unlock()
 		case event := <-mainBus.Events:
-			fmt.Println(event)
+			if msg := event.PeerClosing; msg != nil {
+				peerBusesMutex.Lock()
+				delete(peerBuses, msg.RuntimeID)
+				peerBusesMutex.Unlock()
+			}
 		}
 	}
 

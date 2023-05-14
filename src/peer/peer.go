@@ -130,7 +130,23 @@ func PeerRoutine(
 			if err != nil {
 				continue
 			}
-			fmt.Println(line)
+			cmd := string(line)
+
+			if cmd == "close" {
+				pc.TransmitStringLine("close")
+				mainBus.Events <- mainbus.MainBusEvent{
+					PeerClosing: &mainbus.PeerClosingEvent{
+						RuntimeID: bus.PeerRuntimeID,
+					},
+				}
+				return
+
+			} else if cmd == "ping" {
+				pc.TransmitStringLine("pong")
+
+			} else {
+				fmt.Println("Unexpected peer message:", cmd)
+			}
 		}
 	}
 	// Should be less of a dance here (shouldn't need ConsumeExpected)
