@@ -45,6 +45,9 @@ func ResolvePeerConn(addr string) (*PeerConn, error) {
 
 // Give an initial connection handshake
 func (pc *PeerConn) GiveHandshake() *HelloPeerMessage {
+	if pc.E != nil {
+		return nil
+	}
 	pc.TransmitMessage(NewHelloMessage())
 	pc.ConsumeExpected("ack:hello")
 	pc.ConsumeExpected("hello")
@@ -66,6 +69,9 @@ func (pc *PeerConn) GiveHandshake() *HelloPeerMessage {
 
 // Receive an initial connection handshake
 func (pc *PeerConn) ReceiveHandshake() *HelloPeerMessage {
+	if pc.E != nil {
+		return nil
+	}
 	pc.ConsumeExpected("hello")
 	if pc.E != nil {
 		return nil
@@ -88,6 +94,9 @@ func (pc *PeerConn) ReceiveHandshake() *HelloPeerMessage {
 // Transmit continue|close, and receive their continue|close. Return nil if both peers
 // want to connect, or a reason not to otherwise.
 func (pc *PeerConn) VerifyConnWanted(msg HelloPeerMessage) {
+	if pc.E != nil {
+		return
+	}
 	// Decide if we want to continue and tell them
 	sendMsg := "continue"
 	if msg.RuntimeID == util.Constants.RuntimeID ||
@@ -112,6 +121,9 @@ func (pc *PeerConn) VerifyConnWanted(msg HelloPeerMessage) {
 // Consume the next line and assert that it matches msg.
 // Do not include \n in msg.
 func (pc *PeerConn) ConsumeExpected(msg string) {
+	if pc.E != nil {
+		return
+	}
 	data := pc.RetryReadLine(7)
 	if pc.E != nil {
 		return
@@ -148,6 +160,9 @@ func (pc *PeerConn) TransmitLine(msg []byte) {
 // Transmit a string as a line.
 // Do not include \n in msg.
 func (pc *PeerConn) TransmitStringLine(msg string) {
+	if pc.E != nil {
+		return
+	}
 	pc.TransmitLine([]byte(msg))
 }
 
@@ -155,6 +170,9 @@ func (pc *PeerConn) TransmitStringLine(msg string) {
 // Attempt delays begin at 100ms and multiply by 2.
 // Estimated max total runtime = (2^attempts - 1) * 0.1 seconds
 func (pc *PeerConn) RetryReadLine(attempts int) []byte {
+	if pc.E != nil {
+		return nil
+	}
 	delay := time.Duration(100) * time.Millisecond
 	for i := 0; i < attempts; i++ {
 		data := pc.ReadLineTimeout(delay)
