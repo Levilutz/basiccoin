@@ -10,7 +10,7 @@ import (
 	"time"
 )
 
-// Encapsulate a successful initial connection to peer
+// Encapsulate a low-level connection to peer.
 type PeerConn struct {
 	C *net.TCPConn
 	R *bufio.Reader
@@ -87,18 +87,15 @@ func (pc *PeerConn) TransmitStringLine(msg string) {
 // Attempt delays begin at 100ms and multiply by 2.
 // Estimated max total runtime = (2^attempts - 1) * 0.1 seconds
 func (pc *PeerConn) RetryReadLine(attempts int) []byte {
-	if pc.E != nil {
-		return nil
-	}
 	delay := time.Duration(100) * time.Millisecond
 	for i := 0; i < attempts; i++ {
-		data, err := pc.ReadLineTimeout(delay)
-		if err == nil {
+		data := pc.ReadLineTimeout(delay)
+		if pc.E == nil {
 			return data[:len(data)-1] // len(data) will always be at least 1
-		} else if errors.Is(err, io.EOF) || errors.Is(err, os.ErrDeadlineExceeded) {
+		} else if errors.Is(pc.E, io.EOF) || errors.Is(pc.E, os.ErrDeadlineExceeded) {
+			pc.E = nil
 			delay *= time.Duration(2)
 		} else {
-			pc.E = err
 			return nil
 		}
 	}
@@ -106,10 +103,19 @@ func (pc *PeerConn) RetryReadLine(attempts int) []byte {
 	return nil
 }
 
-func (pc *PeerConn) ReadLineTimeout(timeout time.Duration) ([]byte, error) {
+// Attempt to read a line, with timeout
+func (pc *PeerConn) ReadLineTimeout(timeout time.Duration) []byte {
+	if pc.E != nil {
+		return nil
+	}
 	defer pc.C.SetReadDeadline(time.Time{})
 	pc.C.SetReadDeadline(time.Now().Add(timeout))
-	return pc.R.ReadBytes(byte('\n'))
+	data, err := pc.R.ReadBytes(byte('\n'))
+	if err != nil {
+		pc.E = err
+		return nil
+	}
+	return data
 }
 
 // Pop the stored error

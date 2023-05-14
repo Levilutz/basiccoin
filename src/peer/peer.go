@@ -151,8 +151,8 @@ func (p *Peer) Loop() {
 		case event := <-p.EventBus:
 			fmt.Println(event)
 		case <-ticker.C:
-			line, err := p.conn.ReadLineTimeout(25)
-			if err != nil {
+			line := p.conn.ReadLineTimeout(25)
+			if p.conn.Err() != nil {
 				continue
 			}
 			cmd := string(line)
