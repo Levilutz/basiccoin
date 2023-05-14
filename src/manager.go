@@ -16,6 +16,17 @@ type MainState struct {
 	peerBusesMutex *sync.Mutex
 }
 
+func managerRoutine(state MainState) {
+	for {
+		select {
+		case conn := <-state.newConnChannel:
+			go addPeer(conn, state.peerBuses, state.peerBusesMutex, state.mainBus)
+		case event := <-state.mainBus.Events:
+			go handleMainBusEvent(state, event)
+		}
+	}
+}
+
 func addPeer(
 	conn *net.TCPConn,
 	peerBuses map[string]*peer.PeerBus,
@@ -37,17 +48,6 @@ func addPeer(
 				SendClose:     true,
 				NotifyMainBus: false,
 			},
-		}
-	}
-}
-
-func managerRoutine(state MainState) {
-	for {
-		select {
-		case conn := <-state.newConnChannel:
-			go addPeer(conn, state.peerBuses, state.peerBusesMutex, state.mainBus)
-		case event := <-state.mainBus.Events:
-			go handleMainBusEvent(state, event)
 		}
 	}
 }
