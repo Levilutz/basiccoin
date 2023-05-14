@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/levilutz/basiccoin/src/mainbus"
 	"github.com/levilutz/basiccoin/src/util"
 )
 
@@ -45,79 +46,71 @@ func verifyConnWanted(pc *PeerConn, helloMsg HelloPeerMessage) (bool, error) {
 	}
 }
 
-func GreetPeer(pc *PeerConn) error {
-	defer func() {
-		if r := recover(); r != nil {
-			// TODO: signal peer dead on bus
-			fmt.Printf("Failed GreetPeer: %v\n", r)
-		}
-	}()
-
+func GreetPeer(pc *PeerConn, mainBus *mainbus.MainBus) (*PeerBus, error) {
 	// Hello handshake
 	pc.TransmitMessage(NewHelloMessage())
 	pc.ConsumeExpected("ack:hello")
 	pc.ConsumeExpected("hello")
 	if err := pc.Err(); err != nil {
-		// TODO: signal peer dead on bus
-		return err
+		return nil, err
 	}
 	helloMsg, err := ReceiveHelloMessage(pc)
 	if err != nil {
-		// TODO: signal peer dead on bus
-		return err
+		return nil, err
 	}
 	pc.TransmitStringLine("ack:hello")
 	if err = pc.Err(); err != nil {
-		// TODO: signal peer dead on bus
-		return err
+		return nil, err
 	}
 
 	// Close if either peer wants
 	conWanted, err := verifyConnWanted(pc, helloMsg)
 	if err != nil {
-		// TODO: signal peer dead on bus
-		return err
+		return nil, err
 	}
 	if !conWanted {
-		// TODO: signal peer dead on bus
-		return errors.New("peer does not want connection")
+		return nil, errors.New("peer does not want connection")
 	}
 
-	go PeerRoutine(pc, helloMsg)
-	return nil
+	bus := NewPeerBus(helloMsg.RuntimeID, 100)
+	go PeerRoutine(pc, bus, mainBus, helloMsg)
+	return bus, nil
 }
 
-func ReceivePeerGreeting(pc *PeerConn) {
-	defer func() {
-		if r := recover(); r != nil {
-			// TODO: signal peer dead on bus
-			fmt.Printf("Failed ReceivePeerGreeting: %v\n", r)
-		}
-	}()
-
+func ReceivePeerGreeting(pc *PeerConn, mainBus *mainbus.MainBus) (*PeerBus, error) {
 	// Hello handshake
 	pc.ConsumeExpected("hello")
-	util.PanicErr(pc.Err())
+	if err := pc.Err(); err != nil {
+		return nil, err
+	}
 	helloMsg, err := ReceiveHelloMessage(pc)
-	util.PanicErr(err)
+	if err != nil {
+		return nil, err
+	}
 	pc.TransmitStringLine("ack:hello")
 	pc.TransmitMessage(NewHelloMessage())
 	pc.ConsumeExpected("ack:hello")
-	util.PanicErr(pc.Err())
+	if err := pc.Err(); err != nil {
+		return nil, err
+	}
 
 	// Close if either peer wants
 	conWanted, err := verifyConnWanted(pc, helloMsg)
-	util.PanicErr(err)
+	if err != nil {
+		return nil, err
+	}
 	if !conWanted {
-		// TODO: signal peer dead on bus
-		return
+		return nil, errors.New("peer does not want connection")
 	}
 
-	// Does PeerRoutine start with different conditions?
-	go PeerRoutine(pc, helloMsg)
+	bus := NewPeerBus(helloMsg.RuntimeID, 100)
+	go PeerRoutine(pc, bus, mainBus, helloMsg)
+	return bus, nil
 }
 
-func PeerRoutine(pc *PeerConn, data HelloPeerMessage) {
+func PeerRoutine(
+	pc *PeerConn, bus *PeerBus, mainBus *mainbus.MainBus, data HelloPeerMessage,
+) {
 	defer func() {
 		// TODO: signal peer dead on bus
 		if r := recover(); r != nil {
