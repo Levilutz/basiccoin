@@ -36,22 +36,12 @@ func NewPeerOutbound(addr string, mainBus *mainbus.MainBus) (*Peer, error) {
 	}
 
 	// Hello handshake
-	pc.TransmitMessage(NewHelloMessage())
-	pc.ConsumeExpected("ack:hello")
-	pc.ConsumeExpected("hello")
+	helloMsg := pc.GiveHandshake()
 	if err := pc.Err(); err != nil {
 		return nil, err
 	}
-	helloMsg, err := ReceiveHelloMessage(pc)
-	if err != nil {
-		return nil, err
-	}
-	pc.TransmitStringLine("ack:hello")
-	if err = pc.Err(); err != nil {
-		return nil, err
-	}
 
-	p := NewPeer(&helloMsg, pc, 100, mainBus)
+	p := NewPeer(helloMsg, pc, 100, mainBus)
 
 	// Close if either peer wants
 	conWanted, err := p.verifyConnWanted()
@@ -70,22 +60,12 @@ func NewPeerInbound(conn *net.TCPConn, mainBus *mainbus.MainBus) (*Peer, error) 
 	pc := NewPeerConn(conn)
 
 	// Hello handshake
-	pc.ConsumeExpected("hello")
-	if err := pc.Err(); err != nil {
-		return nil, err
-	}
-	helloMsg, err := ReceiveHelloMessage(pc)
-	if err != nil {
-		return nil, err
-	}
-	pc.TransmitStringLine("ack:hello")
-	pc.TransmitMessage(NewHelloMessage())
-	pc.ConsumeExpected("ack:hello")
+	helloMsg := pc.ReceiveHandshake()
 	if err := pc.Err(); err != nil {
 		return nil, err
 	}
 
-	p := NewPeer(&helloMsg, pc, 100, mainBus)
+	p := NewPeer(helloMsg, pc, 100, mainBus)
 
 	// Close if either peer wants
 	conWanted, err := p.verifyConnWanted()

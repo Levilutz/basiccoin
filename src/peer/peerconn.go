@@ -41,6 +41,46 @@ func ResolvePeerConn(addr string) (*PeerConn, error) {
 	return NewPeerConn(conn), nil
 }
 
+// Give an initial connection handshake
+func (pc *PeerConn) GiveHandshake() *HelloPeerMessage {
+	pc.TransmitMessage(NewHelloMessage())
+	pc.ConsumeExpected("ack:hello")
+	pc.ConsumeExpected("hello")
+	if pc.E != nil {
+		return nil
+	}
+	helloMsg, err := ReceiveHelloMessage(pc)
+	if err != nil {
+		pc.E = err
+		return nil
+	}
+	pc.TransmitStringLine("ack:hello")
+	if pc.E != nil {
+		return nil
+	}
+	return &helloMsg
+}
+
+// Receive an initial connection handshake
+func (pc *PeerConn) ReceiveHandshake() *HelloPeerMessage {
+	pc.ConsumeExpected("hello")
+	if pc.E != nil {
+		return nil
+	}
+	helloMsg, err := ReceiveHelloMessage(pc)
+	if err != nil {
+		pc.E = err
+		return nil
+	}
+	pc.TransmitStringLine("ack:hello")
+	pc.TransmitMessage(NewHelloMessage())
+	pc.ConsumeExpected("ack:hello")
+	if pc.E != nil {
+		return nil
+	}
+	return &helloMsg
+}
+
 // Consume the next line and assert that it matches msg.
 // Do not include \n in msg.
 func (pc *PeerConn) ConsumeExpected(msg string) {
