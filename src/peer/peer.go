@@ -90,10 +90,9 @@ func (p *Peer) Loop() {
 			shouldClose, err = p.issuePeerCommand("ping", func() error {
 				return nil
 			})
-			if err == nil {
-				fmt.Println("ping success")
-			} else {
-				fmt.Println("ping err", err.Error())
+			if err != nil {
+				fmt.Println("peer lost:", p.HelloMsg.RuntimeID, err.Error())
+				return
 			}
 		}
 		if shouldClose {

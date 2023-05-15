@@ -97,14 +97,15 @@ func (pc *PeerConn) VerifyConnWanted(msg HelloPeerMessage) {
 	if pc.E != nil {
 		return
 	}
-	// Decide if we want to continue and tell them
-	sendMsg := "cmd:continue"
+	// Close if we don't want connection
 	if msg.RuntimeID == util.Constants.RuntimeID ||
 		msg.Version != util.Constants.Version {
-		sendMsg = "cmd:close"
+		pc.TransmitStringLine("cmd:close")
+		pc.E = errors.New("we do not want connection")
+		return
 	}
-	pc.TransmitStringLine(sendMsg)
 
+	pc.TransmitStringLine("cmd:continue")
 	// Receive whether they want to continue
 	contMsg := pc.RetryReadLine(7)
 	if pc.E != nil {
