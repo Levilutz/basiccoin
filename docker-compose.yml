@@ -1,34 +1,21 @@
 version: "3.9"
 services:
-  baseimage:
+  img:
     build: .
     image: basiccoin:latest
+    command:
+      - "echo"
+      - "done"
 
   node1:
     image: basiccoin:latest
     command:
       - "/basiccoin"
-      - "--localAddr=node1:21720"
-    ports:
-      - 21720:21720
+      - "--addr=node1:21720"
 
   node2:
     image: basiccoin:latest
     command:
       - "/basiccoin"
-      - "--localAddr=node2:21720"
-      - "--seedAddr=node1:21720"
-
-  node3:
-    image: basiccoin:latest
-    command:
-      - "/basiccoin"
-      - "--localAddr=node3:21720"
-      - "--seedAddr=node1:21720"
-
-  node4:
-    image: basiccoin:latest
-    command:
-      - "/basiccoin"
-      - "--localAddr=node4:21720"
-      - "--seedAddr=node1:21720"
+      - "--addr=node2:21720"
+      - "--seed=node1:21720"

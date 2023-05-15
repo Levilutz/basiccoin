@@ -7,6 +7,7 @@ import (
 	"io"
 	"net"
 	"os"
+	"strconv"
 	"time"
 
 	"github.com/levilutz/basiccoin/src/util"
@@ -44,7 +45,7 @@ func ResolvePeerConn(addr string) (*PeerConn, error) {
 }
 
 // Give an initial connection handshake
-func (pc *PeerConn) GiveHandshake() *HelloPeerMessage {
+func (pc *PeerConn) GiveHandshake() *HelloMessage {
 	if pc.E != nil {
 		return nil
 	}
@@ -68,7 +69,7 @@ func (pc *PeerConn) GiveHandshake() *HelloPeerMessage {
 }
 
 // Receive an initial connection handshake
-func (pc *PeerConn) ReceiveHandshake() *HelloPeerMessage {
+func (pc *PeerConn) ReceiveHandshake() *HelloMessage {
 	if pc.E != nil {
 		return nil
 	}
@@ -93,7 +94,7 @@ func (pc *PeerConn) ReceiveHandshake() *HelloPeerMessage {
 
 // Transmit continue|close, and receive their continue|close. Return nil if both peers
 // want to connect, or a reason not to otherwise.
-func (pc *PeerConn) VerifyConnWanted(msg HelloPeerMessage) {
+func (pc *PeerConn) VerifyConnWanted(msg HelloMessage) {
 	if pc.E != nil {
 		return
 	}
@@ -150,6 +151,9 @@ func (pc *PeerConn) TransmitLine(msg []byte) {
 	if pc.E != nil {
 		return
 	}
+	if util.Constants.DebugNetwork {
+		fmt.Println("NET_OUT", string(msg))
+	}
 	_, err := pc.W.Write(append(msg, byte('\n')))
 	if err != nil {
 		pc.E = err
@@ -167,6 +171,45 @@ func (pc *PeerConn) TransmitStringLine(msg string) {
 	pc.TransmitLine([]byte(msg))
 }
 
+// Transmit an int as a line.
+func (pc *PeerConn) TransmitIntLine(msg int) {
+	if pc.E != nil {
+		return
+	}
+	pc.TransmitLine([]byte(strconv.Itoa(msg)))
+}
+
+// Retry reading a string line, exponential wait.
+// See RetryReadLine for more info.
+func (pc *PeerConn) RetryReadStringLine(attempts int) string {
+	if pc.E != nil {
+		return ""
+	}
+	raw := pc.RetryReadLine(attempts)
+	if pc.E != nil {
+		return ""
+	}
+	return string(raw)
+}
+
+// Retry reading an int line, exponential wait.
+// See RetryReadLine for more info.
+func (pc *PeerConn) RetryReadIntLine(attempts int) int {
+	if pc.E != nil {
+		return 0
+	}
+	raw := pc.RetryReadLine(attempts)
+	if pc.E != nil {
+		return 0
+	}
+	num, err := strconv.Atoi(string(raw))
+	if err != nil {
+		pc.E = err
+		return 0
+	}
+	return num
+}
+
 // Retry reading a line, exponential wait.
 // Attempt delays begin at 100ms and multiply by 2.
 // Estimated max total runtime = (2^attempts - 1) * 0.1 seconds
@@ -178,7 +221,7 @@ func (pc *PeerConn) RetryReadLine(attempts int) []byte {
 	for i := 0; i < attempts; i++ {
 		data := pc.ReadLineTimeout(delay)
 		if pc.E == nil {
-			return data[:len(data)-1] // len(data) will always be at least 1
+			return data
 		} else if errors.Is(pc.E, io.EOF) || errors.Is(pc.E, os.ErrDeadlineExceeded) {
 			pc.E = nil
 			delay *= time.Duration(2)
@@ -201,6 +244,10 @@ func (pc *PeerConn) ReadLineTimeout(timeout time.Duration) []byte {
 	if err != nil {
 		pc.E = err
 		return nil
+	}
+	data = data[:len(data)-1] // len(data) will always be at least 1
+	if util.Constants.DebugNetwork {
+		fmt.Println("NET_IN", string(data))
 	}
 	return data
 }

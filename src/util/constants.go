@@ -4,22 +4,34 @@ import "time"
 
 // Types of the constants struct
 type ConstantsType struct {
-	LocalAddr         string        `json:"localAddr"`
-	PeerBusBufferSize int           `json:"peerBusBufferSize"`
-	PeerListenFreq    time.Duration `json:"peerListenFreq"`
-	PeerPingFreq      time.Duration `json:"peerPingFreq"`
-	RuntimeID         string        `json:"runtimeID"`
-	SeedAddr          string        `json:"seedAddr"`
-	Version           string        `json:"version"`
+	DebugManagerLoop     bool          `json:"debugManagerLoop"`
+	DebugNetwork         bool          `json:"debugNetwork"`
+	DebugPeerLoop        bool          `json:"debugPeerLoop"`
+	DebugTicker          bool          `json:"debugTicker"`
+	FilterKnownPeersFreq time.Duration `json:"filterKnownPeersFreq"`
+	LocalAddr            string        `json:"localAddr"`
+	Listen               bool          `json:"listen"`
+	PeerBusBufferSize    int           `json:"peerBusBufferSize"`
+	PeerListenFreq       time.Duration `json:"peerListenFreq"`
+	PeerPingFreq         time.Duration `json:"peerPingFreq"`
+	RuntimeID            string        `json:"runtimeID"`
+	SeedAddr             string        `json:"seedAddr"`
+	Version              string        `json:"version"`
 }
 
 // Program-wide constants, should be set on startup
 var Constants = ConstantsType{
-	LocalAddr:         "localhost:21720",
-	PeerBusBufferSize: 100,
-	PeerListenFreq:    time.Millisecond * time.Duration(100),
-	PeerPingFreq:      time.Second * time.Duration(2),
-	RuntimeID:         AssertUUID(),
-	SeedAddr:          "",
-	Version:           "0.1.0",
+	DebugManagerLoop:     false,
+	DebugNetwork:         false,
+	DebugPeerLoop:        false,
+	DebugTicker:          false,
+	FilterKnownPeersFreq: time.Second * 5,
+	LocalAddr:            "localhost:21720",
+	Listen:               true,
+	PeerBusBufferSize:    100,
+	PeerListenFreq:       time.Millisecond * 100,
+	PeerPingFreq:         time.Second * 5,
+	RuntimeID:            AssertUUID(),
+	SeedAddr:             "",
+	Version:              "0.1.0",
 }

@@ -32,6 +32,7 @@ type MempoolDataPeerEvent struct {
 
 // Inform the peer of other peers.
 type PeersDataPeerEvent struct {
+	PeerAddrs []string
 }
 
 // Query Events

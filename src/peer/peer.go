@@ -12,7 +12,7 @@ import (
 
 // Encapsulate a high-level connection to a peer.
 type Peer struct {
-	HelloMsg       *HelloPeerMessage
+	HelloMsg       *HelloMessage
 	EventBus       chan events.PeerEvent
 	conn           *PeerConn
 	mainBus        chan<- events.MainEvent
@@ -22,7 +22,7 @@ type Peer struct {
 // Create a Peer from the result of a successfull handshake on a PeerConn, the
 // associated PeerConn, and a bus to emit events back to the manager loop.
 func NewPeer(
-	msg *HelloPeerMessage,
+	msg *HelloMessage,
 	pc *PeerConn,
 	mainBus chan events.MainEvent,
 	weAreInitiator bool,
@@ -50,7 +50,21 @@ func NewPeerOutbound(addr string, mainBus chan events.MainEvent) (*Peer, error) 
 		return nil, err
 	}
 
-	return NewPeer(helloMsg, pc, mainBus, true), nil
+	peer := NewPeer(helloMsg, pc, mainBus, true)
+
+	// Advertise ourselves if wanted
+	if util.Constants.Listen {
+		if _, err := peer.issuePeerCommand("addrs", func() error {
+			peer.conn.TransmitMessage(AddrsMessage{
+				PeerAddrs: []string{util.Constants.LocalAddr},
+			})
+			return peer.conn.Err()
+		}); err != nil {
+			return nil, err
+		}
+	}
+
+	return peer, nil
 }
 
 // Attempt to initialize a new inbound connection given the TCP Conn.
@@ -69,34 +83,47 @@ func NewPeerInbound(conn *net.TCPConn, mainBus chan events.MainEvent) (*Peer, er
 
 // Loop handling events from our message bus and the peer
 func (p *Peer) Loop() {
+	if util.Constants.DebugPeerLoop {
+		fmt.Println("PEER_LOOP")
+	}
 	defer fmt.Println("Peer closed:", p.HelloMsg.RuntimeID)
 	var err error
-	listenTicker := time.NewTicker(util.Constants.PeerListenFreq)
 	pingTicker := time.NewTicker(util.Constants.PeerPingFreq)
 	for {
 		shouldClose := false
 		select {
 		case event := <-p.EventBus:
+			if util.Constants.DebugPeerLoop {
+				fmt.Println("PEER_EVENT", event)
+			}
 			shouldClose, err = p.handlePeerBusEvent(event)
 			if err != nil {
-				fmt.Printf("error handling '%v': %s\n", event, err.Error())
+				fmt.Printf("error handling event '%v': %s\n", event, err.Error())
 			}
-		case <-listenTicker.C:
-			line := p.conn.ReadLineTimeout(25)
-			if p.conn.Err() != nil {
-				continue
-			}
-			shouldClose, err = p.handleReceivedLine(line)
-			if err != nil {
-				fmt.Printf("error handling '%s': %s\n", line, err.Error())
-			}
+
 		case <-pingTicker.C:
+			if util.Constants.DebugPeerLoop {
+				fmt.Println("PEER_PING")
+			}
 			shouldClose, err = p.issuePeerCommand("ping", func() error {
 				return nil
 			})
 			if err != nil {
 				fmt.Println("peer lost:", p.HelloMsg.RuntimeID, err.Error())
 				return
+			}
+
+		default:
+			line := p.conn.ReadLineTimeout(100 * time.Millisecond)
+			if err := p.conn.Err(); err != nil {
+				continue
+			}
+			if util.Constants.DebugPeerLoop {
+				fmt.Println("PEER_LISTEN", string(line))
+			}
+			shouldClose, err = p.handleReceivedLine(line)
+			if err != nil {
+				fmt.Printf("error handling line '%s': %s\n", line, err.Error())
 			}
 		}
 		if shouldClose {
@@ -109,6 +136,14 @@ func (p *Peer) Loop() {
 func (p *Peer) handlePeerBusEvent(event events.PeerEvent) (bool, error) {
 	if msg := event.ShouldEnd; msg != nil {
 		return true, p.handleClose(true, false)
+
+	} else if msg := event.PeersData; msg != nil {
+		return p.issuePeerCommand("addrs", func() error {
+			p.conn.TransmitMessage(AddrsMessage{
+				PeerAddrs: msg.PeerAddrs,
+			})
+			return p.conn.Err()
+		})
 	}
 	return false, nil
 }
@@ -126,6 +161,19 @@ func (p *Peer) handleReceivedLine(line []byte) (bool, error) {
 	} else if command == "ping" {
 		p.conn.TransmitStringLine("ack:ping")
 		return false, p.conn.Err()
+
+	} else if command == "addrs" {
+		p.conn.TransmitStringLine("ack:addrs")
+		msg, err := ReceiveAddrsMessage(p.conn)
+		if err != nil {
+			return false, err
+		}
+		p.mainBus <- events.MainEvent{
+			PeersReceived: &events.PeersReceivedMainEvent{
+				PeerAddrs: msg.PeerAddrs,
+			},
+		}
+		return false, nil
 
 	} else {
 		fmt.Println("Unexpected peer message:", command)

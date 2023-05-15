@@ -14,12 +14,18 @@ func main() {
 	util.PrettyPrint(util.Constants)
 
 	// Start listening for new peers
-	conns := make(chan *net.TCPConn)
-	go util.ListenTCP(conns)
+	var conns chan *net.TCPConn
+	if util.Constants.Listen {
+		conns = make(chan *net.TCPConn)
+		go util.ListenTCP(conns)
+	} else {
+		conns = nil
+	}
 
 	// Buses
 	mainBus := make(chan events.MainEvent)
 	peers := make(map[string]*peer.Peer)
+	knownPeerAddrs := make(map[string]struct{}, 0)
 
 	// Greet seed peer
 	if cli_args.SeedAddr != "" {
@@ -27,12 +33,13 @@ func main() {
 		util.PanicErr(err)
 		go p.Loop()
 		peers[p.HelloMsg.RuntimeID] = p
+		knownPeerAddrs[cli_args.SeedAddr] = struct{}{}
 	}
 
 	managerRoutine(&MainState{
-		newConnChannel:     conns,
-		mainBus:            mainBus,
-		peers:              peers,
-		candidatePeerAddrs: make(map[string]struct{}, 0),
+		newConnChannel: conns,
+		mainBus:        mainBus,
+		peers:          peers,
+		knownPeerAddrs: knownPeerAddrs,
 	})
 }
