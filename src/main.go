@@ -4,6 +4,7 @@ import (
 	"net"
 
 	"github.com/levilutz/basiccoin/src/events"
+	"github.com/levilutz/basiccoin/src/manager"
 	"github.com/levilutz/basiccoin/src/peer"
 	"github.com/levilutz/basiccoin/src/util"
 )
@@ -36,10 +37,6 @@ func main() {
 		knownPeerAddrs[cli_args.SeedAddr] = struct{}{}
 	}
 
-	managerRoutine(&MainState{
-		newConnChannel: conns,
-		mainBus:        mainBus,
-		peers:          peers,
-		knownPeerAddrs: knownPeerAddrs,
-	})
+	manager := manager.NewManager(conns, mainBus, peers, knownPeerAddrs)
+	manager.Loop()
 }
