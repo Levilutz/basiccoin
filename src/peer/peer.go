@@ -101,20 +101,30 @@ func (p *Peer) Loop() {
 	}
 }
 
-func (p *Peer) handleClose() error {
-	p.conn.TransmitStringLine("ack:close")
-	p.mainBus <- events.MainEvent{
-		PeerClosing: &events.PeerClosingMainEvent{
-			RuntimeID: p.HelloMsg.RuntimeID,
-		},
-	}
-	return p.conn.Err()
-}
-
 // Handle event from our message bus, return whether we should close.
 func (p *Peer) handlePeerBusEvent(event events.PeerEvent) bool {
 	fmt.Println(event)
 	return false
+}
+
+// Handle command received from peer, returns whether we should close.
+func (p *Peer) handleReceivedLine(line []byte) (bool, error) {
+	if !bytes.HasPrefix(line, []byte("cmd:")) {
+		return false, fmt.Errorf("unrecognized line: %s", line)
+	}
+	command := string(line)[4:]
+	// TODO ack before handling
+	if command == "close" {
+		return true, p.handleClose()
+
+	} else if command == "ping" {
+		p.conn.TransmitStringLine("ack:ping")
+		return false, p.conn.Err()
+
+	} else {
+		fmt.Println("Unexpected peer message:", command)
+		return false, nil
+	}
 }
 
 // Issue an outbound interaction for the command (given without "cmd:").
@@ -165,22 +175,12 @@ func (p *Peer) issuePeerCommand(command string, handler func() error) (bool, err
 	return false, nil
 }
 
-// Handle command received from peer, returns whether we should close.
-func (p *Peer) handleReceivedLine(line []byte) (bool, error) {
-	if !bytes.HasPrefix(line, []byte("cmd:")) {
-		return false, fmt.Errorf("unrecognized line: %s", line)
+func (p *Peer) handleClose() error {
+	p.conn.TransmitStringLine("ack:close")
+	p.mainBus <- events.MainEvent{
+		PeerClosing: &events.PeerClosingMainEvent{
+			RuntimeID: p.HelloMsg.RuntimeID,
+		},
 	}
-	command := string(line)[4:]
-	// TODO ack before handling
-	if command == "close" {
-		return true, p.handleClose()
-
-	} else if command == "ping" {
-		p.conn.TransmitStringLine("ack:ping")
-		return false, p.conn.Err()
-
-	} else {
-		fmt.Println("Unexpected peer message:", command)
-		return false, nil
-	}
+	return p.conn.Err()
 }
