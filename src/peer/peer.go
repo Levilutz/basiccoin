@@ -118,24 +118,28 @@ func (p *Peer) handlePeerBusEvent(event events.PeerEvent) bool {
 	return false
 }
 
-// Issue an outbound interaction for the given command (without "cmd:").
+// Issue an outbound interaction for the command (given without "cmd:").
 // Handler is what to run after they ack. Returns whether we should close.
-// If us and peer simultaneously issued commands, the conn initiator goes second.
+// If us and peer simultaneously issued commands, the og handshake initiator goes last.
 func (p *Peer) issuePeerCommand(command string, handler func() error) (bool, error) {
 	p.conn.TransmitStringLine("cmd:" + command)
+	// Expect to receive either "ack:our command" or "cmd:their command"
 	resp := p.conn.RetryReadLine(7)
 	if err := p.conn.Err(); err != nil {
 		return false, err
 	}
+	// Happy path - they acknowledged us
 	if string(resp) == "ack:"+command {
 		return false, handler()
 	}
+	// Sad path - we sent commands simultaneously
 	if bytes.HasPrefix(resp, []byte("cmd:")) {
 		if string(resp) == "cmd:close" {
-			// Handle close immediately no matter who is the initiator
+			// If their command was a close, handle it immediately
 			return true, p.handleClose()
+
 		} else if p.weAreInitiator {
-			// Handle their request, then expect ours to be handled
+			// If we initiated the og handshake, honor their cmd, then expect ours to be
 			shouldClose, err := p.handleReceivedLine(resp)
 			if shouldClose || err != nil {
 				return shouldClose, err
@@ -145,8 +149,9 @@ func (p *Peer) issuePeerCommand(command string, handler func() error) (bool, err
 				return false, err
 			}
 			return false, handler()
+
 		} else {
-			// Expect them to handle our request, then theirs
+			// If we received the og handshake, expect to be honored, then honor theirs
 			p.conn.ConsumeExpected("ack:" + command)
 			if err := p.conn.Err(); err != nil {
 				return false, err
