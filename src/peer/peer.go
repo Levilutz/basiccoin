@@ -69,6 +69,7 @@ func NewPeerInbound(conn *net.TCPConn, mainBus chan events.MainEvent) (*Peer, er
 
 // Loop handling events from our message bus and the peer
 func (p *Peer) Loop() {
+	defer fmt.Println("Peer closed:", p.HelloMsg.RuntimeID)
 	var err error
 	listenTicker := time.NewTicker(util.Constants.PeerListenFreq)
 	pingTicker := time.NewTicker(util.Constants.PeerPingFreq)
@@ -76,7 +77,10 @@ func (p *Peer) Loop() {
 		shouldClose := false
 		select {
 		case event := <-p.EventBus:
-			shouldClose = p.handlePeerBusEvent(event)
+			shouldClose, err = p.handlePeerBusEvent(event)
+			if err != nil {
+				fmt.Printf("error handling '%v': %s\n", event, err.Error())
+			}
 		case <-listenTicker.C:
 			line := p.conn.ReadLineTimeout(25)
 			if p.conn.Err() != nil {
@@ -102,9 +106,11 @@ func (p *Peer) Loop() {
 }
 
 // Handle event from our message bus, return whether we should close.
-func (p *Peer) handlePeerBusEvent(event events.PeerEvent) bool {
-	fmt.Println(event)
-	return false
+func (p *Peer) handlePeerBusEvent(event events.PeerEvent) (bool, error) {
+	if msg := event.ShouldEnd; msg != nil {
+		return true, p.handleClose(true, false)
+	}
+	return false, nil
 }
 
 // Handle command received from peer, returns whether we should close.
@@ -115,7 +121,7 @@ func (p *Peer) handleReceivedLine(line []byte) (bool, error) {
 	command := string(line)[4:]
 	// TODO ack before handling
 	if command == "close" {
-		return true, p.handleClose()
+		return true, p.handleClose(false, true)
 
 	} else if command == "ping" {
 		p.conn.TransmitStringLine("ack:ping")
@@ -145,7 +151,7 @@ func (p *Peer) issuePeerCommand(command string, handler func() error) (bool, err
 	if bytes.HasPrefix(resp, []byte("cmd:")) {
 		if string(resp) == "cmd:close" {
 			// If their command was a close, handle it immediately
-			return true, p.handleClose()
+			return true, p.handleClose(false, true)
 
 		} else if p.weAreInitiator {
 			// If we initiated the og handshake, honor their cmd, then expect ours to be
@@ -175,12 +181,16 @@ func (p *Peer) issuePeerCommand(command string, handler func() error) (bool, err
 	return false, nil
 }
 
-func (p *Peer) handleClose() error {
-	p.conn.TransmitStringLine("ack:close")
-	p.mainBus <- events.MainEvent{
-		PeerClosing: &events.PeerClosingMainEvent{
-			RuntimeID: p.HelloMsg.RuntimeID,
-		},
+func (p *Peer) handleClose(issuing bool, notifyMainBus bool) error {
+	if issuing {
+		p.conn.TransmitStringLine("cmd:close")
+	}
+	if notifyMainBus {
+		p.mainBus <- events.MainEvent{
+			PeerClosing: &events.PeerClosingMainEvent{
+				RuntimeID: p.HelloMsg.RuntimeID,
+			},
+		}
 	}
 	return p.conn.Err()
 }

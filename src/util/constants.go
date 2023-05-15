@@ -9,6 +9,7 @@ type ConstantsType struct {
 	PeerListenFreq    time.Duration `json:"peerListenFreq"`
 	PeerPingFreq      time.Duration `json:"peerPingFreq"`
 	RuntimeID         string        `json:"runtimeID"`
+	SeedAddr          string        `json:"seedAddr"`
 	Version           string        `json:"version"`
 }
 
@@ -17,7 +18,8 @@ var Constants = ConstantsType{
 	LocalAddr:         "localhost:21720",
 	PeerBusBufferSize: 100,
 	PeerListenFreq:    time.Millisecond * time.Duration(100),
-	PeerPingFreq:      time.Second * time.Duration(5),
+	PeerPingFreq:      time.Second * time.Duration(2),
 	RuntimeID:         AssertUUID(),
+	SeedAddr:          "",
 	Version:           "0.1.0",
 }

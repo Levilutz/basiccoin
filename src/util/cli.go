@@ -19,6 +19,9 @@ func ParseCLIArgs() CLIArgs {
 	if *localAddr != "" {
 		Constants.LocalAddr = *localAddr
 	}
+	if *seedAddr != "" {
+		Constants.SeedAddr = *seedAddr
+	}
 
 	// Return all (even those in constants)
 	return CLIArgs{

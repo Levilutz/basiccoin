@@ -46,7 +46,6 @@ func addPeer(
 	} else {
 		p.EventBus <- events.PeerEvent{
 			ShouldEnd: &events.ShouldEndPeerEvent{
-				SendClose:     true,
 				NotifyMainBus: false,
 			},
 		}
