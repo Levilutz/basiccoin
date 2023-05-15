@@ -223,7 +223,7 @@ func (p *Peer) issuePeerCommand(command string, handler func() error) (bool, err
 			if err != nil {
 				return false, err
 			}
-			p.handleReceivedLine(resp)
+			return p.handleReceivedLine(resp)
 		}
 	}
 	return false, nil
