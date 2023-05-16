@@ -4,10 +4,7 @@ import "time"
 
 // Types of the constants struct
 type ConstantsType struct {
-	DebugManagerLoop     bool          `json:"debugManagerLoop"`
 	DebugNetwork         bool          `json:"debugNetwork"`
-	DebugPeerLoop        bool          `json:"debugPeerLoop"`
-	DebugTicker          bool          `json:"debugTicker"`
 	FilterKnownPeersFreq time.Duration `json:"filterKnownPeersFreq"`
 	LocalAddr            string        `json:"localAddr"`
 	Listen               bool          `json:"listen"`
@@ -22,10 +19,7 @@ type ConstantsType struct {
 
 // Program-wide constants, should be set on startup
 var Constants = ConstantsType{
-	DebugManagerLoop:     false,
 	DebugNetwork:         false,
-	DebugPeerLoop:        false,
-	DebugTicker:          false,
 	FilterKnownPeersFreq: time.Second * 10,
 	LocalAddr:            "localhost:21720",
 	Listen:               true,

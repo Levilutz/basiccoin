@@ -37,9 +37,6 @@ func NewPeer(
 
 // Loop handling events from our message bus and the peer
 func (p *Peer) Loop() {
-	if util.Constants.DebugPeerLoop {
-		fmt.Println("PEER_LOOP")
-	}
 	defer fmt.Println("Peer closed:", p.HelloMsg.RuntimeID)
 	var err error
 	pingTicker := time.NewTicker(util.Constants.PeerPingFreq)
@@ -47,18 +44,12 @@ func (p *Peer) Loop() {
 		shouldClose := false
 		select {
 		case event := <-p.EventBus:
-			if util.Constants.DebugPeerLoop {
-				fmt.Println("PEER_EVENT", event)
-			}
 			shouldClose, err = p.handlePeerBusEvent(event)
 			if err != nil {
 				fmt.Printf("error handling event '%v': %s\n", event, err.Error())
 			}
 
 		case <-pingTicker.C:
-			if util.Constants.DebugPeerLoop {
-				fmt.Println("PEER_PING")
-			}
 			shouldClose, err = p.issuePeerCommand("ping", func() error {
 				return nil
 			})
@@ -71,9 +62,6 @@ func (p *Peer) Loop() {
 			line := p.conn.ReadLineTimeout(100 * time.Millisecond)
 			if err := p.conn.Err(); err != nil {
 				continue
-			}
-			if util.Constants.DebugPeerLoop {
-				fmt.Println("PEER_LISTEN", string(line))
 			}
 			shouldClose, err = p.handleReceivedLine(line)
 			if err != nil {

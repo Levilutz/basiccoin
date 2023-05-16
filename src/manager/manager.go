@@ -57,12 +57,6 @@ func (m *Manager) Listen() {
 }
 
 func (m *Manager) Loop() {
-	if util.Constants.DebugManagerLoop {
-		fmt.Println("MANAGER_LOOP")
-	}
-	if util.Constants.DebugTicker {
-		go blankTicker()
-	}
 	filterKnownPeersTicker := time.NewTicker(util.Constants.FilterKnownPeersFreq)
 	printPeersUpdateTicker := time.NewTicker(util.Constants.PrintPeersUpdateFreq)
 	for {
@@ -71,21 +65,12 @@ func (m *Manager) Loop() {
 			m.addMetConn(metConn)
 
 		case event := <-m.mainBus:
-			if util.Constants.DebugManagerLoop {
-				fmt.Println("MANAGER_BUS", event)
-			}
 			go m.handleMainBusEvent(event)
 
 		case <-filterKnownPeersTicker.C:
-			if util.Constants.DebugManagerLoop {
-				fmt.Println("MANAGER_FILTER")
-			}
 			go m.filterKnownPeers()
 
 		case <-printPeersUpdateTicker.C:
-			if util.Constants.DebugManagerLoop {
-				fmt.Println("MANAGER_PRINT_UPDATE")
-			}
 			go m.printPeersUpdate()
 		}
 	}
@@ -115,14 +100,6 @@ func (m *Manager) addMetConn(metConn MetConn) {
 func (m *Manager) peerConnected(runtimeID string) bool {
 	_, exists := m.peers[runtimeID]
 	return exists
-}
-
-func blankTicker() {
-	ticker := time.NewTicker(time.Second)
-	for {
-		<-ticker.C
-		fmt.Println(".")
-	}
 }
 
 func (m *Manager) handleMainBusEvent(event events.MainEvent) {
