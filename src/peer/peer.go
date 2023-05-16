@@ -3,7 +3,6 @@ package peer
 import (
 	"bytes"
 	"fmt"
-	"net"
 	"time"
 
 	"github.com/levilutz/basiccoin/src/events"
@@ -34,53 +33,6 @@ func NewPeer(
 		mainBus:        mainBus,
 		weAreInitiator: weAreInitiator,
 	}
-}
-
-// Attempt to initialize an outbound connection given a remote address.
-func NewPeerOutbound(addr string, mainBus chan events.MainEvent) (*Peer, error) {
-	// Resolve host
-	pc, err := ResolvePeerConn(addr)
-	if err != nil {
-		return nil, err
-	}
-
-	// Hello handshake
-	helloMsg := pc.Handshake()
-	pc.VerifyConnWanted(*helloMsg)
-	if err := pc.Err(); err != nil {
-		return nil, err
-	}
-
-	peer := NewPeer(helloMsg, pc, mainBus, true)
-
-	// Advertise ourselves if wanted
-	if util.Constants.Listen {
-		if _, err := peer.issuePeerCommand("addrs", func() error {
-			peer.conn.TransmitMessage(AddrsMessage{
-				PeerAddrs: []string{util.Constants.LocalAddr},
-			})
-			return peer.conn.Err()
-		}); err != nil {
-			return nil, err
-		}
-	}
-
-	return peer, nil
-}
-
-// Attempt to initialize a new inbound connection given the TCP Conn.
-func NewPeerInbound(conn *net.TCPConn, mainBus chan events.MainEvent) (*Peer, error) {
-	// Make PeerConn
-	pc := NewPeerConn(conn)
-
-	// Hello handshake
-	helloMsg := pc.Handshake()
-	pc.VerifyConnWanted(*helloMsg)
-	if err := pc.Err(); err != nil {
-		return nil, err
-	}
-
-	return NewPeer(helloMsg, pc, mainBus, false), nil
 }
 
 // Loop handling events from our message bus and the peer

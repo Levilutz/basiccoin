@@ -2,10 +2,8 @@ package main
 
 import (
 	"fmt"
-	"net"
 	"time"
 
-	"github.com/levilutz/basiccoin/src/events"
 	"github.com/levilutz/basiccoin/src/manager"
 	"github.com/levilutz/basiccoin/src/peer"
 	"github.com/levilutz/basiccoin/src/util"
@@ -16,26 +14,13 @@ func main() {
 	util.PrettyPrint(cli_args)
 	util.PrettyPrint(util.Constants)
 
-	// Start listening for new peers
-	var conns chan *net.TCPConn
-	if util.Constants.Listen {
-		conns = make(chan *net.TCPConn)
-		go util.ListenTCP(conns)
-	} else {
-		conns = nil
-	}
+	manager := manager.NewManager()
 
-	// Buses
-	mainBus := make(chan events.MainEvent)
-	peers := make(map[string]*peer.Peer)
-	knownPeerAddrs := make(map[string]struct{}, 0)
-
-	// Greet seed peer
 	if cli_args.SeedAddr != "" {
-		var p *peer.Peer
+		var pc *peer.PeerConn
 		var err error
 		for i := 0; i < 5; i++ {
-			p, err = peer.NewPeerOutbound(cli_args.SeedAddr, mainBus)
+			pc, err = peer.ResolvePeerConn(cli_args.SeedAddr)
 			if err == nil || i == 4 {
 				break
 			}
@@ -43,11 +28,11 @@ func main() {
 			time.Sleep(5 * time.Second)
 		}
 		util.PanicErr(err)
-		go p.Loop()
-		peers[p.HelloMsg.RuntimeID] = p
-		knownPeerAddrs[cli_args.SeedAddr] = struct{}{}
+		go manager.IntroducePeerConn(pc, true)
 	}
 
-	manager := manager.NewManager(conns, mainBus, peers, knownPeerAddrs)
+	if cli_args.Listen {
+		go manager.Listen()
+	}
 	manager.Loop()
 }

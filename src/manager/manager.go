@@ -11,8 +11,14 @@ import (
 	"github.com/levilutz/basiccoin/src/util"
 )
 
+type MetConn struct {
+	PeerConn       *peer.PeerConn
+	HelloMsg       *peer.HelloMessage
+	WeAreInitiator bool
+}
+
 type Manager struct {
-	newConnChannel   chan *net.TCPConn
+	metConnChannel   chan MetConn
 	mainBus          chan events.MainEvent
 	peers            map[string]*peer.Peer
 	peersMu          sync.Mutex
@@ -20,17 +26,33 @@ type Manager struct {
 	knownPeerAddrsMu sync.Mutex
 }
 
-func NewManager(
-	newConnChannel chan *net.TCPConn,
-	mainBus chan events.MainEvent,
-	peers map[string]*peer.Peer,
-	knownPeerAddrs map[string]struct{},
-) *Manager {
+func NewManager() *Manager {
 	return &Manager{
-		newConnChannel: newConnChannel,
-		mainBus:        mainBus,
-		peers:          peers,
-		knownPeerAddrs: knownPeerAddrs,
+		metConnChannel: make(chan MetConn),
+		mainBus:        make(chan events.MainEvent),
+		peers:          make(map[string]*peer.Peer),
+		knownPeerAddrs: make(map[string]struct{}, 0),
+	}
+}
+
+func (m *Manager) Listen() {
+	addr, err := net.ResolveTCPAddr("tcp", util.Constants.LocalAddr)
+	util.PanicErr(err)
+	listen, err := net.ListenTCP("tcp", addr)
+	util.PanicErr(err)
+	defer listen.Close()
+	for {
+		conn, err := listen.AcceptTCP()
+		if err != nil {
+			continue
+		}
+		pc := peer.NewPeerConn(conn)
+		helloMsg := pc.Handshake()
+		m.metConnChannel <- MetConn{
+			PeerConn:       pc,
+			HelloMsg:       helloMsg,
+			WeAreInitiator: false,
+		}
 	}
 }
 
@@ -45,11 +67,8 @@ func (m *Manager) Loop() {
 	printPeersUpdateTicker := time.NewTicker(util.Constants.PrintPeersUpdateFreq)
 	for {
 		select {
-		case conn := <-m.newConnChannel:
-			if util.Constants.DebugManagerLoop {
-				fmt.Println("MANAGER_CONN", conn)
-			}
-			go m.addInboundPeer(conn)
+		case metConn := <-m.metConnChannel:
+			m.addMetConn(metConn)
 
 		case event := <-m.mainBus:
 			if util.Constants.DebugManagerLoop {
@@ -72,34 +91,37 @@ func (m *Manager) Loop() {
 	}
 }
 
+func (m *Manager) addMetConn(metConn MetConn) {
+	m.peersMu.Lock()
+	defer m.peersMu.Unlock()
+	upgradeable := metConn.HelloMsg.RuntimeID != util.Constants.RuntimeID &&
+		metConn.HelloMsg.Version == util.Constants.Version &&
+		!m.peerConnected(metConn.HelloMsg.RuntimeID)
+
+	if upgradeable {
+		peer := peer.NewPeer(
+			metConn.HelloMsg, metConn.PeerConn, m.mainBus, metConn.WeAreInitiator,
+		)
+		go peer.Loop()
+		m.peers[metConn.HelloMsg.RuntimeID] = peer
+
+	} else {
+		metConn.PeerConn.TransmitStringLine("cmd:close")
+		metConn.PeerConn.C.Close()
+	}
+}
+
+// Must be called from locked context
+func (m *Manager) peerConnected(runtimeID string) bool {
+	_, exists := m.peers[runtimeID]
+	return exists
+}
+
 func blankTicker() {
 	ticker := time.NewTicker(time.Second)
 	for {
 		<-ticker.C
 		fmt.Println(".")
-	}
-}
-
-func (m *Manager) addInboundPeer(conn *net.TCPConn) {
-	p, err := peer.NewPeerInbound(conn, m.mainBus)
-	if err != nil {
-		if errStr := err.Error(); errStr != "peer does not want connection" {
-			fmt.Println("failed to establish with new peer:", err.Error())
-		}
-		return
-	}
-	go p.Loop()
-	m.peersMu.Lock()
-	if _, ok := m.peers[p.HelloMsg.RuntimeID]; !ok {
-		m.peers[p.HelloMsg.RuntimeID] = p
-		m.peersMu.Unlock()
-		return
-	}
-	m.peersMu.Unlock()
-	p.EventBus <- events.PeerEvent{
-		ShouldEnd: &events.ShouldEndPeerEvent{
-			NotifyMainBus: false,
-		},
 	}
 }
 
@@ -174,4 +196,13 @@ func (m *Manager) getKnownPeersList() []string {
 		addrs = append(addrs, addr)
 	}
 	return addrs
+}
+
+func (m *Manager) IntroducePeerConn(pc *peer.PeerConn, weAreInitiator bool) {
+	helloMsg := pc.Handshake()
+	m.metConnChannel <- MetConn{
+		PeerConn:       pc,
+		HelloMsg:       helloMsg,
+		WeAreInitiator: weAreInitiator,
+	}
 }
