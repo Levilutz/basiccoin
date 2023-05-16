@@ -112,7 +112,17 @@ func (m *Manager) handleMainBusEvent(event events.MainEvent) {
 		// TODO Verify this peer before insert (in goroutine)
 		m.knownPeerAddrsMu.Lock()
 		for _, addr := range msg.PeerAddrs {
-			m.knownPeerAddrs[addr] = struct{}{}
+			addr := addr
+			go func() {
+				pc, err := peer.ResolvePeerConn(addr)
+				if err == nil {
+					pc.VerifyAndClose()
+					err = pc.Err()
+				}
+				if err == nil {
+					m.knownPeerAddrs[addr] = struct{}{}
+				}
+			}()
 		}
 		m.knownPeerAddrsMu.Unlock()
 
@@ -139,7 +149,6 @@ func (m *Manager) filterKnownPeers() {
 				err = pc.Err()
 			}
 			if err != nil {
-				fmt.Printf("Dropping addr %s: %s\n", addr, err.Error())
 				m.knownPeerAddrsMu.Lock()
 				delete(m.knownPeerAddrs, addr)
 				m.knownPeerAddrsMu.Unlock()
