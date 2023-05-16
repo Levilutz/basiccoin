@@ -49,8 +49,7 @@ func (pc *PeerConn) VerifyAndClose() {
 	if pc.E != nil {
 		return
 	}
-	pc.GiveHandshake()
-	helloMsg := pc.ReceiveHandshake()
+	helloMsg := pc.Handshake()
 	pc.TransmitStringLine("cmd:close")
 	if pc.E != nil {
 	} else if err := pc.C.Close(); err != nil {
@@ -60,23 +59,13 @@ func (pc *PeerConn) VerifyAndClose() {
 	}
 }
 
-// Give an initial connection handshake
-func (pc *PeerConn) GiveHandshake() {
-	if pc.E != nil {
-		return
-	}
-	pc.TransmitStringLine("cmd:hello")
-	pc.ConsumeExpected("ack:hello")
-	pc.TransmitMessage(NewHelloMessage())
-}
-
-// Receive an initial connection handshake
-func (pc *PeerConn) ReceiveHandshake() *HelloMessage {
+func (pc *PeerConn) Handshake() *HelloMessage {
 	if pc.E != nil {
 		return nil
 	}
-	pc.ConsumeExpected("cmd:hello")
-	pc.TransmitStringLine("ack:hello")
+	pc.TransmitStringLine("basiccoin")
+	pc.ConsumeExpected("basiccoin")
+	pc.TransmitMessage(NewHelloMessage())
 	helloMsg, err := ReceiveHelloMessage(pc)
 	if err != nil {
 		pc.E = err

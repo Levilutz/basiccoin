@@ -45,8 +45,7 @@ func NewPeerOutbound(addr string, mainBus chan events.MainEvent) (*Peer, error) 
 	}
 
 	// Hello handshake
-	pc.GiveHandshake()
-	helloMsg := pc.ReceiveHandshake()
+	helloMsg := pc.Handshake()
 	pc.VerifyConnWanted(*helloMsg)
 	if err := pc.Err(); err != nil {
 		return nil, err
@@ -75,8 +74,7 @@ func NewPeerInbound(conn *net.TCPConn, mainBus chan events.MainEvent) (*Peer, er
 	pc := NewPeerConn(conn)
 
 	// Hello handshake
-	helloMsg := pc.ReceiveHandshake()
-	pc.GiveHandshake()
+	helloMsg := pc.Handshake()
 	pc.VerifyConnWanted(*helloMsg)
 	if err := pc.Err(); err != nil {
 		return nil, err
