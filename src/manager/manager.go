@@ -90,15 +90,16 @@ func (m *Manager) addInboundPeer(conn *net.TCPConn) {
 	}
 	go p.Loop()
 	m.peersMu.Lock()
-	defer m.peersMu.Unlock()
 	if _, ok := m.peers[p.HelloMsg.RuntimeID]; !ok {
 		m.peers[p.HelloMsg.RuntimeID] = p
-	} else {
-		p.EventBus <- events.PeerEvent{
-			ShouldEnd: &events.ShouldEndPeerEvent{
-				NotifyMainBus: false,
-			},
-		}
+		m.peersMu.Unlock()
+		return
+	}
+	m.peersMu.Unlock()
+	p.EventBus <- events.PeerEvent{
+		ShouldEnd: &events.ShouldEndPeerEvent{
+			NotifyMainBus: false,
+		},
 	}
 }
 
@@ -110,7 +111,6 @@ func (m *Manager) handleMainBusEvent(event events.MainEvent) {
 
 	} else if msg := event.PeersReceived; msg != nil {
 		// TODO Verify this peer before insert (in goroutine)
-		m.knownPeerAddrsMu.Lock()
 		for _, addr := range msg.PeerAddrs {
 			addr := addr
 			go func() {
@@ -120,11 +120,12 @@ func (m *Manager) handleMainBusEvent(event events.MainEvent) {
 					err = pc.Err()
 				}
 				if err == nil {
+					m.knownPeerAddrsMu.Lock()
 					m.knownPeerAddrs[addr] = struct{}{}
+					m.knownPeerAddrsMu.Unlock()
 				}
 			}()
 		}
-		m.knownPeerAddrsMu.Unlock()
 
 	} else if msg := event.PeersWanted; msg != nil {
 		m.peers[msg.PeerRuntimeID].EventBus <- events.PeerEvent{
