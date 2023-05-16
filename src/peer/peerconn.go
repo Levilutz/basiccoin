@@ -44,6 +44,22 @@ func ResolvePeerConn(addr string) (*PeerConn, error) {
 	return NewPeerConn(conn), nil
 }
 
+// Verify that a peer exists on this connection, then close.
+func (pc *PeerConn) VerifyAndClose() {
+	if pc.E != nil {
+		return
+	}
+	pc.GiveHandshake()
+	helloMsg := pc.ReceiveHandshake()
+	pc.TransmitStringLine("cmd:close")
+	if pc.E != nil {
+	} else if err := pc.C.Close(); err != nil {
+		pc.E = err
+	} else if helloMsg.RuntimeID == util.Constants.RuntimeID {
+		pc.E = errors.New("peer is us")
+	}
+}
+
 // Give an initial connection handshake
 func (pc *PeerConn) GiveHandshake() {
 	if pc.E != nil {
@@ -79,6 +95,13 @@ func (pc *PeerConn) VerifyConnWanted(msg HelloMessage) {
 	if msg.RuntimeID == util.Constants.RuntimeID ||
 		msg.Version != util.Constants.Version {
 		pc.TransmitStringLine("cmd:close")
+		if pc.E != nil {
+			return
+		}
+		if err := pc.C.Close(); err != nil {
+			pc.E = err
+			return
+		}
 		pc.E = errors.New("we do not want connection")
 		return
 	}
@@ -91,9 +114,13 @@ func (pc *PeerConn) VerifyConnWanted(msg HelloMessage) {
 	} else if string(contMsg) == "cmd:continue" {
 		return
 	} else if string(contMsg) == "cmd:close" {
+		if err := pc.C.Close(); err != nil {
+			pc.E = err
+			return
+		}
 		pc.E = errors.New("peer does not want connection")
 	} else {
-		pc.E = fmt.Errorf("expected 'cmd:continue'|'cmd:close', received '%s'", contMsg)
+		pc.E = fmt.Errorf("expected continue|close, received '%s'", contMsg)
 	}
 }
 

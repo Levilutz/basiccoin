@@ -14,6 +14,7 @@ type ConstantsType struct {
 	PeerBusBufferSize    int           `json:"peerBusBufferSize"`
 	PeerListenFreq       time.Duration `json:"peerListenFreq"`
 	PeerPingFreq         time.Duration `json:"peerPingFreq"`
+	PrintPeersUpdateFreq time.Duration `json:"printPeersUpdateFreq"`
 	RuntimeID            string        `json:"runtimeID"`
 	SeedAddr             string        `json:"seedAddr"`
 	Version              string        `json:"version"`
@@ -25,12 +26,13 @@ var Constants = ConstantsType{
 	DebugNetwork:         false,
 	DebugPeerLoop:        false,
 	DebugTicker:          false,
-	FilterKnownPeersFreq: time.Second * 5,
+	FilterKnownPeersFreq: time.Second * 10,
 	LocalAddr:            "localhost:21720",
 	Listen:               true,
 	PeerBusBufferSize:    100,
 	PeerListenFreq:       time.Millisecond * 100,
 	PeerPingFreq:         time.Second * 5,
+	PrintPeersUpdateFreq: time.Second * 5,
 	RuntimeID:            AssertUUID(),
 	SeedAddr:             "",
 	Version:              "0.1.0",

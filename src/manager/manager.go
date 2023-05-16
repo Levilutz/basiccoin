@@ -42,6 +42,7 @@ func (m *Manager) Loop() {
 		go blankTicker()
 	}
 	filterKnownPeersTicker := time.NewTicker(util.Constants.FilterKnownPeersFreq)
+	printPeersUpdateTicker := time.NewTicker(util.Constants.PrintPeersUpdateFreq)
 	for {
 		select {
 		case conn := <-m.newConnChannel:
@@ -61,6 +62,12 @@ func (m *Manager) Loop() {
 				fmt.Println("MANAGER_FILTER")
 			}
 			go m.filterKnownPeers()
+
+		case <-printPeersUpdateTicker.C:
+			if util.Constants.DebugManagerLoop {
+				fmt.Println("MANAGER_PRINT_UPDATE")
+			}
+			go m.printPeersUpdate()
 		}
 	}
 }
@@ -76,7 +83,9 @@ func blankTicker() {
 func (m *Manager) addInboundPeer(conn *net.TCPConn) {
 	p, err := peer.NewPeerInbound(conn, m.mainBus)
 	if err != nil {
-		fmt.Println("failed to establish with new peer:", err.Error())
+		if errStr := err.Error(); errStr != "peer does not want connection" {
+			fmt.Println("failed to establish with new peer:", err.Error())
+		}
 		return
 	}
 	go p.Loop()
@@ -120,7 +129,31 @@ func (m *Manager) handleMainBusEvent(event events.MainEvent) {
 }
 
 func (m *Manager) filterKnownPeers() {
-	fmt.Println("known Peers:", m.getKnownPeersList())
+	knownPeerAddrs := m.getKnownPeersList()
+	for _, addr := range knownPeerAddrs {
+		addr := addr
+		go func() {
+			pc, err := peer.ResolvePeerConn(addr)
+			if err == nil {
+				pc.VerifyAndClose()
+				err = pc.Err()
+			}
+			if err != nil {
+				fmt.Printf("Dropping addr %s: %s\n", addr, err.Error())
+				m.knownPeerAddrsMu.Lock()
+				delete(m.knownPeerAddrs, addr)
+				m.knownPeerAddrsMu.Unlock()
+			}
+		}()
+	}
+}
+
+func (m *Manager) printPeersUpdate() {
+	m.knownPeerAddrsMu.Lock()
+	defer m.knownPeerAddrsMu.Unlock()
+	m.peersMu.Lock()
+	defer m.peersMu.Unlock()
+	fmt.Printf("peers:\t%d current,\t%dknown\n", len(m.peers), len(m.knownPeerAddrs))
 }
 
 func (m *Manager) getKnownPeersList() []string {
