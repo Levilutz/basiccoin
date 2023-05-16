@@ -49,8 +49,9 @@ func (pc *PeerConn) GiveHandshake() *HelloMessage {
 	if pc.E != nil {
 		return nil
 	}
-	pc.TransmitMessage(NewHelloMessage())
+	pc.TransmitStringLine("cmd:hello")
 	pc.ConsumeExpected("ack:hello")
+	pc.TransmitMessage(NewHelloMessage())
 	pc.ConsumeExpected("cmd:hello")
 	if pc.E != nil {
 		return nil
@@ -74,6 +75,7 @@ func (pc *PeerConn) ReceiveHandshake() *HelloMessage {
 		return nil
 	}
 	pc.ConsumeExpected("cmd:hello")
+	pc.TransmitStringLine("ack:hello")
 	if pc.E != nil {
 		return nil
 	}
@@ -82,7 +84,7 @@ func (pc *PeerConn) ReceiveHandshake() *HelloMessage {
 		pc.E = err
 		return nil
 	}
-	pc.TransmitStringLine("ack:hello")
+	pc.TransmitStringLine("cmd:hello")
 	pc.TransmitMessage(NewHelloMessage())
 	pc.ConsumeExpected("ack:hello")
 	pc.VerifyConnWanted(helloMsg)

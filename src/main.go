@@ -1,7 +1,9 @@
 package main
 
 import (
+	"fmt"
 	"net"
+	"time"
 
 	"github.com/levilutz/basiccoin/src/events"
 	"github.com/levilutz/basiccoin/src/manager"
@@ -30,7 +32,16 @@ func main() {
 
 	// Greet seed peer
 	if cli_args.SeedAddr != "" {
-		p, err := peer.NewPeerOutbound(cli_args.SeedAddr, mainBus)
+		var p *peer.Peer
+		var err error
+		for i := 0; i < 5; i++ {
+			p, err = peer.NewPeerOutbound(cli_args.SeedAddr, mainBus)
+			if err == nil || i == 4 {
+				break
+			}
+			fmt.Println("Failed attempt to contact seed peer")
+			time.Sleep(5 * time.Second)
+		}
 		util.PanicErr(err)
 		go p.Loop()
 		peers[p.HelloMsg.RuntimeID] = p

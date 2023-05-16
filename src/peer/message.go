@@ -49,9 +49,8 @@ func (msg HelloMessage) GetName() string {
 	return "hello"
 }
 
-// Transmit a HelloMessage over the channel, including name
+// Transmit a HelloMessage over the channel
 func (msg HelloMessage) Transmit(pc *PeerConn) error {
-	pc.TransmitStringLine("cmd:" + msg.GetName())
 	data, err := util.JsonB64(msg)
 	if err != nil {
 		return err
@@ -87,7 +86,7 @@ func (msg AddrsMessage) GetName() string {
 	return "addrs"
 }
 
-// Transmit an AddrsMessage over the channel, not including name
+// Transmit an AddrsMessage over the channel
 func (msg AddrsMessage) Transmit(pc *PeerConn) error {
 	pc.TransmitStringLine(strconv.Itoa(len(msg.PeerAddrs)))
 	for _, addr := range msg.PeerAddrs {
