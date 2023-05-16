@@ -45,28 +45,13 @@ func ResolvePeerConn(addr string) (*PeerConn, error) {
 }
 
 // Give an initial connection handshake
-func (pc *PeerConn) GiveHandshake() *HelloMessage {
+func (pc *PeerConn) GiveHandshake() {
 	if pc.E != nil {
-		return nil
+		return
 	}
 	pc.TransmitStringLine("cmd:hello")
 	pc.ConsumeExpected("ack:hello")
 	pc.TransmitMessage(NewHelloMessage())
-	pc.ConsumeExpected("cmd:hello")
-	pc.TransmitStringLine("ack:hello")
-	if pc.E != nil {
-		return nil
-	}
-	helloMsg, err := ReceiveHelloMessage(pc)
-	if err != nil {
-		pc.E = err
-		return nil
-	}
-	pc.VerifyConnWanted(helloMsg)
-	if pc.E != nil {
-		return nil
-	}
-	return &helloMsg
 }
 
 // Receive an initial connection handshake
@@ -76,19 +61,9 @@ func (pc *PeerConn) ReceiveHandshake() *HelloMessage {
 	}
 	pc.ConsumeExpected("cmd:hello")
 	pc.TransmitStringLine("ack:hello")
-	if pc.E != nil {
-		return nil
-	}
 	helloMsg, err := ReceiveHelloMessage(pc)
 	if err != nil {
 		pc.E = err
-		return nil
-	}
-	pc.TransmitStringLine("cmd:hello")
-	pc.ConsumeExpected("ack:hello")
-	pc.TransmitMessage(NewHelloMessage())
-	pc.VerifyConnWanted(helloMsg)
-	if pc.E != nil {
 		return nil
 	}
 	return &helloMsg
