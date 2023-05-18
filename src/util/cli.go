@@ -17,6 +17,11 @@ func ParseCLIArgs() CLIArgs {
 	// Do the parse
 	flag.Parse()
 
+	// Validate
+	if *localAddr == "" && *seedAddr == "" {
+		panic("Must provide either --addr or --seed")
+	}
+
 	// Insert into Constants
 	Constants.Listen = *listen
 	if *localAddr != "" {
