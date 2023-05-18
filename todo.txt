@@ -1,0 +1,83 @@
+Actually filter conns
+    support simple ping conns without full hello
+    support this naturally through development of networking?
+
+Issue PeersWantedPeerEvent
+
+Seek homeostatis of number of connections:
+    if below min:
+        try to connect to our existing candidate peers
+        if insufficient, ask peers for more
+        wait a while
+    if at or above max:
+        reject inbound
+
+Queue subscriptions / infinite buffer (both are :/)
+
+
+Make handshake symmetric
+Don't upgrade peerconn to peer so soon
+
+received a conn? want to turn a blank conn into a peer?
+    spawn goroutine with the conn, and big return channel
+        handshake
+        return {conn, helloMsg}
+    manager loop select
+        ... other channels
+        {conn, helloMsg} <- handshaken conn channel
+            lock peers
+            verify:
+                not us
+                version compat
+                not in existing peers
+            if good:
+                upgrade peerconn to peer
+                start loop
+                    if they wanted us, conn will go normal
+                    if their first cmd is a close:
+                        we might get the close, then it'll go back to main as normal
+                        we might get err read: closed connection
+                            notice these and close the conn if we got it
+                insert into table
+            if bad:
+                send close
+                close connection
+
+impl idea:
+    separate loop eats tcp conns from the wire and the manager trying to issue
+    handshakes, verifies wanted
+    if wanted, send back to manager
+    manager then eats these "wanted" peerconns, and:
+        locks peers
+        verifies not already in
+        upgrades to peer
+        inserts
+        unlocks
+
+big picture
+    when we receive connection, make peerconn
+    || when we want to check a peer, make peerconn
+    run peerconn through the handshake
+    IN MANAGER
+        lock (hopefully we remove all locks eventually)
+        receive their continue|close
+        verify we want the connection based on
+            not us
+            version compatible
+            not in existing peers
+            whether this was just a check
+        transmit our continue|close
+        if either close:
+            close the peerconn (should be quiet and pre-peer-loop)
+        if both continue:
+            create peer from peerconn
+            add to table
+            loop
+        unlock
+
+ROOT CAUSE OF BUG:
+    recipient was upgrading peerconn to peer before verifying not in map
+    since it was upgraded to peer, it was able to issue PeerClosing to mainBus
+    initiator was sending "close" after realizing itself that it was duplicate
+    but recipient peer loop got the close before recipient manager could close conn
+    so recipient peer loop issued PeerClosing to mainBus, causing both connections to be lost
