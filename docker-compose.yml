@@ -21,3 +21,17 @@ services:
       - "/basiccoin"
       - "--addr=node2:21720"
       - "--seed=node1:21720"
+
+  node3:
+    image: basiccoin:latest
+    command:
+      - "/basiccoin"
+      - "--addr=node3:21720"
+      - "--seed=node1:21720"
+
+  node4:
+    image: basiccoin:latest
+    command:
+      - "/basiccoin"
+      - "--addr=node4:21720"
+      - "--seed=node3:21720"

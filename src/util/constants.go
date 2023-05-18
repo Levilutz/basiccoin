@@ -5,23 +5,26 @@ import "time"
 // Types of the constants struct
 type ConstantsType struct {
 	DebugNetwork         bool          `json:"debugNetwork"`
-	FilterKnownPeersFreq time.Duration `json:"filterKnownPeersFreq"`
 	LocalAddr            string        `json:"localAddr"`
 	Listen               bool          `json:"listen"`
+	MinPeers             int           `json:"maxPeers"`
+	MaxPeers             int           `json:"minPeers"`
 	PeerBusBufferSize    int           `json:"peerBusBufferSize"`
 	PeerListenFreq       time.Duration `json:"peerListenFreq"`
 	PeerPingFreq         time.Duration `json:"peerPingFreq"`
 	PrintPeersUpdateFreq time.Duration `json:"printPeersUpdateFreq"`
 	RuntimeID            string        `json:"runtimeID"`
 	SeedAddr             string        `json:"seedAddr"`
+	SeekNewPeersFreq     time.Duration `json:"seekNewPeersFreq"`
 	Version              string        `json:"version"`
 }
 
 // Program-wide constants, should be set on startup
 var Constants = ConstantsType{
 	DebugNetwork:         false,
-	FilterKnownPeersFreq: time.Second * 10,
 	LocalAddr:            "localhost:21720",
+	MinPeers:             3,
+	MaxPeers:             8,
 	Listen:               true,
 	PeerBusBufferSize:    100,
 	PeerListenFreq:       time.Millisecond * 100,
@@ -29,5 +32,6 @@ var Constants = ConstantsType{
 	PrintPeersUpdateFreq: time.Second * 5,
 	RuntimeID:            AssertUUID(),
 	SeedAddr:             "",
+	SeekNewPeersFreq:     time.Second * 10,
 	Version:              "0.1.0",
 }

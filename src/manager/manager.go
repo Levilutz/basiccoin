@@ -2,8 +2,8 @@ package manager
 
 import (
 	"fmt"
+	"math/rand"
 	"net"
-	"sync"
 	"time"
 
 	"github.com/levilutz/basiccoin/src/events"
@@ -18,12 +18,9 @@ type MetConn struct {
 }
 
 type Manager struct {
-	metConnChannel   chan MetConn
-	mainBus          chan events.MainEvent
-	peers            map[string]*peer.Peer
-	peersMu          sync.Mutex
-	knownPeerAddrs   map[string]struct{}
-	knownPeerAddrsMu sync.Mutex
+	metConnChannel chan MetConn
+	mainBus        chan events.MainEvent
+	peers          map[string]*peer.Peer
 }
 
 func NewManager() *Manager {
@@ -31,7 +28,6 @@ func NewManager() *Manager {
 		metConnChannel: make(chan MetConn),
 		mainBus:        make(chan events.MainEvent),
 		peers:          make(map[string]*peer.Peer),
-		knownPeerAddrs: make(map[string]struct{}, 0),
 	}
 }
 
@@ -57,31 +53,30 @@ func (m *Manager) Listen() {
 }
 
 func (m *Manager) Loop() {
-	filterKnownPeersTicker := time.NewTicker(util.Constants.FilterKnownPeersFreq)
+	seekNewPeersTicker := time.NewTicker(util.Constants.SeekNewPeersFreq)
 	printPeersUpdateTicker := time.NewTicker(util.Constants.PrintPeersUpdateFreq)
 	for {
 		select {
 		case metConn := <-m.metConnChannel:
 			m.addMetConn(metConn)
 
-		case event := <-m.mainBus:
-			go m.handleMainBusEvent(event)
+		case <-seekNewPeersTicker.C:
+			m.seekNewPeers()
 
-		case <-filterKnownPeersTicker.C:
-			go m.filterKnownPeers()
+		case event := <-m.mainBus:
+			m.handleMainBusEvent(event)
 
 		case <-printPeersUpdateTicker.C:
-			go m.printPeersUpdate()
+			m.printPeersUpdate()
 		}
 	}
 }
 
 func (m *Manager) addMetConn(metConn MetConn) {
-	m.peersMu.Lock()
-	defer m.peersMu.Unlock()
 	upgradeable := metConn.HelloMsg.RuntimeID != util.Constants.RuntimeID &&
 		metConn.HelloMsg.Version == util.Constants.Version &&
-		!m.peerConnected(metConn.HelloMsg.RuntimeID)
+		!m.peerConnected(metConn.HelloMsg.RuntimeID) &&
+		len(m.peers) < util.Constants.MaxPeers
 
 	if upgradeable {
 		peer := peer.NewPeer(
@@ -91,12 +86,46 @@ func (m *Manager) addMetConn(metConn MetConn) {
 		m.peers[metConn.HelloMsg.RuntimeID] = peer
 
 	} else {
-		metConn.PeerConn.TransmitStringLine("cmd:close")
-		metConn.PeerConn.C.Close()
+		go func() {
+			metConn.PeerConn.TransmitStringLine("cmd:close")
+			metConn.PeerConn.C.Close()
+		}()
 	}
 }
 
-// Must be called from locked context
+func (m *Manager) seekNewPeers() {
+	if len(m.peers) >= util.Constants.MinPeers {
+		return
+	}
+	peerInd := rand.Intn(len(m.peers))
+	peerId := m.getPeerIDsList()[peerInd]
+	go func() {
+		m.peers[peerId].EventBus <- events.PeerEvent{
+			PeersWanted: &events.PeersWantedPeerEvent{},
+		}
+	}()
+}
+
+func (m *Manager) getPeerIDsList() []string {
+	ids := make([]string, len(m.peers))
+	i := 0
+	for addr := range m.peers {
+		ids[i] = addr
+		i++
+	}
+	return ids
+}
+
+func (m *Manager) getPeerAddrsList() []string {
+	addrs := make([]string, 0)
+	for _, peer := range m.peers {
+		if peer.HelloMsg.Addr != "" {
+			addrs = append(addrs, peer.HelloMsg.Addr)
+		}
+	}
+	return addrs
+}
+
 func (m *Manager) peerConnected(runtimeID string) bool {
 	_, exists := m.peers[runtimeID]
 	return exists
@@ -104,75 +133,42 @@ func (m *Manager) peerConnected(runtimeID string) bool {
 
 func (m *Manager) handleMainBusEvent(event events.MainEvent) {
 	if msg := event.PeerClosing; msg != nil {
-		m.peersMu.Lock()
 		delete(m.peers, msg.RuntimeID)
-		m.peersMu.Unlock()
 
 	} else if msg := event.PeersReceived; msg != nil {
-		// TODO Verify this peer before insert (in goroutine)
+		if len(m.peers) >= util.Constants.MaxPeers {
+			return
+		}
 		for _, addr := range msg.PeerAddrs {
 			addr := addr
 			go func() {
 				pc, err := peer.ResolvePeerConn(addr)
 				if err == nil {
-					pc.VerifyAndClose()
-					err = pc.Err()
-				}
-				if err == nil {
-					m.knownPeerAddrsMu.Lock()
-					m.knownPeerAddrs[addr] = struct{}{}
-					m.knownPeerAddrsMu.Unlock()
+					m.IntroducePeerConn(pc, true)
 				}
 			}()
 		}
 
 	} else if msg := event.PeersWanted; msg != nil {
-		m.peers[msg.PeerRuntimeID].EventBus <- events.PeerEvent{
-			PeersData: &events.PeersDataPeerEvent{
-				PeerAddrs: m.getKnownPeersList(),
-			},
+		addrs := m.getPeerAddrsList()
+		if len(addrs) == 0 {
+			return
 		}
+		go func() {
+			m.peers[msg.PeerRuntimeID].EventBus <- events.PeerEvent{
+				PeersData: &events.PeersDataPeerEvent{
+					PeerAddrs: addrs,
+				},
+			}
+		}()
 
 	} else {
 		fmt.Println("Unhandled event", event)
 	}
 }
 
-func (m *Manager) filterKnownPeers() {
-	knownPeerAddrs := m.getKnownPeersList()
-	for _, addr := range knownPeerAddrs {
-		addr := addr
-		go func() {
-			pc, err := peer.ResolvePeerConn(addr)
-			if err == nil {
-				pc.VerifyAndClose()
-				err = pc.Err()
-			}
-			if err != nil {
-				m.knownPeerAddrsMu.Lock()
-				delete(m.knownPeerAddrs, addr)
-				m.knownPeerAddrsMu.Unlock()
-			}
-		}()
-	}
-}
-
 func (m *Manager) printPeersUpdate() {
-	m.knownPeerAddrsMu.Lock()
-	defer m.knownPeerAddrsMu.Unlock()
-	m.peersMu.Lock()
-	defer m.peersMu.Unlock()
-	fmt.Printf("peers:\t%d current,\t%dknown\n", len(m.peers), len(m.knownPeerAddrs))
-}
-
-func (m *Manager) getKnownPeersList() []string {
-	addrs := make([]string, 0)
-	m.knownPeerAddrsMu.Lock()
-	defer m.knownPeerAddrsMu.Unlock()
-	for addr := range m.knownPeerAddrs {
-		addrs = append(addrs, addr)
-	}
-	return addrs
+	fmt.Println("peers:", len(m.peers), m.getPeerAddrsList())
 }
 
 func (m *Manager) IntroducePeerConn(pc *peer.PeerConn, weAreInitiator bool) {

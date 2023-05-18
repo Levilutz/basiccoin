@@ -86,6 +86,11 @@ func (p *Peer) handlePeerBusEvent(event events.PeerEvent) (bool, error) {
 			})
 			return p.conn.Err()
 		})
+
+	} else if msg := event.PeersWanted; msg != nil {
+		return p.issuePeerCommand("peers-wanted", func() error {
+			return nil
+		})
 	}
 	return false, nil
 }
@@ -99,28 +104,42 @@ func (p *Peer) handleReceivedLine(line []byte) (bool, error) {
 	// TODO ack before handling
 	if command == "close" {
 		return true, p.handleClose(false, true)
+	}
 
-	} else if command == "ping" {
-		p.conn.TransmitStringLine("ack:ping")
-		return false, p.conn.Err()
+	p.conn.TransmitStringLine("ack:" + command)
+	if err := p.conn.Err(); err != nil {
+		return false, err
+	}
+
+	if command == "ping" {
 
 	} else if command == "addrs" {
-		p.conn.TransmitStringLine("ack:addrs")
 		msg, err := ReceiveAddrsMessage(p.conn)
 		if err != nil {
 			return false, err
 		}
-		p.mainBus <- events.MainEvent{
-			PeersReceived: &events.PeersReceivedMainEvent{
-				PeerAddrs: msg.PeerAddrs,
-			},
-		}
-		return false, nil
+		go func() {
+			p.mainBus <- events.MainEvent{
+				PeersReceived: &events.PeersReceivedMainEvent{
+					PeerAddrs: msg.PeerAddrs,
+				},
+			}
+		}()
+
+	} else if command == "peers-wanted" {
+		go func() {
+			p.mainBus <- events.MainEvent{
+				PeersWanted: &events.PeersWantedMainEvent{
+					PeerRuntimeID: p.HelloMsg.RuntimeID,
+				},
+			}
+		}()
 
 	} else {
 		fmt.Println("Unexpected peer message:", command)
-		return false, nil
 	}
+
+	return false, nil
 }
 
 // Issue an outbound interaction for the command (given without "cmd:").
@@ -176,11 +195,13 @@ func (p *Peer) handleClose(issuing bool, notifyMainBus bool) error {
 		p.conn.TransmitStringLine("cmd:close")
 	}
 	if notifyMainBus {
-		p.mainBus <- events.MainEvent{
-			PeerClosing: &events.PeerClosingMainEvent{
-				RuntimeID: p.HelloMsg.RuntimeID,
-			},
-		}
+		go func() {
+			p.mainBus <- events.MainEvent{
+				PeerClosing: &events.PeerClosingMainEvent{
+					RuntimeID: p.HelloMsg.RuntimeID,
+				},
+			}
+		}()
 	}
 	if err := p.conn.Err(); err != nil {
 		return err
