@@ -32,10 +32,14 @@ type HelloMessage struct {
 
 // Construct a HelloMessage
 func NewHelloMessage() HelloMessage {
+	addr := ""
+	if util.Constants.Listen {
+		addr = util.Constants.LocalAddr
+	}
 	return HelloMessage{
 		RuntimeID: util.Constants.RuntimeID,
 		Version:   util.Constants.Version,
-		Addr:      util.Constants.LocalAddr,
+		Addr:      addr,
 	}
 }
 
