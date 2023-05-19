@@ -1,16 +1,6 @@
 package events
 
-type MainEvent struct {
-	// True Events
-	PeerClosing   *PeerClosingMainEvent
-	BlockReceived *BlockReceivedMainEvent
-	TxsReceived   *TxsReceivedMainEvent
-	PeersReceived *PeersReceivedMainEvent
-	// Query Events
-	PeersWanted   *PeersWantedMainEvent
-	BlockWanted   *BlockWantedMainEvent
-	MempoolWanted *MempoolWantedMainEvent
-}
+// True Events
 
 // A Peer is closing its connection, remove from table.
 type PeerClosingMainEvent struct {

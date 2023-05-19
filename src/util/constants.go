@@ -9,7 +9,6 @@ type ConstantsType struct {
 	Listen               bool          `json:"listen"`
 	MinPeers             int           `json:"maxPeers"`
 	MaxPeers             int           `json:"minPeers"`
-	PeerBusBufferSize    int           `json:"peerBusBufferSize"`
 	PeerListenFreq       time.Duration `json:"peerListenFreq"`
 	PeerPingFreq         time.Duration `json:"peerPingFreq"`
 	PrintPeersUpdateFreq time.Duration `json:"printPeersUpdateFreq"`
@@ -26,7 +25,6 @@ var Constants = ConstantsType{
 	MinPeers:             3,
 	MaxPeers:             8,
 	Listen:               true,
-	PeerBusBufferSize:    100,
 	PeerListenFreq:       time.Millisecond * 100,
 	PeerPingFreq:         time.Second * 5,
 	PrintPeersUpdateFreq: time.Second * 5,

@@ -19,14 +19,14 @@ type MetConn struct {
 
 type Manager struct {
 	metConnChannel chan MetConn
-	mainBus        chan events.MainEvent
+	mainBus        chan any
 	peers          map[string]*peer.Peer
 }
 
 func NewManager() *Manager {
 	return &Manager{
 		metConnChannel: make(chan MetConn),
-		mainBus:        make(chan events.MainEvent),
+		mainBus:        make(chan any),
 		peers:          make(map[string]*peer.Peer),
 	}
 }
@@ -100,9 +100,7 @@ func (m *Manager) seekNewPeers() {
 	peerInd := rand.Intn(len(m.peers))
 	peerId := m.getPeerIDsList()[peerInd]
 	go func() {
-		m.peers[peerId].EventBus <- events.PeerEvent{
-			PeersWanted: &events.PeersWantedPeerEvent{},
-		}
+		m.peers[peerId].EventBus <- events.PeersWantedPeerEvent{}
 	}()
 }
 
@@ -131,11 +129,12 @@ func (m *Manager) peerConnected(runtimeID string) bool {
 	return exists
 }
 
-func (m *Manager) handleMainBusEvent(event events.MainEvent) {
-	if msg := event.PeerClosing; msg != nil {
+func (m *Manager) handleMainBusEvent(event any) {
+	switch msg := event.(type) {
+	case events.PeerClosingMainEvent:
 		delete(m.peers, msg.RuntimeID)
 
-	} else if msg := event.PeersReceived; msg != nil {
+	case events.PeersReceivedMainEvent:
 		if len(m.peers) >= util.Constants.MaxPeers {
 			return
 		}
@@ -149,21 +148,19 @@ func (m *Manager) handleMainBusEvent(event events.MainEvent) {
 			}()
 		}
 
-	} else if msg := event.PeersWanted; msg != nil {
+	case events.PeersWantedMainEvent:
 		addrs := m.getPeerAddrsList()
 		if len(addrs) == 0 {
 			return
 		}
 		go func() {
-			m.peers[msg.PeerRuntimeID].EventBus <- events.PeerEvent{
-				PeersData: &events.PeersDataPeerEvent{
-					PeerAddrs: addrs,
-				},
+			m.peers[msg.PeerRuntimeID].EventBus <- events.PeersDataPeerEvent{
+				PeerAddrs: addrs,
 			}
 		}()
 
-	} else {
-		fmt.Println("Unhandled event", event)
+	default:
+		fmt.Printf("Unhandled main event %T\n", event)
 	}
 }
 

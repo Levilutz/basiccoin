@@ -12,9 +12,9 @@ import (
 // Encapsulate a high-level connection to a peer.
 type Peer struct {
 	HelloMsg       *HelloMessage
-	EventBus       chan events.PeerEvent
+	EventBus       chan any
 	conn           *PeerConn
-	mainBus        chan<- events.MainEvent
+	mainBus        chan<- any
 	weAreInitiator bool
 }
 
@@ -23,12 +23,12 @@ type Peer struct {
 func NewPeer(
 	msg *HelloMessage,
 	pc *PeerConn,
-	mainBus chan events.MainEvent,
+	mainBus chan any,
 	weAreInitiator bool,
 ) *Peer {
 	return &Peer{
 		HelloMsg:       msg,
-		EventBus:       make(chan events.PeerEvent, util.Constants.PeerBusBufferSize),
+		EventBus:       make(chan any),
 		conn:           pc,
 		mainBus:        mainBus,
 		weAreInitiator: weAreInitiator,
@@ -75,11 +75,12 @@ func (p *Peer) Loop() {
 }
 
 // Handle event from our message bus, return whether we should close.
-func (p *Peer) handlePeerBusEvent(event events.PeerEvent) (bool, error) {
-	if msg := event.ShouldEnd; msg != nil {
+func (p *Peer) handlePeerBusEvent(event any) (bool, error) {
+	switch msg := event.(type) {
+	case events.ShouldEndPeerEvent:
 		return true, p.handleClose(true, false)
 
-	} else if msg := event.PeersData; msg != nil {
+	case events.PeersDataPeerEvent:
 		return p.issuePeerCommand("addrs", func() error {
 			p.conn.TransmitMessage(AddrsMessage{
 				PeerAddrs: msg.PeerAddrs,
@@ -87,10 +88,13 @@ func (p *Peer) handlePeerBusEvent(event events.PeerEvent) (bool, error) {
 			return p.conn.Err()
 		})
 
-	} else if msg := event.PeersWanted; msg != nil {
+	case events.PeersWantedPeerEvent:
 		return p.issuePeerCommand("peers-wanted", func() error {
 			return nil
 		})
+
+	default:
+		fmt.Printf("Unhandled peer event %T\n", event)
 	}
 	return false, nil
 }
@@ -119,19 +123,15 @@ func (p *Peer) handleReceivedLine(line []byte) (bool, error) {
 			return false, err
 		}
 		go func() {
-			p.mainBus <- events.MainEvent{
-				PeersReceived: &events.PeersReceivedMainEvent{
-					PeerAddrs: msg.PeerAddrs,
-				},
+			p.mainBus <- events.PeersReceivedMainEvent{
+				PeerAddrs: msg.PeerAddrs,
 			}
 		}()
 
 	} else if command == "peers-wanted" {
 		go func() {
-			p.mainBus <- events.MainEvent{
-				PeersWanted: &events.PeersWantedMainEvent{
-					PeerRuntimeID: p.HelloMsg.RuntimeID,
-				},
+			p.mainBus <- events.PeersWantedMainEvent{
+				PeerRuntimeID: p.HelloMsg.RuntimeID,
 			}
 		}()
 
@@ -196,10 +196,8 @@ func (p *Peer) handleClose(issuing bool, notifyMainBus bool) error {
 	}
 	if notifyMainBus {
 		go func() {
-			p.mainBus <- events.MainEvent{
-				PeerClosing: &events.PeerClosingMainEvent{
-					RuntimeID: p.HelloMsg.RuntimeID,
-				},
+			p.mainBus <- events.PeerClosingMainEvent{
+				RuntimeID: p.HelloMsg.RuntimeID,
 			}
 		}()
 	}

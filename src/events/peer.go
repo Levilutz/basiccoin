@@ -1,17 +1,5 @@
 package events
 
-type PeerEvent struct {
-	// True Events
-	ShouldEnd   *ShouldEndPeerEvent
-	BlockData   *BlockDataPeerEvent
-	MempoolData *MempoolDataPeerEvent
-	PeersData   *PeersDataPeerEvent
-	// Query Events
-	PeersWanted   *PeersWantedPeerEvent
-	BlockWanted   *BlockWantedPeerEvent
-	MempoolWanted *MempoolWantedPeerEvent
-}
-
 // True Events
 
 // Command to terminate the connection.
