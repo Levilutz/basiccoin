@@ -32,11 +32,11 @@ func TestTransactionHash(t *testing.T) {
 	outputs := []TxOut{
 		{
 			Value:         554,
-			PublicKeyHash: NewDHash(outKey1PubDer),
+			PublicKeyHash: DHash(outKey1PubDer),
 		},
 		{
 			Value:         102,
-			PublicKeyHash: NewDHash(outKey2PubDer),
+			PublicKeyHash: DHash(outKey2PubDer),
 		},
 	}
 	preSigHash := HashPreSig(minBlock, outputs)
@@ -49,13 +49,13 @@ func TestTransactionHash(t *testing.T) {
 	t.Log("sig1", len(sig1Asn), string(EncodeB64(sig1Asn)))
 	inputs := []TxIn{
 		{
-			OriginTxId:     NewDHash([]byte("Hello World")),
+			OriginTxId:     DHash([]byte("Hello World")),
 			OriginTxOutInd: 2,
 			PublicKey:      inKey1PubDer,
 			Signature:      sig1Asn,
 		},
 		{
-			OriginTxId:     NewDHash([]byte("Hello World 123")),
+			OriginTxId:     DHash([]byte("Hello World 123")),
 			OriginTxOutInd: 3,
 			PublicKey:      inKey2PubDer,
 			Signature:      sig2Asn,

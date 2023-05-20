@@ -18,7 +18,7 @@ type Hasher interface {
 type HashT = [32]byte
 
 // Generate a random hash
-func NewRandHash() (HashT, error) {
+func RandHash() (HashT, error) {
 	bytes := make([]byte, 32)
 	_, err := rand.Read(bytes)
 	if err != nil {
@@ -30,7 +30,7 @@ func NewRandHash() (HashT, error) {
 }
 
 // Generate a new hash from the given data.
-func NewHash(content ...[]byte) HashT {
+func singleHash(content ...[]byte) HashT {
 	if len(content) == 1 {
 		return sha256.Sum256(content[0])
 	}
@@ -42,25 +42,25 @@ func NewHash(content ...[]byte) HashT {
 }
 
 // Generate a new double hash from the given data.
-func NewDHash(content ...[]byte) HashT {
+func DHash(content ...[]byte) HashT {
 	// Can't one-line bc [:] needs addressable memory
-	first := NewHash(content...)
-	return NewHash(first[:])
+	first := singleHash(content...)
+	return singleHash(first[:])
 }
 
 // Generate a new double hash from the given int (encoded as str)
-func NewDHashInt(value int) HashT {
-	return NewDHash([]byte(strconv.Itoa(value)))
+func DHashInt(value int) HashT {
+	return DHash([]byte(strconv.Itoa(value)))
 }
 
 // Hash from a list of hasher inputs
-func NewDHashList[T Hasher](items []T) HashT {
+func DHashList[T Hasher](items []T) HashT {
 	itemHashes := make([][]byte, len(items))
 	for i := 0; i < len(items); i++ {
 		itemHash := items[i].Hash()
 		itemHashes[i] = itemHash[:]
 	}
-	return NewDHash(itemHashes...)
+	return DHash(itemHashes...)
 }
 
 // Generate root-node hash of depth-1 tree, given children.
@@ -68,7 +68,7 @@ func NewDHashList[T Hasher](items []T) HashT {
 // method is run and that's included. If child is an int, it's converted to string, then
 // bytes, then hashed. If child is a []byte, it's hashed normally. If unknown type,
 // it panics (should be unreachable).
-func HashGenericItems(children ...any) HashT {
+func DHashItems(children ...any) HashT {
 	itemHashes := make([][]byte, len(children))
 	for i := 0; i < len(children); i++ {
 		var itemHash HashT
@@ -78,15 +78,15 @@ func HashGenericItems(children ...any) HashT {
 		case HashT:
 			itemHash = item
 		case []byte:
-			itemHash = NewDHash(item)
+			itemHash = DHash(item)
 		case int:
-			itemHash = NewDHash([]byte(strconv.Itoa(item)))
+			itemHash = DHash([]byte(strconv.Itoa(item)))
 		default:
 			panic(fmt.Sprintf("unhashable type: %T", item))
 		}
 		itemHashes[i] = itemHash[:]
 	}
-	return NewDHash(itemHashes...)
+	return DHash(itemHashes...)
 }
 
 // Generate hex string representation of hash

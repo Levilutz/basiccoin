@@ -16,7 +16,7 @@ func TestBelowTarget(t *testing.T) {
 	nums := make([]big.Int, 100)
 	for i := 0; i < 100; i++ {
 		// Generate
-		hashes[i], err = NewRandHash()
+		hashes[i], err = RandHash()
 		util.AssertNoErr(t, err)
 		nums[i].SetBytes(hashes[i][:])
 
@@ -63,9 +63,9 @@ func TestEcdsaSign(t *testing.T) {
 	pubDer, err := MarshalEcdsaPublic(priv)
 	util.AssertNoErr(t, err)
 	content := []byte("Hello World")
-	sigAsn, err := EcdsaSign(priv, NewDHash(content))
+	sigAsn, err := EcdsaSign(priv, DHash(content))
 	util.AssertNoErr(t, err)
-	valid, err := EcdsaVerify(pubDer, NewDHash(content), sigAsn)
+	valid, err := EcdsaVerify(pubDer, DHash(content), sigAsn)
 	util.AssertNoErr(t, err)
 	util.Assert(t, valid, "invalid signature")
 }
@@ -78,9 +78,9 @@ func TestEcdsaBadSign(t *testing.T) {
 	util.AssertNoErr(t, err)
 	content := []byte("Hello World")
 	content2 := []byte("Hello World.")
-	sigAsn, err := EcdsaSign(priv, NewDHash(content))
+	sigAsn, err := EcdsaSign(priv, DHash(content))
 	util.AssertNoErr(t, err)
-	valid, err := EcdsaVerify(pubDer, NewDHash(content2), sigAsn)
+	valid, err := EcdsaVerify(pubDer, DHash(content2), sigAsn)
 	util.AssertNoErr(t, err)
 	util.Assert(t, !valid, "incorrectly valid signature")
 }
