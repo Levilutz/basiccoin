@@ -39,7 +39,8 @@ func TestTransactionHash(t *testing.T) {
 			PublicKeyHash: NewDHash(outKey2PubDer),
 		},
 	}
-	preSigHash := HashPreSig(minBlock, outputs)
+	preSigHash, err := HashPreSig(minBlock, outputs)
+	util.AssertNoErr(t, err)
 
 	// Generate inputs with signatures
 	sig1Asn, err := EcdsaSign(inKey1Priv, preSigHash)
@@ -68,6 +69,7 @@ func TestTransactionHash(t *testing.T) {
 		Inputs:   inputs,
 		Outputs:  outputs,
 	}
-	txHash := tx.Hash()
+	txHash, err := tx.Hash()
+	util.AssertNoErr(t, err)
 	t.Log("txhash", len(txHash), HashHex(txHash), string(EncodeB64(txHash[:])))
 }

@@ -7,16 +7,12 @@ type TxIn struct {
 	Signature      []byte
 }
 
-func (txi TxIn) Hash() HashT {
-	originTxIdHash := NewDHash(txi.OriginTxId[:])
-	originTxOutIndHash := NewDHashInt(txi.OriginTxOutInd)
-	publicKeyHash := NewDHash(txi.PublicKey)
-	signatureHash := NewDHash(txi.Signature)
-	return NewDHash(
-		originTxIdHash[:],
-		originTxOutIndHash[:],
-		publicKeyHash[:],
-		signatureHash[:],
+func (txi TxIn) Hash() (HashT, error) {
+	return NewDHashParent(
+		txi.OriginTxId[:],
+		txi.OriginTxOutInd,
+		txi.PublicKey,
+		txi.Signature,
 	)
 }
 
@@ -33,9 +29,8 @@ type TxOut struct {
 	PublicKeyHash HashT
 }
 
-func (txo TxOut) Hash() HashT {
-	valueHash := NewDHashInt(txo.Value)
-	return NewDHash(valueHash[:], txo.PublicKeyHash[:])
+func (txo TxOut) Hash() (HashT, error) {
+	return NewDHashParent(txo.Value, txo.PublicKeyHash)
 }
 
 type Tx struct {
@@ -44,15 +39,22 @@ type Tx struct {
 	Outputs  []TxOut
 }
 
-func (tx Tx) Hash() HashT {
-	minBlockHash := NewDHashInt(tx.MinBlock)
-	inputsHash := NewDHashList(tx.Inputs)
-	outputsHash := NewDHashList(tx.Outputs)
-	return NewDHash(minBlockHash[:], inputsHash[:], outputsHash[:])
+func (tx Tx) Hash() (HashT, error) {
+	inputsHash, err := NewDHashList(tx.Inputs)
+	if err != nil {
+		return HashT{}, err
+	}
+	outputsHash, err := NewDHashList(tx.Outputs)
+	if err != nil {
+		return HashT{}, err
+	}
+	return NewDHashParent(tx.MinBlock, inputsHash, outputsHash)
 }
 
-func HashPreSig(minBlock int, outputs []TxOut) HashT {
-	minBlockHash := NewDHashInt(minBlock)
-	outputsHash := NewDHashList(outputs)
-	return NewDHash(minBlockHash[:], outputsHash[:])
+func HashPreSig(minBlock int, outputs []TxOut) (HashT, error) {
+	outputsHash, err := NewDHashList(outputs)
+	if err != nil {
+		return HashT{}, err
+	}
+	return NewDHashParent(minBlock, outputsHash)
 }

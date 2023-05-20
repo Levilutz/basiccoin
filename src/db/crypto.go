@@ -12,7 +12,7 @@ import (
 )
 
 type Hasher interface {
-	Hash() HashT
+	Hash() (HashT, error)
 }
 
 type HashT = [32]byte
@@ -42,13 +42,46 @@ func NewDHashInt(value int) HashT {
 }
 
 // Hash from a list of hasher inputs
-func NewDHashList[T Hasher](items []T) HashT {
+func NewDHashList[T Hasher](items []T) (HashT, error) {
 	itemHashes := make([][]byte, len(items))
 	for i := 0; i < len(items); i++ {
-		itemHash := items[i].Hash()
+		itemHash, err := items[i].Hash()
+		if err != nil {
+			return HashT{}, err
+		}
 		itemHashes[i] = itemHash[:]
 	}
-	return NewDHash(itemHashes...)
+	return NewDHash(itemHashes...), nil
+}
+
+// Generate root-node hash of depth-1 tree, providing children.
+// If child is a hash, it's included unchanged. If child is a Hashable, it's Hash()
+// method is run and that's included. If child is an int, it's converted to string, then
+// bytes, then hashed. If child is a []byte, it's hashed normally.
+func NewDHashParent(children ...any) (HashT, error) {
+	// TODO: Rename this to NewMerkle and move to merkle file
+	itemHashes := make([][]byte, len(children))
+	for i := 0; i < len(children); i++ {
+		var itemHash HashT
+		var err error
+		switch item := children[i].(type) {
+		case Hasher:
+			itemHash, err = item.Hash()
+			if err != nil {
+				return HashT{}, err
+			}
+		case HashT:
+			itemHash = item
+		case []byte:
+			itemHash = NewDHash(item)
+		case int:
+			itemHash = NewDHash([]byte(strconv.Itoa(item)))
+		default:
+			return HashT{}, fmt.Errorf("unhashable type: %T", item)
+		}
+		itemHashes[i] = itemHash[:]
+	}
+	return NewDHash(itemHashes...), nil
 }
 
 // Generate hex string representation of hash
