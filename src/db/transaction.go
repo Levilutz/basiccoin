@@ -8,7 +8,7 @@ type TxIn struct {
 }
 
 func (txi TxIn) Hash() (HashT, error) {
-	return NewDHashParent(
+	return HashGenericItems(
 		txi.OriginTxId[:],
 		txi.OriginTxOutInd,
 		txi.PublicKey,
@@ -30,7 +30,7 @@ type TxOut struct {
 }
 
 func (txo TxOut) Hash() (HashT, error) {
-	return NewDHashParent(txo.Value, txo.PublicKeyHash)
+	return HashGenericItems(txo.Value, txo.PublicKeyHash)
 }
 
 type Tx struct {
@@ -48,7 +48,7 @@ func (tx Tx) Hash() (HashT, error) {
 	if err != nil {
 		return HashT{}, err
 	}
-	return NewDHashParent(tx.MinBlock, inputsHash, outputsHash)
+	return HashGenericItems(tx.MinBlock, inputsHash, outputsHash)
 }
 
 func HashPreSig(minBlock int, outputs []TxOut) (HashT, error) {
@@ -56,5 +56,5 @@ func HashPreSig(minBlock int, outputs []TxOut) (HashT, error) {
 	if err != nil {
 		return HashT{}, err
 	}
-	return NewDHashParent(minBlock, outputsHash)
+	return HashGenericItems(minBlock, outputsHash)
 }

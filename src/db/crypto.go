@@ -17,6 +17,18 @@ type Hasher interface {
 
 type HashT = [32]byte
 
+// Generate a random hash
+func NewRandHash() (HashT, error) {
+	bytes := make([]byte, 32)
+	_, err := rand.Read(bytes)
+	if err != nil {
+		return HashT{}, err
+	}
+	out := HashT{}
+	copy(out[:], bytes)
+	return out, nil
+}
+
 // Generate a new hash from the given data.
 func NewHash(content ...[]byte) HashT {
 	if len(content) == 1 {
@@ -58,7 +70,7 @@ func NewDHashList[T Hasher](items []T) (HashT, error) {
 // If child is a hash, it's included unchanged. If child is a Hashable, it's Hash()
 // method is run and that's included. If child is an int, it's converted to string, then
 // bytes, then hashed. If child is a []byte, it's hashed normally.
-func NewDHashParent(children ...any) (HashT, error) {
+func HashGenericItems(children ...any) (HashT, error) {
 	// TODO: Rename this to NewMerkle and move to merkle file
 	itemHashes := make([][]byte, len(children))
 	for i := 0; i < len(children); i++ {
@@ -87,6 +99,19 @@ func NewDHashParent(children ...any) (HashT, error) {
 // Generate hex string representation of hash
 func HashHex(hash HashT) string {
 	return fmt.Sprintf("%x", hash)
+}
+
+// Whether a given hash is below a target (big-endian)
+func BelowTarget(value HashT, target HashT) bool {
+	for i := 0; i < 32; i++ {
+		if value[i] > target[i] {
+			return false
+		} else if value[i] < target[i] {
+			return true
+		}
+	}
+	// Values equal
+	return false
 }
 
 // Generate a new ecdsa private key.
