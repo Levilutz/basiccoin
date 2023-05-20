@@ -53,6 +53,15 @@ func DHashInt(value int) HashT {
 	return DHash([]byte(strconv.Itoa(value)))
 }
 
+// Generate a double hash from a list of existing hahes
+func DHashHashes(items []HashT) HashT {
+	itemHashes := make([][]byte, len(items))
+	for i := 0; i < len(items); i++ {
+		itemHashes[i] = items[i][:]
+	}
+	return DHash(itemHashes...)
+}
+
 // Hash from a list of hasher inputs
 func DHashList[T Hasher](items []T) HashT {
 	itemHashes := make([][]byte, len(items))

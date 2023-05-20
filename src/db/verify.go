@@ -7,27 +7,45 @@ import (
 )
 
 // Verify a block.
-func (s *State) VerifyNewBlock(b Block, claimedTxIds []HashT) error {
+func (s *State) VerifyExistingBlock(blockId HashT) error {
+	// Verify block exists
+	b, exists := s.Ledger[blockId]
+	if !exists {
+		return fmt.Errorf("unknown blockId: %s", blockId)
+	}
+
+	if err := b.VerifyInternal(); err != nil {
+		return err
+	}
+
 	// Verify each claimed txId is known, retrieve txs
-	txs := make([]Tx, len(claimedTxIds))
-	for i, txId := range claimedTxIds {
-		tx, ok := s.Mempool[txId]
+	txs := make([]Tx, len(b.TxIds))
+	for i, txId := range b.TxIds {
+		tx, ok := s.LedgerTxs[txId]
 		if !ok {
 			return fmt.Errorf("unknown txId: %s", txId)
 		}
 		txs[i] = tx
 	}
 
-	// Verify merkle root matches
-	merkleRoot := DHashList(txs)
-	if merkleRoot != b.MerkleRoot {
-		return fmt.Errorf("invalid claimed merkle root: %s", b.MerkleRoot)
+	// TODO: Verify no duplicate UTxOs (helper?)
+
+	return nil
+}
+
+func (s *State) VerifyNewBlock(b Block) error {
+	if err := b.VerifyInternal(); err != nil {
+		return err
 	}
 
-	// Verify hash matches claimed target difficulty
-	blockHash := b.Hash()
-	if !BelowTarget(blockHash, b.Difficulty) {
-		return fmt.Errorf("block does not beat claimed difficulty")
+	// Verify each claimed txId is known, retrieve txs
+	txs := make([]Tx, len(b.TxIds))
+	for i, txId := range b.TxIds {
+		tx, ok := s.Mempool[txId]
+		if !ok {
+			return fmt.Errorf("unknown txId: %s", txId)
+		}
+		txs[i] = tx
 	}
 
 	consumedUTxOs := make(map[UTxO]struct{}, 0)

@@ -1,5 +1,7 @@
 package db
 
+import "fmt"
+
 type TxIn struct {
 	OriginTxId     HashT
 	OriginTxOutInd int
@@ -54,8 +56,25 @@ type Block struct {
 	MerkleRoot  HashT
 	Difficulty  HashT
 	Nonce       HashT
+	TxIds       []HashT
 }
 
 func (b Block) Hash() HashT {
 	return DHashItems(b.PrevBlockId, b.MerkleRoot, b.Difficulty, b.Nonce)
+}
+
+func (b Block) VerifyInternal() error {
+	// Verify merkle root matches
+	merkleRoot := DHashHashes(b.TxIds)
+	if merkleRoot != b.MerkleRoot {
+		return fmt.Errorf("invalid claimed merkle root: %s", b.MerkleRoot)
+	}
+
+	// Verify hash matches claimed target difficulty
+	blockHash := b.Hash()
+	if !BelowTarget(blockHash, b.Difficulty) {
+		return fmt.Errorf("block does not beat claimed difficulty")
+	}
+
+	return nil
 }
