@@ -7,7 +7,7 @@ type TxIn struct {
 	Signature      []byte
 }
 
-func (txi TxIn) Hash() (HashT, error) {
+func (txi TxIn) Hash() HashT {
 	return HashGenericItems(
 		txi.OriginTxId[:],
 		txi.OriginTxOutInd,
@@ -29,7 +29,7 @@ type TxOut struct {
 	PublicKeyHash HashT
 }
 
-func (txo TxOut) Hash() (HashT, error) {
+func (txo TxOut) Hash() HashT {
 	return HashGenericItems(txo.Value, txo.PublicKeyHash)
 }
 
@@ -39,24 +39,14 @@ type Tx struct {
 	Outputs  []TxOut
 }
 
-func (tx Tx) Hash() (HashT, error) {
-	inputsHash, err := NewDHashList(tx.Inputs)
-	if err != nil {
-		return HashT{}, err
-	}
-	outputsHash, err := NewDHashList(tx.Outputs)
-	if err != nil {
-		return HashT{}, err
-	}
-	return HashGenericItems(tx.MinBlock, inputsHash, outputsHash)
+func (tx Tx) Hash() HashT {
+	return HashGenericItems(
+		tx.MinBlock, NewDHashList(tx.Inputs), NewDHashList(tx.Outputs),
+	)
 }
 
-func HashPreSig(minBlock int, outputs []TxOut) (HashT, error) {
-	outputsHash, err := NewDHashList(outputs)
-	if err != nil {
-		return HashT{}, err
-	}
-	return HashGenericItems(minBlock, outputsHash)
+func HashPreSig(minBlock int, outputs []TxOut) HashT {
+	return HashGenericItems(minBlock, NewDHashList(outputs))
 }
 
 type Block struct {
@@ -66,6 +56,6 @@ type Block struct {
 	Nonce       HashT
 }
 
-func (b Block) Hash() (HashT, error) {
+func (b Block) Hash() HashT {
 	return HashGenericItems(b.PrevBlockId, b.MerkleRoot, b.Difficulty, b.Nonce)
 }

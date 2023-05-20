@@ -12,7 +12,7 @@ import (
 )
 
 type Hasher interface {
-	Hash() (HashT, error)
+	Hash() HashT
 }
 
 type HashT = [32]byte
@@ -54,34 +54,27 @@ func NewDHashInt(value int) HashT {
 }
 
 // Hash from a list of hasher inputs
-func NewDHashList[T Hasher](items []T) (HashT, error) {
+func NewDHashList[T Hasher](items []T) HashT {
 	itemHashes := make([][]byte, len(items))
 	for i := 0; i < len(items); i++ {
-		itemHash, err := items[i].Hash()
-		if err != nil {
-			return HashT{}, err
-		}
+		itemHash := items[i].Hash()
 		itemHashes[i] = itemHash[:]
 	}
-	return NewDHash(itemHashes...), nil
+	return NewDHash(itemHashes...)
 }
 
-// Generate root-node hash of depth-1 tree, providing children.
+// Generate root-node hash of depth-1 tree, given children.
 // If child is a hash, it's included unchanged. If child is a Hashable, it's Hash()
 // method is run and that's included. If child is an int, it's converted to string, then
-// bytes, then hashed. If child is a []byte, it's hashed normally.
-func HashGenericItems(children ...any) (HashT, error) {
-	// TODO: Rename this to NewMerkle and move to merkle file
+// bytes, then hashed. If child is a []byte, it's hashed normally. If unknown type,
+// it panics (should be unreachable).
+func HashGenericItems(children ...any) HashT {
 	itemHashes := make([][]byte, len(children))
 	for i := 0; i < len(children); i++ {
 		var itemHash HashT
-		var err error
 		switch item := children[i].(type) {
 		case Hasher:
-			itemHash, err = item.Hash()
-			if err != nil {
-				return HashT{}, err
-			}
+			itemHash = item.Hash()
 		case HashT:
 			itemHash = item
 		case []byte:
@@ -89,11 +82,11 @@ func HashGenericItems(children ...any) (HashT, error) {
 		case int:
 			itemHash = NewDHash([]byte(strconv.Itoa(item)))
 		default:
-			return HashT{}, fmt.Errorf("unhashable type: %T", item)
+			panic(fmt.Sprintf("unhashable type: %T", item))
 		}
 		itemHashes[i] = itemHash[:]
 	}
-	return NewDHash(itemHashes...), nil
+	return NewDHash(itemHashes...)
 }
 
 // Generate hex string representation of hash
