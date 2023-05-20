@@ -10,10 +10,10 @@ import (
 	"fmt"
 )
 
-type Hash = [32]byte
+type HashT = [32]byte
 
 // Generate a new hash from the given data.
-func NewHash(content ...[]byte) Hash {
+func NewHash(content ...[]byte) HashT {
 	text := make([]byte, 0)
 	for _, data := range content {
 		text = append(text, data...)
@@ -22,13 +22,13 @@ func NewHash(content ...[]byte) Hash {
 }
 
 // Generate a new double hash from the given data.
-func NewDHash(content ...[]byte) Hash {
+func NewDHash(content ...[]byte) HashT {
 	// Can't one-line bc [:] needs addressable memory
 	first := NewHash(content...)
 	return NewHash(first[:])
 }
 
-func HashHex(hash Hash) string {
+func HashHex(hash HashT) string {
 	return fmt.Sprintf("%x", hash)
 }
 
@@ -67,7 +67,7 @@ func MarshallEcdsaPublic(priv *ecdsa.PrivateKey) ([]byte, error) {
 // Sign data with ECDSA, return base64-encoded ASN.1 form signature.
 // priv is an ecdsa private key.
 // hash is the hash of the content that needs to be signed.
-func EcdsaSign(priv *ecdsa.PrivateKey, hash Hash) ([]byte, error) {
+func EcdsaSign(priv *ecdsa.PrivateKey, hash HashT) ([]byte, error) {
 	sig, err := ecdsa.SignASN1(rand.Reader, priv, hash[:])
 	if err != nil {
 		return nil, err
@@ -79,7 +79,7 @@ func EcdsaSign(priv *ecdsa.PrivateKey, hash Hash) ([]byte, error) {
 // pub64 is the base64 encoding of PKIX, ASN.1 DER form ecdsa public key.
 // hash is the hash of the content that should have been signed.
 // sig64 is the base64 encoding of ASN.1 form ecdsa signature.
-func EcdsaVerify(pub64 []byte, hash Hash, sig64 []byte) (bool, error) {
+func EcdsaVerify(pub64 []byte, hash HashT, sig64 []byte) (bool, error) {
 	// Parse base64 inputs
 	pubRaw, err := ParseB64(pub64)
 	if err != nil {
