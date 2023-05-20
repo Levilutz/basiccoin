@@ -1,7 +1,5 @@
 package db
 
-import "fmt"
-
 // Unspent transaction output.
 type UTxO struct {
 	TxId HashT
@@ -15,25 +13,22 @@ type TxAux struct {
 	VSize      int
 }
 
-// Total state of the blockchain and mempool
+// Total state of the blockchain and mempool.
 type State struct {
-	CurrentHead    HashT
-	Ledger         map[HashT]Block
-	LedgerTxs      map[HashT]Tx
-	LedgerTxBlocks map[HashT]HashT
-	UTxOs          map[UTxO]struct{}
-	Mempool        map[HashT]Tx
+	// currentHead    HashT
+	// ledgerTxBlocks map[HashT]HashT
+	ledger  map[HashT]Block
+	txs     map[HashT]Tx
+	uTxOs   map[UTxO]struct{}
+	mempool map[HashT]struct{}
 }
 
 // Add a tx to the mempool, fails if it exists in ledger.
 func (s *State) AddMempoolTx(hash HashT, tx Tx) error {
-	_, exists := s.LedgerTxs[hash]
-	if exists {
-		return fmt.Errorf("cannot add to mempool, exists in ledger: %s", hash)
-	}
-	_, exists = s.Mempool[hash]
+	_, exists := s.txs[hash]
 	if !exists {
-		s.Mempool[hash] = tx
+		s.txs[hash] = tx
+		s.mempool[hash] = struct{}{}
 	}
 	return nil
 }

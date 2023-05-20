@@ -9,7 +9,7 @@ import (
 // Verify a block.
 func (s *State) VerifyExistingBlock(blockId HashT) error {
 	// Verify block exists
-	b, exists := s.Ledger[blockId]
+	b, exists := s.ledger[blockId]
 	if !exists {
 		return fmt.Errorf("unknown blockId: %s", blockId)
 	}
@@ -21,7 +21,7 @@ func (s *State) VerifyExistingBlock(blockId HashT) error {
 	// Verify each claimed txId is known, retrieve txs
 	txs := make([]Tx, len(b.TxIds))
 	for i, txId := range b.TxIds {
-		tx, ok := s.LedgerTxs[txId]
+		tx, ok := s.txs[txId]
 		if !ok {
 			return fmt.Errorf("unknown txId: %s", txId)
 		}
@@ -29,6 +29,8 @@ func (s *State) VerifyExistingBlock(blockId HashT) error {
 	}
 
 	// TODO: Verify no duplicate UTxOs (helper?)
+
+	// TODO: Verify total vSize within bounds
 
 	return nil
 }
@@ -41,9 +43,12 @@ func (s *State) VerifyNewBlock(b Block) error {
 	// Verify each claimed txId is known, retrieve txs
 	txs := make([]Tx, len(b.TxIds))
 	for i, txId := range b.TxIds {
-		tx, ok := s.Mempool[txId]
+		tx, ok := s.txs[txId]
 		if !ok {
 			return fmt.Errorf("unknown txId: %s", txId)
+		}
+		if _, existsMempool := s.mempool[txId]; !existsMempool {
+			return fmt.Errorf("txId not in mempool: %s", txId)
 		}
 		txs[i] = tx
 	}
@@ -71,6 +76,8 @@ func (s *State) VerifyNewBlock(b Block) error {
 		}
 	}
 
+	// TODO: Verify total vSize within bounds
+
 	// TODO: Verify claimed target difficulty matches ours
 	return nil
 }
@@ -95,7 +102,7 @@ func (s *State) VerifyTx(tx Tx, coinbaseExpected bool) (TxAux, error) {
 			TxId: txi.OriginTxId,
 			Ind:  txi.OriginTxOutInd,
 		}
-		_, exists := s.UTxOs[ClaimedUTxO]
+		_, exists := s.uTxOs[ClaimedUTxO]
 		if !exists {
 			return TxAux{}, fmt.Errorf(
 				"invalid claimed UTxO %s[%d]",
@@ -105,7 +112,7 @@ func (s *State) VerifyTx(tx Tx, coinbaseExpected bool) (TxAux, error) {
 		}
 
 		// Retrieve referenced output from ledger
-		refOutputs[i] = s.LedgerTxs[txi.OriginTxId].Outputs[txi.OriginTxOutInd]
+		refOutputs[i] = s.txs[txi.OriginTxId].Outputs[txi.OriginTxOutInd]
 
 		// Verify claimed public key matches
 		claimedPubKeyHash := DHash(txi.PublicKey)
