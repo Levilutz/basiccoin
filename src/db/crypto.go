@@ -28,6 +28,10 @@ func NewDHash(content ...[]byte) Hash {
 	return NewHash(first[:])
 }
 
+func HashHex(hash Hash) string {
+	return fmt.Sprintf("%x", hash)
+}
+
 // Generate a new ecdsa private key.
 func NewEcdsa() (*ecdsa.PrivateKey, error) {
 	return ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
@@ -51,11 +55,24 @@ func ParseECDSA(priv64 []byte) (*ecdsa.PrivateKey, error) {
 	return x509.ParseECPrivateKey(der)
 }
 
-// Sign data with ECDSA.
+// Marshall an ecdsa key's public part to PKIX, ASN.1 DER form.
+func MarshallEcdsaPublic(priv *ecdsa.PrivateKey) ([]byte, error) {
+	der, err := x509.MarshalPKIXPublicKey(priv.Public())
+	if err != nil {
+		return nil, err
+	}
+	return EncodeB64(der), nil
+}
+
+// Sign data with ECDSA, return base64-encoded ASN.1 form signature.
 // priv is an ecdsa private key.
 // hash is the hash of the content that needs to be signed.
 func EcdsaSign(priv *ecdsa.PrivateKey, hash Hash) ([]byte, error) {
-	return ecdsa.SignASN1(rand.Reader, priv, hash[:])
+	sig, err := ecdsa.SignASN1(rand.Reader, priv, hash[:])
+	if err != nil {
+		return nil, err
+	}
+	return EncodeB64(sig), nil
 }
 
 // Verify an ECDSA signature.
@@ -97,7 +114,7 @@ func EncodeB64(content []byte) []byte {
 // Decode content from the given base64, return err if invalid base64.
 func ParseB64(content64 []byte) ([]byte, error) {
 	out := make([]byte, base64.StdEncoding.DecodedLen(len(content64)))
-	n, err := base64.StdEncoding.Decode(content64, out)
+	n, err := base64.StdEncoding.Decode(out, content64)
 	if err != nil {
 		return out, err
 	}
