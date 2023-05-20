@@ -58,3 +58,14 @@ func HashPreSig(minBlock int, outputs []TxOut) (HashT, error) {
 	}
 	return HashGenericItems(minBlock, outputsHash)
 }
+
+type Block struct {
+	PrevBlockId HashT
+	MerkleRoot  HashT
+	Difficulty  HashT
+	Nonce       HashT
+}
+
+func (b Block) Hash() (HashT, error) {
+	return HashGenericItems(b.PrevBlockId, b.MerkleRoot, b.Difficulty, b.Nonce)
+}
