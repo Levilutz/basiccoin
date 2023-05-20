@@ -8,12 +8,20 @@ import (
 	"crypto/x509"
 	"encoding/base64"
 	"fmt"
+	"strconv"
 )
+
+type Hasher interface {
+	Hash() HashT
+}
 
 type HashT = [32]byte
 
 // Generate a new hash from the given data.
 func NewHash(content ...[]byte) HashT {
+	if len(content) == 1 {
+		return sha256.Sum256(content[0])
+	}
 	text := make([]byte, 0)
 	for _, data := range content {
 		text = append(text, data...)
@@ -28,6 +36,22 @@ func NewDHash(content ...[]byte) HashT {
 	return NewHash(first[:])
 }
 
+// Generate a new double hash from the given int (encoded as str)
+func NewDHashInt(value int) HashT {
+	return NewDHash([]byte(strconv.Itoa(value)))
+}
+
+// Hash from a list of hasher inputs
+func NewDHashList[T Hasher](items []T) HashT {
+	itemHashes := make([][]byte, len(items))
+	for i := 0; i < len(items); i++ {
+		itemHash := items[i].Hash()
+		itemHashes[i] = itemHash[:]
+	}
+	return NewDHash(itemHashes...)
+}
+
+// Generate hex string representation of hash
 func HashHex(hash HashT) string {
 	return fmt.Sprintf("%x", hash)
 }
@@ -37,71 +61,45 @@ func NewEcdsa() (*ecdsa.PrivateKey, error) {
 	return ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 }
 
-// Marshall an ecdsa private key to base64 of SEC1 ASN.1 DER form.
-func MarshallEcdsa(priv *ecdsa.PrivateKey) ([]byte, error) {
-	der, err := x509.MarshalECPrivateKey(priv)
-	if err != nil {
-		return nil, err
-	}
-	return EncodeB64(der), nil
+// Marshall an ecdsa private key to SEC1 ASN.1 DER form.
+func MarshalEcdsaPrivate(priv *ecdsa.PrivateKey) ([]byte, error) {
+	return x509.MarshalECPrivateKey(priv)
 }
 
-// Parse an ecdsa private key from base64 of SEC1 ASN.1 DER form.
-func ParseECDSA(priv64 []byte) (*ecdsa.PrivateKey, error) {
-	der, err := ParseB64(priv64)
-	if err != nil {
-		return nil, err
-	}
-	return x509.ParseECPrivateKey(der)
+// Parse an ecdsa private key from SEC1 ASN.1 DER form.
+func ParseECDSAPrivate(priv []byte) (*ecdsa.PrivateKey, error) {
+	return x509.ParseECPrivateKey(priv)
 }
 
 // Marshall an ecdsa key's public part to PKIX, ASN.1 DER form.
-func MarshallEcdsaPublic(priv *ecdsa.PrivateKey) ([]byte, error) {
-	der, err := x509.MarshalPKIXPublicKey(priv.Public())
-	if err != nil {
-		return nil, err
-	}
-	return EncodeB64(der), nil
+func MarshalEcdsaPublic(priv *ecdsa.PrivateKey) ([]byte, error) {
+	return x509.MarshalPKIXPublicKey(priv.Public())
 }
 
-// Sign data with ECDSA, return base64-encoded ASN.1 form signature.
+// Sign data with ECDSA, return ASN.1 encoded signature.
 // priv is an ecdsa private key.
 // hash is the hash of the content that needs to be signed.
 func EcdsaSign(priv *ecdsa.PrivateKey, hash HashT) ([]byte, error) {
-	sig, err := ecdsa.SignASN1(rand.Reader, priv, hash[:])
-	if err != nil {
-		return nil, err
-	}
-	return EncodeB64(sig), nil
+	return ecdsa.SignASN1(rand.Reader, priv, hash[:])
 }
 
 // Verify an ECDSA signature.
-// pub64 is the base64 encoding of PKIX, ASN.1 DER form ecdsa public key.
+// pub is the DER encoding of PKIX, ASN.1 form ecdsa public key.
 // hash is the hash of the content that should have been signed.
-// sig64 is the base64 encoding of ASN.1 form ecdsa signature.
-func EcdsaVerify(pub64 []byte, hash HashT, sig64 []byte) (bool, error) {
-	// Parse base64 inputs
-	pubRaw, err := ParseB64(pub64)
-	if err != nil {
-		return false, fmt.Errorf("failed to parse b64 public key: %s", err.Error())
-	}
-	sig, err := ParseB64(sig64)
-	if err != nil {
-		return false, fmt.Errorf("failed to parse b64 private key: %s", err.Error())
-	}
-
+// sig is the ASN.1 encoding of ecdsa signature.
+func EcdsaVerify(pub []byte, hash HashT, sig []byte) (bool, error) {
 	// Retrieve public key from DER form
-	pubRawKey, err := x509.ParsePKIXPublicKey(pubRaw)
+	pubRawKey, err := x509.ParsePKIXPublicKey(pub)
 	if err != nil {
 		return false, fmt.Errorf("failed to parse DER public key: %s", err.Error())
 	}
-	pub, ok := pubRawKey.(*ecdsa.PublicKey)
+	pubKey, ok := pubRawKey.(*ecdsa.PublicKey)
 	if !ok {
 		return false, fmt.Errorf("unsupported public key type: %T", pubRawKey)
 	}
 
 	// Check signature
-	return ecdsa.VerifyASN1(pub, hash[:], sig), nil
+	return ecdsa.VerifyASN1(pubKey, hash[:], sig), nil
 }
 
 // Encode the given content into base64.
