@@ -84,7 +84,7 @@ func (s *State) VerifyNewBlock(bh BlockHeader, txIds []HashT) error {
 
 // Verify a transaction and compute auxiliary information.
 func (s *State) VerifyTx(tx Tx, coinbaseExpected bool) (TxAux, error) {
-	preSigHash := HashPreSig(tx.MinBlock, tx.Outputs)
+	preSigHash := TxHashPreSig(tx.MinBlock, tx.Outputs)
 
 	totalInput := 0
 	vSize := 0

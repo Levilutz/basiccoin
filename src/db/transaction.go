@@ -47,7 +47,7 @@ func (tx Tx) Hash() HashT {
 	)
 }
 
-func HashPreSig(minBlock int, outputs []TxOut) HashT {
+func TxHashPreSig(minBlock int, outputs []TxOut) HashT {
 	return DHashItems(minBlock, DHashList(outputs))
 }
 

@@ -39,7 +39,7 @@ func TestTransactionHash(t *testing.T) {
 			PublicKeyHash: DHash(outKey2PubDer),
 		},
 	}
-	preSigHash := HashPreSig(minBlock, outputs)
+	preSigHash := TxHashPreSig(minBlock, outputs)
 
 	// Generate inputs with signatures
 	sig1Asn, err := EcdsaSign(inKey1Priv, preSigHash)
