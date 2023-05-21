@@ -17,7 +17,7 @@ type TxAux struct {
 type State struct {
 	// currentHead    HashT
 	// ledgerTxBlocks map[HashT]HashT
-	ledger  map[HashT]Block
+	ledger  map[HashT]BlockHeader
 	txs     map[HashT]Tx
 	uTxOs   map[UTxO]struct{}
 	mempool map[HashT]struct{}

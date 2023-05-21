@@ -51,29 +51,32 @@ func HashPreSig(minBlock int, outputs []TxOut) HashT {
 	return DHashItems(minBlock, DHashList(outputs))
 }
 
-type Block struct {
+type BlockHeader struct {
 	PrevBlockId HashT
 	MerkleRoot  HashT
 	Difficulty  HashT
 	Nonce       HashT
-	TxIds       []HashT
 }
 
-func (b Block) Hash() HashT {
-	return DHashItems(b.PrevBlockId, b.MerkleRoot, b.Difficulty, b.Nonce)
+func (bh BlockHeader) Hash() HashT {
+	return DHashItems(bh.PrevBlockId, bh.MerkleRoot, bh.Difficulty, bh.Nonce)
 }
 
-func (b Block) VerifyInternal() error {
-	// Verify merkle root matches
-	merkleRoot := DHashHashes(b.TxIds)
-	if merkleRoot != b.MerkleRoot {
-		return fmt.Errorf("invalid claimed merkle root: %s", b.MerkleRoot)
+func (bh BlockHeader) Verify() error {
+	// Verify hash matches claimed target difficulty
+	blockHash := bh.Hash()
+	if !BelowTarget(blockHash, bh.Difficulty) {
+		return fmt.Errorf("block does not beat claimed difficulty")
 	}
 
-	// Verify hash matches claimed target difficulty
-	blockHash := b.Hash()
-	if !BelowTarget(blockHash, b.Difficulty) {
-		return fmt.Errorf("block does not beat claimed difficulty")
+	return nil
+}
+
+func (bh BlockHeader) VerifyMerkle(txIds []HashT) error {
+	// Verify merkle root matches
+	merkleRoot := DHashHashes(txIds)
+	if merkleRoot != bh.MerkleRoot {
+		return fmt.Errorf("invalid claimed merkle root: %s", bh.MerkleRoot)
 	}
 
 	return nil

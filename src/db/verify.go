@@ -7,20 +7,20 @@ import (
 )
 
 // Verify a block.
-func (s *State) VerifyExistingBlock(blockId HashT) error {
+func (s *State) VerifyExistingBlock(blockId HashT, txIds []HashT) error {
 	// Verify block exists
-	b, exists := s.ledger[blockId]
+	bh, exists := s.ledger[blockId]
 	if !exists {
 		return fmt.Errorf("unknown blockId: %s", blockId)
 	}
 
-	if err := b.VerifyInternal(); err != nil {
+	if err := bh.Verify(); err != nil {
 		return err
 	}
 
 	// Verify each claimed txId is known, retrieve txs
-	txs := make([]Tx, len(b.TxIds))
-	for i, txId := range b.TxIds {
+	txs := make([]Tx, len(txIds))
+	for i, txId := range txIds {
 		tx, ok := s.txs[txId]
 		if !ok {
 			return fmt.Errorf("unknown txId: %s", txId)
@@ -35,14 +35,14 @@ func (s *State) VerifyExistingBlock(blockId HashT) error {
 	return nil
 }
 
-func (s *State) VerifyNewBlock(b Block) error {
-	if err := b.VerifyInternal(); err != nil {
+func (s *State) VerifyNewBlock(bh BlockHeader, txIds []HashT) error {
+	if err := bh.Verify(); err != nil {
 		return err
 	}
 
 	// Verify each claimed txId is known, retrieve txs
-	txs := make([]Tx, len(b.TxIds))
-	for i, txId := range b.TxIds {
+	txs := make([]Tx, len(txIds))
+	for i, txId := range txIds {
 		tx, ok := s.txs[txId]
 		if !ok {
 			return fmt.Errorf("unknown txId: %s", txId)
