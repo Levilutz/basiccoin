@@ -7,8 +7,8 @@ import (
 	"crypto/sha256"
 	"crypto/x509"
 	"encoding/base64"
+	"encoding/binary"
 	"fmt"
-	"strconv"
 )
 
 type Hasher interface {
@@ -48,9 +48,11 @@ func DHash(content ...[]byte) HashT {
 	return singleHash(first[:])
 }
 
-// Generate a new double hash from the given int (encoded as str)
-func DHashInt(value int) HashT {
-	return DHash([]byte(strconv.Itoa(value)))
+// Generate a new double hash from the given uint32
+func DHashUint32(value uint32) HashT {
+	bs := make([]byte, 4)
+	binary.BigEndian.PutUint32(bs, value)
+	return DHash(bs)
 }
 
 // Generate a double hash from a list of existing hahes
@@ -88,8 +90,8 @@ func DHashItems(children ...any) HashT {
 			itemHash = item
 		case []byte:
 			itemHash = DHash(item)
-		case int:
-			itemHash = DHash([]byte(strconv.Itoa(item)))
+		case uint32:
+			itemHash = DHashUint32(item)
 		default:
 			panic(fmt.Sprintf("unhashable type: %T", item))
 		}

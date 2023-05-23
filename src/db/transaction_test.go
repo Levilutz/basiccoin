@@ -28,7 +28,7 @@ func TestTransactionHash(t *testing.T) {
 	t.Log("pub1", len(inKey1PubDer), string(EncodeB64(inKey1PubDer)))
 
 	// Generate pre-signature content
-	minBlock := 44
+	var minBlock uint32 = 44
 	outputs := []TxOut{
 		{
 			Value:         554,

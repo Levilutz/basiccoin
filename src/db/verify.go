@@ -56,7 +56,7 @@ func (s *State) VerifyNewBlock(bh BlockHeader, txIds []HashT) error {
 	consumedUTxOs := make(map[UTxO]struct{}, 0)
 	for i, tx := range txs {
 		// Verify the Tx
-		_, err := s.VerifyTx(tx, i == 0)
+		err := s.VerifyTx(tx, i == 0)
 		if err != nil {
 			return fmt.Errorf("tx failed verification: %s", err.Error())
 		}
@@ -83,17 +83,17 @@ func (s *State) VerifyNewBlock(bh BlockHeader, txIds []HashT) error {
 }
 
 // Verify a transaction and compute auxiliary information.
-func (s *State) VerifyTx(tx Tx, coinbaseExpected bool) (TxAux, error) {
+func (s *State) VerifyTx(tx Tx, coinbaseExpected bool) error {
 	preSigHash := TxHashPreSig(tx.MinBlock, tx.Outputs)
 
-	totalInput := 0
-	vSize := 0
+	var totalInput uint64 = 0
+	var vSize uint64 = 0
 	refOutputs := make([]TxOut, len(tx.Inputs))
 
 	if coinbaseExpected && len(tx.Inputs) != 0 {
-		return TxAux{}, fmt.Errorf("coinbase tx cannot have inputs")
+		return fmt.Errorf("coinbase tx cannot have inputs")
 	} else if !coinbaseExpected && len(tx.Inputs) == 0 {
-		return TxAux{}, fmt.Errorf("non-coinbase tx must have inputs")
+		return fmt.Errorf("non-coinbase tx must have inputs")
 	}
 
 	for i, txi := range tx.Inputs {
@@ -104,7 +104,7 @@ func (s *State) VerifyTx(tx Tx, coinbaseExpected bool) (TxAux, error) {
 		}
 		_, exists := s.uTxOs[ClaimedUTxO]
 		if !exists {
-			return TxAux{}, fmt.Errorf(
+			return fmt.Errorf(
 				"invalid claimed UTxO %s[%d]",
 				txi.OriginTxId,
 				txi.OriginTxOutInd,
@@ -117,7 +117,7 @@ func (s *State) VerifyTx(tx Tx, coinbaseExpected bool) (TxAux, error) {
 		// Verify claimed public key matches
 		claimedPubKeyHash := DHash(txi.PublicKey)
 		if claimedPubKeyHash != refOutputs[i].PublicKeyHash {
-			return TxAux{}, fmt.Errorf(
+			return fmt.Errorf(
 				"invalid claimed public key hash %s", claimedPubKeyHash,
 			)
 		}
@@ -125,39 +125,35 @@ func (s *State) VerifyTx(tx Tx, coinbaseExpected bool) (TxAux, error) {
 		// Verify signature matches
 		valid, err := EcdsaVerify(txi.PublicKey, preSigHash, txi.Signature)
 		if err != nil {
-			return TxAux{}, err
+			return err
 		} else if !valid {
-			return TxAux{}, fmt.Errorf("invalid signature")
+			return fmt.Errorf("invalid signature")
 		}
 
 		// Tally input value and vSize
-		totalInput += refOutputs[i].Value
-		vSize += len(txi.PublicKey)
-		vSize += len(txi.Signature)
+		totalInput += uint64(refOutputs[i].Value)
+		vSize += uint64(len(txi.PublicKey))
+		vSize += uint64(len(txi.Signature))
 	}
 
 	// Tally output value and more vSize
-	totalOutput := 0
+	var totalOutput uint64 = 0
 	for _, output := range tx.Outputs {
-		totalOutput += output.Value
-		vSize += len(output.PublicKeyHash)
+		totalOutput += uint64(output.Value)
+		vSize += uint64(len(output.PublicKeyHash))
 	}
 
 	// Verify no more outputs than inputs
 	if totalOutput > totalInput {
-		return TxAux{}, fmt.Errorf(
+		return fmt.Errorf(
 			"outputs exceed inputs: %d > %d", totalOutput, totalInput,
 		)
 	}
 
 	// Verify vSize is within limits
 	if vSize > util.Constants.MaxVSize {
-		return TxAux{}, fmt.Errorf("transaction too large: %d vB", vSize)
+		return fmt.Errorf("transaction too large: %d vB", vSize)
 	}
 
-	return TxAux{
-		RefOutputs: refOutputs,
-		Surplus:    totalInput - totalOutput,
-		VSize:      vSize,
-	}, nil
+	return nil
 }

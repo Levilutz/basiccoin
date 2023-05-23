@@ -4,7 +4,7 @@ import "fmt"
 
 type TxIn struct {
 	OriginTxId     HashT
-	OriginTxOutInd int
+	OriginTxOutInd uint32
 	PublicKey      []byte
 	Signature      []byte
 }
@@ -27,7 +27,7 @@ func TxInPackHasher(txins []TxIn) []Hasher {
 }
 
 type TxOut struct {
-	Value         int
+	Value         uint32
 	PublicKeyHash HashT
 }
 
@@ -36,7 +36,7 @@ func (txo TxOut) Hash() HashT {
 }
 
 type Tx struct {
-	MinBlock int
+	MinBlock uint32
 	Inputs   []TxIn
 	Outputs  []TxOut
 }
@@ -47,7 +47,7 @@ func (tx Tx) Hash() HashT {
 	)
 }
 
-func TxHashPreSig(minBlock int, outputs []TxOut) HashT {
+func TxHashPreSig(minBlock uint32, outputs []TxOut) HashT {
 	return DHashItems(minBlock, DHashList(outputs))
 }
 

@@ -3,21 +3,14 @@ package db
 // Unspent transaction output.
 type UTxO struct {
 	TxId HashT
-	Ind  int
-}
-
-// Auxiliary computed transaction information.
-type TxAux struct {
-	RefOutputs []TxOut
-	Surplus    int
-	VSize      int
+	Ind  uint32
 }
 
 // Total state of the blockchain and mempool.
 type State struct {
-	// currentHead    HashT
-	// ledgerTxBlocks map[HashT]HashT
+	head    HashT
 	ledger  map[HashT]BlockHeader
+	merkles map[HashT]MerkleNode
 	txs     map[HashT]Tx
 	uTxOs   map[UTxO]struct{}
 	mempool map[HashT]struct{}
@@ -31,4 +24,8 @@ func (s *State) AddMempoolTx(hash HashT, tx Tx) error {
 		s.mempool[hash] = struct{}{}
 	}
 	return nil
+}
+
+func (s *State) UTxOValid() {
+
 }
