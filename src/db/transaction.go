@@ -51,6 +51,15 @@ func TxHashPreSig(minBlock uint32, outputs []TxOut) HashT {
 	return DHashItems(minBlock, DHashList(outputs))
 }
 
+type MerkleNode struct {
+	LChild HashT
+	RChild HashT
+}
+
+func (node MerkleNode) Hash() HashT {
+	return DHashItems(node.LChild, node.RChild)
+}
+
 type BlockHeader struct {
 	PrevBlockId HashT
 	MerkleRoot  HashT

@@ -6,6 +6,16 @@ import (
 	"github.com/levilutz/basiccoin/src/util"
 )
 
+// Verify whether a new block header could be inserted attached to its parent
+func (s *State) VerifyNewBlockHeader(bh BlockHeader) error {
+	// if bh.PrevBlockId == s.head {
+	// 	uTxOs := s.uTxOs
+	// } else {
+	// 	uTxOs := s.computeUTxOs(bh.PrevBlockId)
+	// }
+	return nil
+}
+
 // Verify a block.
 func (s *State) VerifyExistingBlock(blockId HashT, txIds []HashT) error {
 	// Verify block exists
@@ -28,7 +38,7 @@ func (s *State) VerifyExistingBlock(blockId HashT, txIds []HashT) error {
 		txs[i] = tx
 	}
 
-	// TODO: Verify no duplicate UTxOs (helper?)
+	// TODO: Verify no duplicate utxos (helper?)
 
 	// TODO: Verify total vSize within bounds
 
@@ -53,7 +63,7 @@ func (s *State) VerifyNewBlock(bh BlockHeader, txIds []HashT) error {
 		txs[i] = tx
 	}
 
-	consumedUTxOs := make(map[UTxO]struct{}, 0)
+	consumedUtxos := make(map[UTXO]struct{}, 0)
 	for i, tx := range txs {
 		// Verify the Tx
 		err := s.VerifyTx(tx, i == 0)
@@ -61,18 +71,18 @@ func (s *State) VerifyNewBlock(bh BlockHeader, txIds []HashT) error {
 			return fmt.Errorf("tx failed verification: %s", err.Error())
 		}
 
-		// Verify no double-spent UTxOs in transaction set
+		// Verify no double-spent Utxos in transaction set
 		for _, txi := range tx.Inputs {
-			ClaimedUTxO := UTxO{
+			ClaimedUtxo := UTXO{
 				TxId: txi.OriginTxId,
 				Ind:  txi.OriginTxOutInd,
 			}
-			if _, exists := consumedUTxOs[ClaimedUTxO]; exists {
+			if _, exists := consumedUtxos[ClaimedUtxo]; exists {
 				return fmt.Errorf(
-					"double-spend on UTxO %s[%d]", txi.OriginTxId, txi.OriginTxOutInd,
+					"double-spend on UTXO %s[%d]", txi.OriginTxId, txi.OriginTxOutInd,
 				)
 			}
-			consumedUTxOs[ClaimedUTxO] = struct{}{}
+			consumedUtxos[ClaimedUtxo] = struct{}{}
 		}
 	}
 
@@ -97,15 +107,15 @@ func (s *State) VerifyTx(tx Tx, coinbaseExpected bool) error {
 	}
 
 	for i, txi := range tx.Inputs {
-		// Verify the claimed UTxO exists
-		ClaimedUTxO := UTxO{
+		// Verify the claimed UTXO exists
+		ClaimedUtxo := UTXO{
 			TxId: txi.OriginTxId,
 			Ind:  txi.OriginTxOutInd,
 		}
-		_, exists := s.uTxOs[ClaimedUTxO]
+		_, exists := s.utxos[ClaimedUtxo.Hash()]
 		if !exists {
 			return fmt.Errorf(
-				"invalid claimed UTxO %s[%d]",
+				"invalid claimed UTXO %s[%d]",
 				txi.OriginTxId,
 				txi.OriginTxOutInd,
 			)
