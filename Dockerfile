@@ -5,7 +5,7 @@ COPY src ./
 
 RUN CGO_ENABLED=0 GOOS=linux go build -o /basiccoin .
 
-FROM alpine:3.17.3 AS main
+FROM alpine:3.18.0 AS main
 
 COPY --from=builder /basiccoin /
 
