@@ -60,32 +60,32 @@ func (node MerkleNode) Hash() HashT {
 	return DHashItems(node.LChild, node.RChild)
 }
 
-type BlockHeader struct {
+type Block struct {
 	PrevBlockId HashT
 	MerkleRoot  HashT
 	Difficulty  HashT
 	Nonce       HashT
 }
 
-func (bh BlockHeader) Hash() HashT {
-	return DHashItems(bh.PrevBlockId, bh.MerkleRoot, bh.Difficulty, bh.Nonce)
+func (b Block) Hash() HashT {
+	return DHashItems(b.PrevBlockId, b.MerkleRoot, b.Difficulty, b.Nonce)
 }
 
-func (bh BlockHeader) Verify() error {
+func (b Block) Verify() error {
 	// Verify hash matches claimed target difficulty
-	blockHash := bh.Hash()
-	if !BelowTarget(blockHash, bh.Difficulty) {
+	blockHash := b.Hash()
+	if !BelowTarget(blockHash, b.Difficulty) {
 		return fmt.Errorf("block does not beat claimed difficulty")
 	}
 
 	return nil
 }
 
-func (bh BlockHeader) VerifyMerkle(txIds []HashT) error {
+func (b Block) VerifyMerkle(txIds []HashT) error {
 	// Verify merkle root matches
 	merkleRoot := DHashHashes(txIds)
-	if merkleRoot != bh.MerkleRoot {
-		return fmt.Errorf("invalid claimed merkle root: %s", bh.MerkleRoot)
+	if merkleRoot != b.MerkleRoot {
+		return fmt.Errorf("invalid claimed merkle root: %s", b.MerkleRoot)
 	}
 
 	return nil

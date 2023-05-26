@@ -9,7 +9,10 @@ type ConstantsType struct {
 	Listen               bool          `json:"listen"`
 	MinPeers             int           `json:"maxPeers"`
 	MaxPeers             int           `json:"minPeers"`
-	MaxVSize             uint64        `json:"maxVSize"`
+	MaxBlockTxs          uint64        `json:"maxBlockTxs"`
+	MaxBlockVSize        uint64        `json:"maxBlockVSize"`
+	MaxTreeSize          uint64        `json:"maxTreeSize"`
+	MaxTxVSize           uint64        `json:"maxTxVSize"`
 	PeerPingFreq         time.Duration `json:"peerPingFreq"`
 	PrintPeersUpdateFreq time.Duration `json:"printPeersUpdateFreq"`
 	RuntimeID            string        `json:"runtimeID"`
@@ -24,7 +27,10 @@ var Constants = ConstantsType{
 	LocalAddr:            "localhost:21720",
 	MinPeers:             3,
 	MaxPeers:             8,
-	MaxVSize:             10000,
+	MaxBlockTxs:          256, // MaxTreeSize depends on this
+	MaxBlockVSize:        100000,
+	MaxTreeSize:          2*256 - 1, // 2 * MaxBlockTxs - 1
+	MaxTxVSize:           5000,
 	Listen:               true,
 	PeerPingFreq:         time.Second * 5,
 	PrintPeersUpdateFreq: time.Second * 5,
