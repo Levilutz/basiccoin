@@ -9,6 +9,9 @@ import (
 	"encoding/base64"
 	"encoding/binary"
 	"fmt"
+	"math/big"
+
+	"github.com/levilutz/basiccoin/src/util"
 )
 
 type Hasher interface {
@@ -16,6 +19,8 @@ type Hasher interface {
 }
 
 type HashT = [32]byte
+
+var HashTZero = HashT{}
 
 // Generate a random hash
 func RandHash() (HashT, error) {
@@ -116,6 +121,21 @@ func BelowTarget(value HashT, target HashT) bool {
 	}
 	// Values equal
 	return false
+}
+
+func TargetsToTotalWork(targets []HashT) *big.Int {
+	total := &big.Int{}
+	for _, target := range targets {
+		if target == HashTZero {
+			panic("cannot compute work for zero target")
+		}
+		// total += 2^256 / target
+		targetInt := &big.Int{}
+		targetInt.SetBytes(target[:])
+		targetInt.Div(util.Constants.BigInt2_256, targetInt)
+		total.Add(total, targetInt)
+	}
+	return total
 }
 
 // Generate a new ecdsa private key.

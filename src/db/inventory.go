@@ -83,6 +83,7 @@ func (inv *Inv) LoadTxOrMerkle(id HashT) (*Tx, *MerkleNode) {
 	return nil, nil
 }
 
+// TODO: Check StoreXXXs for error here and in LoadFullBlock
 // Store full block with any new merkle nodes and txs. Only merkles / txs reachable
 // from the block merkleRoot are included, missing merkles and txs cause failure.
 func (inv *Inv) StoreFullBlock(

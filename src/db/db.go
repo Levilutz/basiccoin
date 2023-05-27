@@ -12,6 +12,7 @@ func (utxo UTXO) Hash() HashT {
 
 // Total state of the blockchain and mempool.
 type State struct {
+	// inv     Inv
 	// head    HashT
 	// mempool map[HashT]struct{}
 	// utxos   map[HashT]struct{}

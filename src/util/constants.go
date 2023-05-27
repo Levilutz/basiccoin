@@ -1,9 +1,13 @@
 package util
 
-import "time"
+import (
+	"math/big"
+	"time"
+)
 
 // Types of the constants struct
 type ConstantsType struct {
+	BigInt2_256          *big.Int      `json:"bigInt2^256"`
 	DebugNetwork         bool          `json:"debugNetwork"`
 	LocalAddr            string        `json:"localAddr"`
 	Listen               bool          `json:"listen"`
@@ -27,9 +31,8 @@ var Constants = ConstantsType{
 	LocalAddr:            "localhost:21720",
 	MinPeers:             3,
 	MaxPeers:             8,
-	MaxBlockTxs:          256, // MaxTreeSize depends on this
+	MaxBlockTxs:          256,
 	MaxBlockVSize:        100000,
-	MaxTreeSize:          2*256 - 1, // 2 * MaxBlockTxs - 1
 	MaxTxVSize:           5000,
 	Listen:               true,
 	PeerPingFreq:         time.Second * 5,
@@ -38,4 +41,13 @@ var Constants = ConstantsType{
 	SeedAddr:             "",
 	SeekNewPeersFreq:     time.Second * 10,
 	Version:              "0.1.0",
+}
+
+func InitComputedConstants() {
+	Constants.BigInt2_256 = &big.Int{}
+	Constants.BigInt2_256.SetString(
+		"ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+		16,
+	)
+	Constants.MaxTreeSize = 2*Constants.MaxBlockTxs - 1
 }

@@ -11,6 +11,7 @@ import (
 )
 
 func main() {
+	util.InitComputedConstants()
 	cli_args := util.ParseCLIArgs()
 	util.PrettyPrint(cli_args)
 	util.PrettyPrint(util.Constants)
