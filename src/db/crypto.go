@@ -132,7 +132,7 @@ func TargetsToTotalWork(targets []HashT) *big.Int {
 		// total += 2^256 / target
 		targetInt := &big.Int{}
 		targetInt.SetBytes(target[:])
-		targetInt.Div(util.Constants.BigInt2_256, targetInt)
+		targetInt.Div(util.BigInt2_256(), targetInt)
 		total.Add(total, targetInt)
 	}
 	return total

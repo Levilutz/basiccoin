@@ -7,7 +7,6 @@ import (
 
 // Types of the constants struct
 type ConstantsType struct {
-	BigInt2_256          *big.Int      `json:"bigInt2^256"`
 	DebugNetwork         bool          `json:"debugNetwork"`
 	LocalAddr            string        `json:"localAddr"`
 	Listen               bool          `json:"listen"`
@@ -44,10 +43,14 @@ var Constants = ConstantsType{
 }
 
 func InitComputedConstants() {
-	Constants.BigInt2_256 = &big.Int{}
-	Constants.BigInt2_256.SetString(
+	Constants.MaxTreeSize = 2*Constants.MaxBlockTxs - 1
+}
+
+func BigInt2_256() *big.Int {
+	out := &big.Int{}
+	out.SetString(
 		"ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
 		16,
 	)
-	Constants.MaxTreeSize = 2*Constants.MaxBlockTxs - 1
+	return out
 }
