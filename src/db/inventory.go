@@ -21,9 +21,17 @@ type InvReader interface {
 // Write-once read-many maps.
 // Only one thread should be making writes at a time, but many can be reading.
 type Inv struct {
-	blocks  util.SyncMap[HashT, Block]
-	merkles util.SyncMap[HashT, MerkleNode]
-	txs     util.SyncMap[HashT, Tx]
+	blocks  *util.SyncMap[HashT, Block]
+	merkles *util.SyncMap[HashT, MerkleNode]
+	txs     *util.SyncMap[HashT, Tx]
+}
+
+func NewInv() *Inv {
+	return &Inv{
+		blocks:  util.NewSyncMap[HashT, Block](),
+		merkles: util.NewSyncMap[HashT, MerkleNode](),
+		txs:     util.NewSyncMap[HashT, Tx](),
+	}
 }
 
 // Store a new block, ensures merkle root known.

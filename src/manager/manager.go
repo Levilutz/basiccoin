@@ -6,6 +6,7 @@ import (
 	"net"
 	"time"
 
+	"github.com/levilutz/basiccoin/src/db"
 	"github.com/levilutz/basiccoin/src/events"
 	"github.com/levilutz/basiccoin/src/peer"
 	"github.com/levilutz/basiccoin/src/util"
@@ -21,6 +22,7 @@ type Manager struct {
 	metConnChannel chan MetConn
 	mainBus        chan any
 	peers          map[string]*peer.Peer
+	inv            *db.Inv
 }
 
 func NewManager() *Manager {
@@ -28,6 +30,7 @@ func NewManager() *Manager {
 		metConnChannel: make(chan MetConn),
 		mainBus:        make(chan any),
 		peers:          make(map[string]*peer.Peer),
+		inv:            db.NewInv(),
 	}
 }
 

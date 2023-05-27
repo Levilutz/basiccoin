@@ -7,6 +7,10 @@ type SyncMap[K comparable, V any] struct {
 	m sync.Map
 }
 
+func NewSyncMap[K comparable, V any]() *SyncMap[K, V] {
+	return &SyncMap[K, V]{}
+}
+
 func (sm *SyncMap[K, V]) Load(key K) (value V, ok bool) {
 	v, ok := sm.m.Load(key)
 	if !ok {
