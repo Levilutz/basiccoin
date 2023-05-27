@@ -83,7 +83,11 @@ func (m *Manager) addMetConn(metConn MetConn) {
 
 	if upgradeable {
 		peer := peer.NewPeer(
-			metConn.HelloMsg, metConn.PeerConn, m.mainBus, metConn.WeAreInitiator,
+			metConn.HelloMsg,
+			metConn.PeerConn,
+			m.mainBus,
+			metConn.WeAreInitiator,
+			m.inv,
 		)
 		go peer.Loop()
 		m.peers[metConn.HelloMsg.RuntimeID] = peer

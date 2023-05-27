@@ -15,7 +15,7 @@ type InvReader interface {
 	LoadTx(txId HashT) (Tx, bool)
 	LoadTxOrMerkle(id HashT) (*Tx, *MerkleNode)
 	LoadFullBlock(blockId HashT) (Block, map[HashT]MerkleNode, map[HashT]Tx, error)
-	VerifyEntity(id HashT) error
+	VerifyEntityExists(id HashT) error
 }
 
 // Write-once read-many maps.

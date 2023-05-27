@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/levilutz/basiccoin/src/db"
 	"github.com/levilutz/basiccoin/src/events"
 	"github.com/levilutz/basiccoin/src/util"
 )
@@ -16,6 +17,7 @@ type Peer struct {
 	conn           *PeerConn
 	mainBus        chan<- any
 	weAreInitiator bool
+	invReader      db.InvReader
 }
 
 // Create a Peer from the result of a successfull handshake on a PeerConn, the
@@ -25,6 +27,7 @@ func NewPeer(
 	pc *PeerConn,
 	mainBus chan any,
 	weAreInitiator bool,
+	invReader db.InvReader,
 ) *Peer {
 	return &Peer{
 		HelloMsg:       msg,
@@ -32,6 +35,7 @@ func NewPeer(
 		conn:           pc,
 		mainBus:        mainBus,
 		weAreInitiator: weAreInitiator,
+		invReader:      invReader,
 	}
 }
 
