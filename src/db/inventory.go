@@ -1,10 +1,13 @@
 package db
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/levilutz/basiccoin/src/util"
 )
+
+var ErrEntityKnown = errors.New("entity known")
 
 type InvReader interface {
 	LoadBlock(blockId HashT) (Block, bool)
@@ -15,7 +18,8 @@ type InvReader interface {
 	VerifyEntity(id HashT) error
 }
 
-// Write-once maps
+// Write-once read-many maps.
+// Only one thread should be making writes at a time, but many can be reading.
 type Inv struct {
 	blocks  util.SyncMap[HashT, Block]
 	merkles util.SyncMap[HashT, MerkleNode]
@@ -25,7 +29,7 @@ type Inv struct {
 // Store a new block, ensures merkle root known.
 func (inv *Inv) StoreBlock(blockId HashT, b Block) error {
 	if _, ok := inv.blocks.Load(blockId); ok {
-		return fmt.Errorf("block known")
+		return ErrEntityKnown
 	} else if err := inv.VerifyEntityExists(b.MerkleRoot); err != nil {
 		return err
 	}
@@ -41,7 +45,7 @@ func (inv *Inv) LoadBlock(blockId HashT) (Block, bool) {
 // Store a new merkle, ensures children known.
 func (inv *Inv) StoreMerkle(nodeId HashT, merkle MerkleNode) error {
 	if _, ok := inv.merkles.Load(nodeId); ok {
-		return fmt.Errorf("merkle known")
+		return ErrEntityKnown
 	} else if err := inv.VerifyEntityExists(merkle.LChild); err != nil {
 		return err
 	} else if err := inv.VerifyEntityExists(merkle.RChild); err != nil {
@@ -59,7 +63,7 @@ func (inv *Inv) LoadMerkle(nodeId HashT) (MerkleNode, bool) {
 // Store a new transaction.
 func (inv *Inv) StoreTx(txId HashT, tx Tx) error {
 	if _, ok := inv.txs.Load(txId); ok {
-		return fmt.Errorf("tx known")
+		return ErrEntityKnown
 	}
 	inv.txs.Store(txId, tx)
 	return nil
@@ -83,7 +87,6 @@ func (inv *Inv) LoadTxOrMerkle(id HashT) (*Tx, *MerkleNode) {
 	return nil, nil
 }
 
-// TODO: Check StoreXXXs for error here and in LoadFullBlock
 // Store full block with any new merkle nodes and txs. Only merkles / txs reachable
 // from the block merkleRoot are included, missing merkles and txs cause failure.
 func (inv *Inv) StoreFullBlock(
@@ -92,7 +95,7 @@ func (inv *Inv) StoreFullBlock(
 	// Skip if known
 	_, ok := inv.LoadBlock(blockId)
 	if ok {
-		return fmt.Errorf("block known")
+		return ErrEntityKnown
 	}
 
 	// What to add at the end
@@ -141,12 +144,21 @@ func (inv *Inv) StoreFullBlock(
 
 	// Add from the sets created earlier
 	for txId, tx := range newTxs {
-		inv.StoreTx(txId, tx)
+		err := inv.StoreTx(txId, tx)
+		if err != nil {
+			return err
+		}
 	}
 	for merkleId, merkle := range newMerkles {
-		inv.StoreMerkle(merkleId, merkle)
+		err := inv.StoreMerkle(merkleId, merkle)
+		if err != nil {
+			return err
+		}
 	}
-	inv.StoreBlock(blockId, block)
+	err := inv.StoreBlock(blockId, block)
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
