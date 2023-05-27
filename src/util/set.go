@@ -5,6 +5,12 @@ type Set[K comparable] struct {
 	s map[K]struct{}
 }
 
+func NewSet[K comparable]() *Set[K] {
+	return &Set[K]{
+		s: make(map[K]struct{}),
+	}
+}
+
 func (s *Set[K]) Add(key K) {
 	s.s[key] = struct{}{}
 }

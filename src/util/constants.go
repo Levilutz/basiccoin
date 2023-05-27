@@ -5,7 +5,7 @@ import (
 	"time"
 )
 
-// Types of the constants struct
+// Types of the constants struct.
 type ConstantsType struct {
 	DebugNetwork         bool          `json:"debugNetwork"`
 	LocalAddr            string        `json:"localAddr"`
@@ -24,7 +24,7 @@ type ConstantsType struct {
 	Version              string        `json:"version"`
 }
 
-// Program-wide constants, should be set on startup
+// Program-wide constants set by user.
 var Constants = ConstantsType{
 	DebugNetwork:         false,
 	LocalAddr:            "localhost:21720",
@@ -42,10 +42,12 @@ var Constants = ConstantsType{
 	Version:              "0.1.0",
 }
 
+// Initialize constants that are computed from other constants.
 func InitComputedConstants() {
 	Constants.MaxTreeSize = 2*Constants.MaxBlockTxs - 1
 }
 
+// Compute 2^256 as a big.Int.
 func BigInt2_256() *big.Int {
 	out := &big.Int{}
 	out.SetString(

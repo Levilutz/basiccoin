@@ -100,8 +100,8 @@ func (inv *Inv) StoreFullBlock(
 	newTxs := make(map[HashT]Tx)
 
 	// Go through tree from merkle root. If unknown but provided in args, add to inv
-	idQueue := util.Queue[HashT]{}
-	visitedIds := util.Set[HashT]{} // Prevent cycles
+	idQueue := util.NewQueue[HashT]()
+	visitedIds := util.NewSet[HashT]() // Prevent cycles
 	idQueue.Push(block.MerkleRoot)
 	for i := 0; i < int(util.Constants.MaxTreeSize); i++ {
 		// Pop next id, finish if we've cleared queue
@@ -164,8 +164,8 @@ func (inv *Inv) LoadFullBlock(
 	}
 
 	// Go through each node in tree, categorizing as either tx or merkle
-	idQueue := util.Queue[HashT]{}
-	visitedIds := util.Set[HashT]{} // Prevent cycles
+	idQueue := util.NewQueue[HashT]()
+	visitedIds := util.NewSet[HashT]() // Prevent cycles
 	idQueue.Push(b.MerkleRoot)
 	for i := 0; i < int(util.Constants.MaxTreeSize); i++ {
 		// Pop next id, finish if we've cleared queue

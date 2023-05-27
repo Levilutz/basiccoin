@@ -4,6 +4,12 @@ type Queue[K any] struct {
 	q []K
 }
 
+func NewQueue[K any]() *Queue[K] {
+	return &Queue[K]{
+		q: make([]K, 0),
+	}
+}
+
 func (q *Queue[K]) Push(key K) {
 	q.q = append(q.q, key)
 }
