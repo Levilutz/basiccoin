@@ -1,6 +1,7 @@
 package db_test
 
 import (
+	"fmt"
 	"math/big"
 	"os"
 	"testing"
@@ -199,4 +200,38 @@ func TestEcdsaBadSign(t *testing.T) {
 	valid, err := EcdsaVerify(pubDer, DHash(content2), sigAsn)
 	util.AssertNoErr(t, err)
 	util.Assert(t, !valid, "incorrectly valid signature")
+}
+
+// Test that hashes can be read from strings correctly.
+func TestStringToHash(t *testing.T) {
+	for i := 0; i < 100; i++ {
+		hash, err := RandHash()
+		util.AssertNoErr(t, err)
+		hashStr := fmt.Sprintf("%x", hash)
+		util.Assert(t, len(hashStr) == 64, "hash hex length 64 != %d", len(hashStr))
+		hashRecov, err := StringToHash(hashStr)
+		util.AssertNoErr(t, err)
+		util.Assert(t, hash == hashRecov, "%x != %x", hash, hashRecov)
+	}
+}
+
+func TestStringToHashes(t *testing.T) {
+	hashes := make([]HashT, 100)
+	hashesStr := ""
+	for i := 0; i < 100; i++ {
+		hash, err := RandHash()
+		util.AssertNoErr(t, err)
+		hashes[i] = hash
+		hashStr := fmt.Sprintf("%x", hash)
+		util.Assert(t, len(hashStr) == 64, "hash hex length 64 != %d", len(hashStr))
+		hashesStr += hashStr
+
+	}
+	hashesRecov, err := StringToHashes(hashesStr, 100)
+	util.AssertNoErr(t, err)
+	for i := 0; i < 100; i++ {
+		util.Assert(
+			t, hashes[i] == hashesRecov[i], "%x != %x", hashes[i], hashesRecov[i],
+		)
+	}
 }

@@ -8,6 +8,7 @@ import (
 	"crypto/x509"
 	"encoding/base64"
 	"encoding/binary"
+	"encoding/hex"
 	"fmt"
 	"math/big"
 
@@ -136,6 +137,37 @@ func TargetsToTotalWork(targets []HashT) *big.Int {
 		total.Add(total, targetInt)
 	}
 	return total
+}
+
+func StringToHash(data string) (HashT, error) {
+	if len(data) != 64 {
+		return HashT{}, fmt.Errorf("cannot parse hash from length %d", len(data))
+	}
+	out, err := hex.DecodeString(data)
+	if err != nil {
+		return HashT{}, err
+	}
+	outP := (*HashT)(out)
+	return *outP, nil
+}
+
+func StringToHashes(data string, numHashes int) ([]HashT, error) {
+	if len(data) != numHashes*64 {
+		return nil, fmt.Errorf(
+			"expected length %d != actual length %d",
+			numHashes*64,
+			len(data),
+		)
+	}
+	out := make([]HashT, numHashes)
+	for i := 0; i < numHashes; i++ {
+		hash, err := StringToHash(data[i*64 : (i+1)*64])
+		if err != nil {
+			return nil, err
+		}
+		out[i] = hash
+	}
+	return out, nil
 }
 
 // Generate a new ecdsa private key.
