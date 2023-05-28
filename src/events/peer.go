@@ -1,5 +1,7 @@
 package events
 
+import "github.com/levilutz/basiccoin/src/db"
+
 // True Events
 
 // Command to terminate the connection.
@@ -21,6 +23,11 @@ type MempoolDataPeerEvent struct {
 // Inform the peer of other peers.
 type PeersDataPeerEvent struct {
 	PeerAddrs []string
+}
+
+// Inform the peer of a new block.
+type BroadcastBlockPeerEvent struct {
+	BlockId db.HashT
 }
 
 // Query Events

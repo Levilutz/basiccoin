@@ -170,6 +170,14 @@ func StringToHashes(data string, numHashes int) ([]HashT, error) {
 	return out, nil
 }
 
+func HashesToString(hashes []HashT) string {
+	out := ""
+	for i := 0; i < len(hashes); i++ {
+		out += fmt.Sprintf("%x", hashes[i])
+	}
+	return out
+}
+
 // Generate a new ecdsa private key.
 func NewEcdsa() (*ecdsa.PrivateKey, error) {
 	return ecdsa.GenerateKey(elliptic.P256(), rand.Reader)

@@ -1,13 +1,11 @@
 package peer
 
 import (
-	"strconv"
-
+	"github.com/levilutz/basiccoin/src/db"
 	"github.com/levilutz/basiccoin/src/util"
 )
 
 type PeerMessage interface {
-	GetName() string
 	Transmit(pc *PeerConn) error
 }
 
@@ -48,11 +46,6 @@ func ReceiveHelloMessage(pc *PeerConn) (HelloMessage, error) {
 	return receiveStandardMessage[HelloMessage](pc)
 }
 
-// Get the HelloMessage's name
-func (msg HelloMessage) GetName() string {
-	return "hello"
-}
-
 // Transmit a HelloMessage over the channel
 func (msg HelloMessage) Transmit(pc *PeerConn) error {
 	data, err := util.JsonB64(msg)
@@ -72,8 +65,8 @@ type AddrsMessage struct {
 // Construct an AddrsMessage
 func ReceiveAddrsMessage(pc *PeerConn) (AddrsMessage, error) {
 	numAddrs := pc.RetryReadIntLine(7)
-	if pc.Err() != nil {
-		return AddrsMessage{}, nil
+	if err := pc.Err(); err != nil {
+		return AddrsMessage{}, err
 	}
 	addrs := make([]string, numAddrs)
 	for i := 0; i < numAddrs; i++ {
@@ -85,14 +78,9 @@ func ReceiveAddrsMessage(pc *PeerConn) (AddrsMessage, error) {
 	}, pc.Err()
 }
 
-// Get the AddrsMessage's name
-func (msg AddrsMessage) GetName() string {
-	return "addrs"
-}
-
 // Transmit an AddrsMessage over the channel
 func (msg AddrsMessage) Transmit(pc *PeerConn) error {
-	pc.TransmitStringLine(strconv.Itoa(len(msg.PeerAddrs)))
+	pc.TransmitIntLine(len(msg.PeerAddrs))
 	for _, addr := range msg.PeerAddrs {
 		if addr == "fin:addrs" {
 			continue
@@ -100,5 +88,41 @@ func (msg AddrsMessage) Transmit(pc *PeerConn) error {
 		pc.TransmitStringLine(addr)
 	}
 	pc.TransmitStringLine("fin:addrs")
+	return pc.Err()
+}
+
+// BlockIdsMessage
+
+type BlockIdsMessage struct {
+	BlockIds []db.HashT
+}
+
+// Construct a BlockIdsMessage
+func ReceiveBlockIdsMessage(pc *PeerConn) (BlockIdsMessage, error) {
+	pc.ConsumeExpected("block-ids")
+	numBlockIds := pc.RetryReadIntLine(7)
+	line := pc.RetryReadStringLine(7)
+	if err := pc.Err(); err != nil {
+		return BlockIdsMessage{}, err
+	}
+	hashes, err := db.StringToHashes(line, numBlockIds)
+	if err != nil {
+		return BlockIdsMessage{}, err
+	}
+	pc.ConsumeExpected("fin:block-ids")
+	if err := pc.Err(); err != nil {
+		return BlockIdsMessage{}, err
+	}
+	return BlockIdsMessage{
+		BlockIds: hashes,
+	}, nil
+}
+
+// Transmit a BlockIdsMessage over the channel
+func (msg BlockIdsMessage) Transmit(pc *PeerConn) error {
+	pc.TransmitStringLine("block-ids")
+	pc.TransmitIntLine(len(msg.BlockIds))
+	pc.TransmitStringLine(db.HashesToString(msg.BlockIds))
+	pc.TransmitStringLine("fin:block-ids")
 	return pc.Err()
 }

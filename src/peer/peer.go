@@ -17,7 +17,7 @@ type Peer struct {
 	conn           *PeerConn
 	mainBus        chan<- any
 	weAreInitiator bool
-	invReader      db.InvReader
+	inv            db.InvReader
 }
 
 // Create a Peer from the result of a successfull handshake on a PeerConn, the
@@ -27,7 +27,7 @@ func NewPeer(
 	pc *PeerConn,
 	mainBus chan any,
 	weAreInitiator bool,
-	invReader db.InvReader,
+	inv db.InvReader,
 ) *Peer {
 	return &Peer{
 		HelloMsg:       msg,
@@ -35,7 +35,7 @@ func NewPeer(
 		conn:           pc,
 		mainBus:        mainBus,
 		weAreInitiator: weAreInitiator,
-		invReader:      invReader,
+		inv:            inv,
 	}
 }
 
@@ -97,6 +97,9 @@ func (p *Peer) handlePeerBusEvent(event any) (bool, error) {
 			return nil
 		})
 
+	case events.BroadcastBlockPeerEvent:
+		return false, handleTransmitNewBlockExchange(msg.BlockId, p.conn, p.inv)
+
 	default:
 		fmt.Printf("Unhandled peer event %T\n", event)
 	}
@@ -140,7 +143,7 @@ func (p *Peer) handleReceivedLine(line []byte) (bool, error) {
 		}()
 
 	} else if command == "new-block" {
-		mainBusEvent, err := handleNewBlockExchange(p.conn, p.invReader)
+		mainBusEvent, err := handleReceiveNewBlockExchange(p.conn, p.inv)
 		if err != nil {
 			return false, err
 		}

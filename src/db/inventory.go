@@ -8,12 +8,16 @@ import (
 )
 
 var ErrEntityKnown = errors.New("entity known")
+var ErrEntityUnknown = errors.New("entity unknown")
 
 type InvReader interface {
 	LoadBlock(blockId HashT) (Block, bool)
 	LoadMerkle(nodeId HashT) (MerkleNode, bool)
 	LoadTx(txId HashT) (Tx, bool)
 	LoadTxOrMerkle(id HashT) (*Tx, *MerkleNode)
+	GetBlockParentId(blockId HashT) (HashT, error)
+	GetBlockHeritage(blockId HashT, maxLen int) ([]HashT, error)
+	AnyBlockIdsKnown(blockIds []HashT) (HashT, bool)
 	LoadFullBlock(blockId HashT) (Block, map[HashT]MerkleNode, map[HashT]Tx, error)
 	VerifyEntityExists(id HashT) error
 }
@@ -95,6 +99,41 @@ func (inv *Inv) LoadTxOrMerkle(id HashT) (*Tx, *MerkleNode) {
 	return nil, nil
 }
 
+func (inv *Inv) GetBlockParentId(blockId HashT) (HashT, error) {
+	block, ok := inv.LoadBlock(blockId)
+	if !ok {
+		return HashT{}, ErrEntityUnknown
+	}
+	return block.PrevBlockId, nil
+}
+
+func (inv *Inv) GetBlockHeritage(blockId HashT, maxLen int) ([]HashT, error) {
+	out := make([]HashT, 0)
+	next := blockId
+	var err error
+	for i := 0; i < maxLen; i++ {
+		next, err = inv.GetBlockParentId(next)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, next)
+		if next == HashTZero {
+			break
+		}
+	}
+	return out, nil
+}
+
+func (inv *Inv) AnyBlockIdsKnown(blockIds []HashT) (HashT, bool) {
+	for i := 0; i < len(blockIds); i++ {
+		_, ok := inv.LoadBlock(blockIds[i])
+		if ok {
+			return blockIds[i], true
+		}
+	}
+	return HashTZero, false
+}
+
 // Store full block with any new merkle nodes and txs. Only merkles / txs reachable
 // from the block merkleRoot are included, missing merkles and txs cause failure.
 func (inv *Inv) StoreFullBlock(
@@ -146,7 +185,7 @@ func (inv *Inv) StoreFullBlock(
 			}
 		} else {
 			// Unrecognized and not provided in args, err
-			return fmt.Errorf("unrecognized entity not given %x", nextId)
+			return ErrEntityUnknown
 		}
 	}
 
@@ -180,7 +219,7 @@ func (inv *Inv) LoadFullBlock(
 	// Retrieve block header
 	b, ok := inv.LoadBlock(blockId)
 	if !ok {
-		return Block{}, nil, nil, fmt.Errorf("unknown block: %x", blockId)
+		return Block{}, nil, nil, ErrEntityUnknown
 	}
 
 	// Go through each node in tree, categorizing as either tx or merkle
@@ -211,7 +250,7 @@ func (inv *Inv) LoadFullBlock(
 				idQueue.Push(merkle.RChild)
 			}
 		} else {
-			return Block{}, nil, nil, fmt.Errorf("unrecognized entity %x", nextId)
+			return Block{}, nil, nil, ErrEntityUnknown
 		}
 	}
 
@@ -230,7 +269,7 @@ func (inv *Inv) LoadFullBlock(
 func (inv *Inv) VerifyEntityExists(id HashT) error {
 	txP, merkleP := inv.LoadTxOrMerkle(id)
 	if txP == nil && merkleP == nil {
-		return fmt.Errorf("unrecognized entity %x", id)
+		return ErrEntityUnknown
 	}
 	return nil
 }
