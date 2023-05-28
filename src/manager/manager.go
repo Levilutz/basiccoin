@@ -243,7 +243,7 @@ func (m *Manager) handleMinedSolution(sol db.Block) {
 	if !db.BelowTarget(sol.Hash(), sol.Difficulty) {
 		return
 	}
-	if _, ok := m.inv.LoadMerkle(), !ok {
+	if _, ok := m.inv.LoadMerkle(sol.MerkleRoot); !ok {
 		return
 	}
 	// TODO: Verify difficulty correct
