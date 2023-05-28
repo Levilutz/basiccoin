@@ -15,7 +15,7 @@ type Block struct {
 	PrevBlockId HashT
 	MerkleRoot  HashT
 	Difficulty  HashT
-	Nonce       HashT
+	Nonce       uint32
 }
 
 func (b Block) Hash() HashT {
