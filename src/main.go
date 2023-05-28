@@ -44,8 +44,5 @@ func main() {
 	if cli_args.Listen {
 		go manager.Listen()
 	}
-	if cli_args.Miners > 0 {
-		go manager.Mine()
-	}
 	manager.Loop()
 }

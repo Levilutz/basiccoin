@@ -35,6 +35,9 @@ func StartMinerSet(numMiners int) *MinerSet {
 }
 
 func (ms *MinerSet) SetTargets(target db.Block) {
+	if len(ms.miners) == 0 {
+		return
+	}
 	// Wait until miners ready
 	delaySecs := 10
 	ready := false

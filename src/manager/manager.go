@@ -35,6 +35,7 @@ func NewManager() *Manager {
 		mainBus:        make(chan any),
 		peers:          make(map[string]*peer.Peer),
 		inv:            db.NewInv(),
+		minerSet:       miner.StartMinerSet(util.Constants.Miners),
 	}
 }
 
