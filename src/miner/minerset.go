@@ -1,0 +1,54 @@
+package miner
+
+import (
+	"sync/atomic"
+	"time"
+
+	"github.com/levilutz/basiccoin/src/db"
+	"github.com/levilutz/basiccoin/src/util"
+)
+
+type MinerSet struct {
+	MinersActive atomic.Bool
+	SolutionCh   <-chan db.Block
+	miners       []*Miner
+}
+
+func StartMinerSet(numMiners int) *MinerSet {
+	if numMiners == 0 {
+		return &MinerSet{}
+	}
+	chs := make([]chan db.Block, numMiners)
+	miners := make([]*Miner, numMiners)
+	for i := 0; i < numMiners; i++ {
+		miners[i] = NewMiner()
+		go miners[i].Loop()
+		chs[i] = miners[i].SolutionCh
+	}
+	aggSolutionCh := util.Aggregate(chs)
+	minerSet := &MinerSet{
+		SolutionCh: aggSolutionCh,
+		miners:     miners,
+	}
+	minerSet.MinersActive.Store(true)
+	return minerSet
+}
+
+func (ms *MinerSet) SetTargets(target db.Block) {
+	// Wait until miners ready
+	ready := false
+	for i := 0; i < 10; i++ {
+		ready = ms.MinersActive.Load()
+		if ready {
+			break
+		}
+		time.Sleep(time.Second)
+	}
+	if !ready {
+		return
+	}
+	// Set each target
+	for i := 0; i < len(ms.miners); i++ {
+		ms.miners[i].SetTarget(target)
+	}
+}
