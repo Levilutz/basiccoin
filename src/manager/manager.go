@@ -109,7 +109,7 @@ func (m *Manager) addMetConn(metConn MetConn) {
 }
 
 func (m *Manager) seekNewPeers() {
-	if len(m.peers) >= util.Constants.MinPeers {
+	if len(m.peers) == 0 || len(m.peers) >= util.Constants.MinPeers {
 		return
 	}
 	peerInd := rand.Intn(len(m.peers))
