@@ -5,6 +5,7 @@ import "flag"
 type CLIArgs struct {
 	Listen    bool   `json:"listen"`
 	LocalAddr string `json:"localAddr"`
+	Miners    int    `json:"miners"`
 	SeedAddr  string `json:"seedAddr"`
 }
 
@@ -12,6 +13,7 @@ func ParseCLIArgs() CLIArgs {
 	// Define args
 	listen := flag.Bool("listen", true, "Whether to listen for inbound connections")
 	localAddr := flag.String("addr", "", "Address to host from")
+	miners := flag.Int("miners", 0, "How many miner instances (defaults to 0)")
 	seedAddr := flag.String("seed", "", "Seed peer, or nothing to create new network")
 
 	// Do the parse
@@ -24,6 +26,7 @@ func ParseCLIArgs() CLIArgs {
 
 	// Insert into Constants
 	Constants.Listen = *listen
+	Constants.Miners = *miners
 	if *localAddr != "" {
 		Constants.LocalAddr = *localAddr
 	}
@@ -34,6 +37,7 @@ func ParseCLIArgs() CLIArgs {
 	// Return all (even those in constants)
 	return CLIArgs{
 		Listen:    *listen,
+		Miners:    *miners,
 		LocalAddr: *localAddr,
 		SeedAddr:  *seedAddr,
 	}

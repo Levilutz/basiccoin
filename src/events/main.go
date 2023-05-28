@@ -32,6 +32,11 @@ type CandidateLedgerUpgradeMainEvent struct {
 	Txs     map[db.HashT]db.Tx
 }
 
+// A miner instance mined a block.
+type BlockMinedMainEvent struct {
+	Block db.Block
+}
+
 // Query Events
 
 // Retrieve our currently known peers.

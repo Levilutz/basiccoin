@@ -10,6 +10,7 @@ type ConstantsType struct {
 	DebugNetwork         bool          `json:"debugNetwork"`
 	LocalAddr            string        `json:"localAddr"`
 	Listen               bool          `json:"listen"`
+	Miners               int           `json:"miners"`
 	MinPeers             int           `json:"maxPeers"`
 	MaxPeers             int           `json:"minPeers"`
 	MaxBlockTxs          uint64        `json:"maxBlockTxs"`
@@ -33,7 +34,6 @@ var Constants = ConstantsType{
 	MaxBlockTxs:          256,
 	MaxBlockVSize:        100000,
 	MaxTxVSize:           5000,
-	Listen:               true,
 	PeerPingFreq:         time.Second * 5,
 	PrintPeersUpdateFreq: time.Second * 5,
 	RuntimeID:            AssertUUID(),

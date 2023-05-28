@@ -4,10 +4,12 @@ import (
 	"fmt"
 	"math/rand"
 	"net"
+	"sync/atomic"
 	"time"
 
 	"github.com/levilutz/basiccoin/src/db"
 	"github.com/levilutz/basiccoin/src/events"
+	"github.com/levilutz/basiccoin/src/miner"
 	"github.com/levilutz/basiccoin/src/peer"
 	"github.com/levilutz/basiccoin/src/util"
 )
@@ -23,6 +25,9 @@ type Manager struct {
 	mainBus        chan any
 	peers          map[string]*peer.Peer
 	inv            *db.Inv
+	miners         []*miner.Miner
+	minersAggCh    <-chan db.Block
+	minersActive   atomic.Bool
 }
 
 func NewManager() *Manager {
@@ -31,6 +36,9 @@ func NewManager() *Manager {
 		mainBus:        make(chan any),
 		peers:          make(map[string]*peer.Peer),
 		inv:            db.NewInv(),
+		miners:         make([]*miner.Miner, util.Constants.Miners),
+		minersAggCh:    nil,
+		minersActive:   atomic.Bool{},
 	}
 }
 
@@ -55,6 +63,20 @@ func (m *Manager) Listen() {
 	}
 }
 
+func (m *Manager) Mine() {
+	if util.Constants.Miners == 0 {
+		return
+	}
+	chs := make([]chan db.Block, util.Constants.Miners)
+	for i := 0; i < util.Constants.Miners; i++ {
+		m.miners[i] = miner.NewMiner()
+		go m.miners[i].Loop()
+		chs[i] = m.miners[i].SolutionCh
+	}
+	m.minersAggCh = util.Aggregate(chs)
+	m.minersActive.Store(true)
+}
+
 func (m *Manager) Loop() {
 	seekNewPeersTicker := time.NewTicker(util.Constants.SeekNewPeersFreq)
 	printPeersUpdateTicker := time.NewTicker(util.Constants.PrintPeersUpdateFreq)
@@ -71,6 +93,9 @@ func (m *Manager) Loop() {
 
 		case <-printPeersUpdateTicker.C:
 			m.printPeersUpdate()
+
+		case sol := <-m.minersAggCh:
+			m.handleMinedSolution(sol)
 		}
 	}
 }
@@ -187,4 +212,28 @@ func (m *Manager) IntroducePeerConn(pc *peer.PeerConn, weAreInitiator bool) {
 		HelloMsg:       helloMsg,
 		WeAreInitiator: weAreInitiator,
 	}
+}
+
+func (m *Manager) setMinersTarget(target db.Block) {
+	// Wait until miners ready
+	ready := false
+	for i := 0; i < 10; i++ {
+		ready = m.minersActive.Load()
+		if ready {
+			break
+		}
+		time.Sleep(time.Second)
+	}
+	if !ready {
+		return
+	}
+	// Set each target
+	for i := 0; i < util.Constants.Miners; i++ {
+		m.miners[i].SetTarget(target)
+	}
+}
+
+func (m *Manager) handleMinedSolution(sol db.Block) {
+	// Verify solution
+	// Insert solution
 }

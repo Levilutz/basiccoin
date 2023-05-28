@@ -9,6 +9,18 @@ import (
 	"net"
 )
 
+// Aggregate channels
+func Aggregate[K any](chans []chan K) <-chan K {
+	out := make(chan K)
+	for _, ch := range chans {
+		in := ch
+		go func() {
+			out <- <-in
+		}()
+	}
+	return out
+}
+
 // Generate UUID
 func UUID() (string, error) {
 	b := make([]byte, 16)
