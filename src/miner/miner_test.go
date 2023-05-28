@@ -15,18 +15,20 @@ func TestMine(t *testing.T) {
 		"00000fffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
 	)
 	util.AssertNoErr(t, err)
+	merkle, err := db.RandHash()
+	util.AssertNoErr(t, err)
 	target := db.Block{
 		PrevBlockId: db.HashTZero,
-		MerkleRoot:  db.HashTZero,
+		MerkleRoot:  merkle,
 		Difficulty:  difficulty,
 		Nonce:       0,
 	}
-	solCh := make(chan db.Block)
-	miner := NewMiner(target, solCh)
-	go miner.Loop()
+	m := NewMiner()
+	m.SetTarget(target)
+	go m.Loop()
 	timer := time.NewTimer(time.Second * 10)
 	select {
-	case sol := <-solCh:
+	case sol := <-m.SolutionCh:
 		fmt.Println(sol.Nonce)
 		fmt.Printf("%x\n", sol.Hash())
 		util.Assert(t, db.BelowTarget(sol.Hash(), sol.Difficulty), "not below target")

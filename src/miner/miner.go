@@ -8,19 +8,19 @@ import (
 )
 
 type Miner struct {
+	SolutionCh  chan db.Block
 	target      db.Block
 	newTargetCh chan db.Block
 	killCh      chan struct{}
-	solutionCh  chan<- db.Block
 	nextNonce   uint32
 }
 
-func NewMiner(target db.Block, solutionCh chan<- db.Block) *Miner {
+func NewMiner() *Miner {
 	return &Miner{
-		target:      target,
+		target:      db.Block{},
 		newTargetCh: make(chan db.Block),
 		killCh:      make(chan struct{}),
-		solutionCh:  solutionCh,
+		SolutionCh:  make(chan db.Block),
 		nextNonce:   0,
 	}
 }
@@ -52,12 +52,12 @@ func (m *Miner) Loop() {
 			return
 
 		default:
-			if m.nextNonce == 1<<32-1 {
+			if m.target.MerkleRoot == db.HashTZero || m.nextNonce == 1<<32-1 {
 				time.Sleep(time.Second)
 			} else {
 				solution, ok := m.mine(1 << 16)
 				if ok {
-					m.solutionCh <- solution
+					m.SolutionCh <- solution
 				}
 			}
 		}
