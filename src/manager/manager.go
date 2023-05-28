@@ -21,6 +21,7 @@ type MetConn struct {
 }
 
 type Manager struct {
+	head           db.HashT
 	metConnChannel chan MetConn
 	mainBus        chan any
 	peers          map[string]*peer.Peer
@@ -32,6 +33,7 @@ type Manager struct {
 
 func NewManager() *Manager {
 	return &Manager{
+		head:           db.HashTZero,
 		metConnChannel: make(chan MetConn),
 		mainBus:        make(chan any),
 		peers:          make(map[string]*peer.Peer),
@@ -235,5 +237,16 @@ func (m *Manager) setMinersTarget(target db.Block) {
 
 func (m *Manager) handleMinedSolution(sol db.Block) {
 	// Verify solution
-	// Insert solution
+	if sol.PrevBlockId != m.head {
+		return
+	}
+	if !db.BelowTarget(sol.Hash(), sol.Difficulty) {
+		return
+	}
+	if _, ok := m.inv.LoadMerkle(), !ok {
+		return
+	}
+	// TODO: Verify difficulty correct
+	// Insert solution into db
+	// Broadcast solution to peers
 }
