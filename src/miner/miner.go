@@ -2,6 +2,7 @@ package miner
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/levilutz/basiccoin/src/db"
 )
@@ -51,18 +52,20 @@ func (m *Miner) Loop() {
 			return
 
 		default:
-			solution, ok := m.mine(100000)
-			if ok {
-				m.solutionCh <- solution
+			if m.nextNonce == 1<<32-1 {
+				time.Sleep(time.Second)
+			} else {
+				solution, ok := m.mine(1 << 16)
+				if ok {
+					m.solutionCh <- solution
+				}
 			}
 		}
 	}
 }
 
+// Keep trying nonces until it hits 2^32-1, then quit.
 func (m *Miner) mine(rounds uint32) (db.Block, bool) {
-	if (1<<32-1)-rounds < m.nextNonce {
-		rounds = (1<<32 - 1) - m.nextNonce + 1
-	}
 	for i := uint32(0); i < rounds; i++ {
 		target := db.Block{
 			PrevBlockId: m.target.PrevBlockId,
@@ -71,9 +74,14 @@ func (m *Miner) mine(rounds uint32) (db.Block, bool) {
 			Nonce:       m.nextNonce,
 		}
 		hash := target.Hash()
-		m.nextNonce += 1
+		if m.nextNonce != 1<<32-1 {
+			m.nextNonce += 1
+		}
 		if db.BelowTarget(hash, m.target.Difficulty) {
 			return target, true
+		}
+		if m.nextNonce == 1<<32-1 {
+			return db.Block{}, false
 		}
 	}
 	return db.Block{}, false
