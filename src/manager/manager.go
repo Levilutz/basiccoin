@@ -166,6 +166,11 @@ func (m *Manager) handleMainBusEvent(event any) {
 			}
 		}()
 
+	case events.CandidateLedgerUpgradeMainEvent:
+		// TODO: Verify synchronously
+		// if failed, blacklist head id
+		// if passed, loop StoreFullBlock from bottom of tree, then update head
+
 	default:
 		fmt.Printf("Unhandled main event %T\n", event)
 	}

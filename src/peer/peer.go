@@ -139,6 +139,15 @@ func (p *Peer) handleReceivedLine(line []byte) (bool, error) {
 			}
 		}()
 
+	} else if command == "new-block" {
+		mainBusEvent, err := handleNewBlockExchange(p.conn, p.invReader)
+		if err != nil {
+			return false, err
+		}
+		go func() {
+			p.mainBus <- mainBusEvent
+		}()
+
 	} else {
 		fmt.Println("Unexpected peer message:", command)
 	}

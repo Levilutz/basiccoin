@@ -1,5 +1,7 @@
 package events
 
+import "github.com/levilutz/basiccoin/src/db"
+
 // True Events
 
 // A Peer is closing its connection, remove from table.
@@ -20,6 +22,14 @@ type TxsReceivedMainEvent struct {
 // Save the newly-discovered peer addresses.
 type PeersReceivedMainEvent struct {
 	PeerAddrs []string
+}
+
+// A candidate (unverified) set of blocks to upgrade the ledger to, with needed data.
+type CandidateLedgerUpgradeMainEvent struct {
+	Head    db.HashT
+	Blocks  map[db.HashT]db.Block
+	Merkles map[db.HashT]db.MerkleNode
+	Txs     map[db.HashT]db.Tx
 }
 
 // Query Events
