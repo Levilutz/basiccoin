@@ -36,13 +36,16 @@ func StartMinerSet(numMiners int) *MinerSet {
 
 func (ms *MinerSet) SetTargets(target db.Block) {
 	// Wait until miners ready
+	delaySecs := 10
 	ready := false
-	for i := 0; i < 10; i++ {
+	for i := 0; i < delaySecs; i++ {
 		ready = ms.MinersActive.Load()
 		if ready {
 			break
 		}
-		time.Sleep(time.Second)
+		if i != delaySecs-1 {
+			time.Sleep(time.Second)
+		}
 	}
 	if !ready {
 		return
