@@ -30,13 +30,15 @@ type Manager struct {
 
 func NewManager() *Manager {
 	inv := db.NewInv()
+	minerSet := miner.StartMinerSet(util.Constants.Miners)
+	// minerSet.SetTargets
 	return &Manager{
 		metConnChannel: make(chan MetConn),
 		mainBus:        make(chan any),
 		peers:          make(map[string]*peer.Peer),
 		inv:            inv,
 		state:          db.NewState(inv),
-		minerSet:       miner.StartMinerSet(util.Constants.Miners),
+		minerSet:       minerSet,
 	}
 }
 
@@ -214,6 +216,7 @@ func (m *Manager) handleMinedSolution(sol db.Block) error {
 	}
 	m.state = newState
 	// TODO: Verify difficulty correct
+	// TODO: Set new miner targets
 	// TODO: Broadcast solution to peers
 	return nil
 }

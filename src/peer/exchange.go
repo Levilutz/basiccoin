@@ -11,7 +11,6 @@ import (
 func handleReceiveNewBlockExchange(
 	pc *PeerConn, inv db.InvReader,
 ) (event events.CandidateLedgerUpgradeMainEvent, err error) {
-	// TODO: Check pc.Err() here more
 	// Exchange init
 	blockIdStr := pc.RetryReadStringLine(7)
 	if err := pc.Err(); err != nil {
@@ -23,6 +22,9 @@ func handleReceiveNewBlockExchange(
 	}
 	if _, ok := inv.LoadBlock(blockId); ok {
 		pc.TransmitStringLine("fin:new-block")
+		if err := pc.Err(); err != nil {
+			return event, err
+		}
 		return event, fmt.Errorf("block id known")
 	}
 	// Exchange block ids

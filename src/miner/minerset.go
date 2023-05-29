@@ -9,6 +9,7 @@ import (
 )
 
 type MinerSet struct {
+	exists       bool
 	MinersActive atomic.Bool
 	SolutionCh   <-chan db.Block
 	miners       []*Miner
@@ -27,6 +28,7 @@ func StartMinerSet(numMiners int) *MinerSet {
 	}
 	aggSolutionCh := util.Aggregate(chs)
 	minerSet := &MinerSet{
+		exists:     true,
 		SolutionCh: aggSolutionCh,
 		miners:     miners,
 	}
@@ -35,7 +37,7 @@ func StartMinerSet(numMiners int) *MinerSet {
 }
 
 func (ms *MinerSet) SetTargets(target db.Block) {
-	if len(ms.miners) == 0 {
+	if !ms.exists {
 		return
 	}
 	// Wait until miners ready

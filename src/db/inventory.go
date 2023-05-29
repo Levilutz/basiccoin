@@ -10,6 +10,7 @@ import (
 var ErrEntityKnown = errors.New("entity known")
 var ErrEntityUnknown = errors.New("entity unknown")
 
+// Interface of all the functions that can't invoke SyncMap.Store.
 type InvReader interface {
 	AncestorDepth(blockId HashT, ancestorId HashT) (uint32, error)
 	AnyBlockIdsKnown(blockIds []HashT) (HashT, bool)
