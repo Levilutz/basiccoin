@@ -44,14 +44,20 @@ func (inv *Inv) StoreBlock(b Block) error {
 	blockId := b.Hash()
 	if _, ok := inv.blocks.Load(blockId); ok {
 		return ErrEntityKnown
-	} else if _, ok := inv.LoadMerkle(b.MerkleRoot); !ok {
-		return ErrEntityUnknown
 	} else if !BelowTarget(blockId, b.Difficulty) {
 		return fmt.Errorf("block failed to beat target difficulty")
 	}
-	// TODO: Verify first tx is coinbase, and none others are
+	txs, err := inv.LoadMerkleTxs(b.MerkleRoot)
+	if err != nil {
+		return err
+	} else if len(txs) == 0 {
+		return fmt.Errorf("block has no txs")
+	} else if len(txs) > int(util.Constants.MaxBlockTxs) {
+		return fmt.Errorf("block has too many txs")
+	} else if len(txs[0].Inputs) != 0 {
+		return fmt.Errorf("block missing coinbase tx")
+	}
 	// TODO: Verify sum of all inputs and outputs is 0
-	// TODO: Verify num of txs within limits
 	// TODO: Verify total vSize within limits
 	// TODO (in caller): Verify difficulty matches ours
 	inv.blocks.Store(blockId, b)
@@ -88,11 +94,22 @@ func (inv *Inv) StoreTx(tx Tx) error {
 	if _, ok := inv.txs.Load(txId); ok {
 		return ErrEntityKnown
 	}
-	// TODO: Verify referenced input known for each input
-	// TODO: Verify claimed public key matches hash for each input
-	// TODO: Verify signature valid for each input
-	// TODO: Verify output value < input value
-	// TODO: Verify vSize within limits
+	if !tx.SignaturesValid() {
+		return fmt.Errorf("tx signatures invalid")
+	} else if _, err := inv.GetTxSurplus(tx); err != nil {
+		return err
+	} else if tx.VSize() > util.Constants.MaxTxVSize {
+		return fmt.Errorf("tx VSize exceeds limit")
+	}
+	for _, txi := range tx.Inputs {
+		origin, err := inv.GetTxInOrigin(txi)
+		if err != nil {
+			return err
+		}
+		if DHash(txi.PublicKey) != origin.PublicKeyHash {
+			return fmt.Errorf("claimed public key does not match hash")
+		}
+	}
 	inv.txs.Store(txId, tx)
 	return nil
 }
@@ -100,6 +117,36 @@ func (inv *Inv) StoreTx(tx Tx) error {
 // Load a tx, return the tx and whether it exists.
 func (inv *Inv) LoadTx(txId HashT) (Tx, bool) {
 	return inv.txs.Load(txId)
+}
+
+func (inv *Inv) GetTxInOrigin(txi TxIn) (TxOut, error) {
+	originTx, ok := inv.LoadTx(txi.OriginTxId)
+	if !ok || txi.OriginTxOutInd >= uint32(len(originTx.Outputs)) {
+		return TxOut{}, ErrEntityUnknown
+	}
+	return originTx.Outputs[txi.OriginTxOutInd], nil
+}
+
+func (inv *Inv) GetTxSurplus(tx Tx) (uint64, error) {
+	// Sum up total tx inputs
+	totalInputs := uint64(0)
+	for _, txi := range tx.Inputs {
+		origin, err := inv.GetTxInOrigin(txi)
+		if err != nil {
+			return 0, err
+		}
+		totalInputs += uint64(origin.Value)
+	}
+	// Sum up total tx outputs
+	totalOutputs := uint64(0)
+	for _, txo := range tx.Outputs {
+		totalOutputs += uint64(txo.Value)
+	}
+	// Verify and return
+	if totalOutputs >= totalInputs {
+		return 0, fmt.Errorf("tx outputs exceed or match inputs")
+	}
+	return totalInputs - totalOutputs, nil
 }
 
 // Load a tx or merkle, return a pointer to whichever exists and nil.

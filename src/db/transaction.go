@@ -16,6 +16,11 @@ func (txi TxIn) Hash() HashT {
 	)
 }
 
+func (txi TxIn) VSize() uint64 {
+	// 32 from OriginTxId, 4 from OriginTxOutInd
+	return uint64(32 + 4 + len(txi.PublicKey) + len(txi.Signature))
+}
+
 func TxInPackHasher(txins []TxIn) []Hasher {
 	out := make([]Hasher, len(txins))
 	for i := 0; i < len(txins); i++ {
@@ -33,6 +38,11 @@ func (txo TxOut) Hash() HashT {
 	return DHashItems(txo.Value, txo.PublicKeyHash)
 }
 
+func (txo TxOut) VSize() uint64 {
+	// 4 from Value, 32 from PublicKeyHash
+	return uint64(4 + 32)
+}
+
 type Tx struct {
 	MinBlock uint32
 	Inputs   []TxIn
@@ -43,6 +53,29 @@ func (tx Tx) Hash() HashT {
 	return DHashItems(
 		tx.MinBlock, DHashList(tx.Inputs), DHashList(tx.Outputs),
 	)
+}
+
+func (tx Tx) VSize() uint64 {
+	// 4 from MinBlock, 32 each from top-level hash of Inputs and Outputs
+	vSize := uint64(4 + 32 + 32)
+	for _, txi := range tx.Inputs {
+		vSize += txi.VSize()
+	}
+	for _, txo := range tx.Outputs {
+		vSize += txo.VSize()
+	}
+	return vSize
+}
+
+func (tx Tx) SignaturesValid() bool {
+	preSigHash := TxHashPreSig(tx.MinBlock, tx.Outputs)
+	for _, txi := range tx.Inputs {
+		valid, err := EcdsaVerify(txi.PublicKey, preSigHash, txi.Signature)
+		if err != nil || !valid {
+			return false
+		}
+	}
+	return true
 }
 
 func TxHashPreSig(minBlock uint32, outputs []TxOut) HashT {
