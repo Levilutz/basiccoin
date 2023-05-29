@@ -39,12 +39,14 @@ func NewInv() *Inv {
 	}
 }
 
-// Store a new block, ensures merkle root known.
+// Store a new block, ensures merkle root known and difficulty beat.
 func (inv *Inv) StoreBlock(blockId HashT, b Block) error {
 	if _, ok := inv.blocks.Load(blockId); ok {
 		return ErrEntityKnown
-	} else if err := inv.VerifyEntityExists(b.MerkleRoot); err != nil {
-		return err
+	} else if _, ok := inv.LoadMerkle(b.MerkleRoot); !ok {
+		return ErrEntityUnknown
+	} else if !BelowTarget(blockId, b.Difficulty) {
+		return fmt.Errorf("block failed to beat target difficulty")
 	}
 	inv.blocks.Store(blockId, b)
 	return nil

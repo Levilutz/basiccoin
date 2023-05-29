@@ -20,21 +20,22 @@ type MetConn struct {
 }
 
 type Manager struct {
-	head           db.HashT
 	metConnChannel chan MetConn
 	mainBus        chan any
 	peers          map[string]*peer.Peer
 	inv            *db.Inv
+	state          *db.State
 	minerSet       *miner.MinerSet
 }
 
 func NewManager() *Manager {
+	inv := db.NewInv()
 	return &Manager{
-		head:           db.HashTZero,
 		metConnChannel: make(chan MetConn),
 		mainBus:        make(chan any),
 		peers:          make(map[string]*peer.Peer),
-		inv:            db.NewInv(),
+		inv:            inv,
+		state:          db.NewState(inv),
 		minerSet:       miner.StartMinerSet(util.Constants.Miners),
 	}
 }
@@ -197,21 +198,22 @@ func (m *Manager) IntroducePeerConn(pc *peer.PeerConn, weAreInitiator bool) {
 	}
 }
 
-func (m *Manager) handleMinedSolution(sol db.Block) {
+func (m *Manager) handleMinedSolution(sol db.Block) error {
 	// Verify solution
 	hash := sol.Hash()
-	if sol.PrevBlockId != m.head {
-		return
+	if sol.PrevBlockId != m.state.Head {
+		return fmt.Errorf("block not based on this parent")
 	}
-	if !db.BelowTarget(hash, sol.Difficulty) {
-		return
+	err := m.inv.StoreBlock(hash, sol)
+	if err != nil {
+		return err
 	}
-	if _, ok := m.inv.LoadMerkle(sol.MerkleRoot); !ok {
-		return
+	newState := m.state.Copy()
+	if err := newState.Advance(hash); err != nil {
+		return err
 	}
-	m.inv.StoreBlock(hash, sol)
-	m.head = hash
+	m.state = newState
 	// TODO: Verify difficulty correct
-	// Insert solution into db
-	// Broadcast solution to peers
+	// TODO: Broadcast solution to peers
+	return nil
 }

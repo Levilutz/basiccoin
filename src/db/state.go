@@ -28,6 +28,15 @@ type State struct {
 	inv     InvReader
 }
 
+func NewState(inv InvReader) *State {
+	return &State{
+		Head:    HashTZero,
+		Mempool: util.NewSet[HashT](),
+		Utxos:   util.NewSet[Utxo](),
+		inv:     inv,
+	}
+}
+
 // Copy a state.
 func (s *State) Copy() *State {
 	return &State{
