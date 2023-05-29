@@ -20,6 +20,7 @@ type InvReader interface {
 	AnyBlockIdsKnown(blockIds []HashT) (HashT, bool)
 	LoadFullBlock(blockId HashT) (Block, map[HashT]MerkleNode, map[HashT]Tx, error)
 	VerifyEntityExists(id HashT) error
+	AncestorDepth(blockId, ancestorId HashT) (uint32, error)
 }
 
 // Write-once read-many maps.
@@ -272,4 +273,20 @@ func (inv *Inv) VerifyEntityExists(id HashT) error {
 		return ErrEntityUnknown
 	}
 	return nil
+}
+
+// Returns how many blocks deep the ancestor is.
+func (inv *Inv) AncestorDepth(blockId, ancestorId HashT) (uint32, error) {
+	var err error
+	depth := uint32(0)
+	for blockId != ancestorId && blockId != HashTZero {
+		blockId, err = inv.GetBlockParentId(blockId)
+		if err != nil {
+			return 0, err
+		}
+	}
+	if blockId != ancestorId {
+		return 0, fmt.Errorf("block does not trace to ancestor")
+	}
+	return depth, nil
 }

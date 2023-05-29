@@ -63,20 +63,38 @@ func (s *State) Rewind() error {
 	return nil
 }
 
+// Rewind a state until head is the given block.
+// If this fails state will be corrupted, so copy before if necessary.
+func (s *State) RewindUntil(blockId HashT) error {
+	depth, err := s.inv.AncestorDepth(s.Head, blockId)
+	if err != nil {
+		return err
+	}
+	for i := uint32(0); i < depth; i++ {
+		if err := s.Rewind(); err != nil {
+			return err
+		}
+	}
+	if s.Head != blockId {
+		return fmt.Errorf("head is not expected value: %x != %x", s.Head, blockId)
+	}
+	return nil
+}
+
 // Verify whether a state should be allowed to advance to the given next block.
 func (s *State) ShouldAdvance(nextBlockId HashT) error {
 	return nil
 }
 
-// Advance a state to a given next block, does not verify.
+// Advance a state to a given next block, does not verify much.
 // If this fails state will be corrupted, so copy before if necessary.
 func (s *State) Advance(nextBlockId HashT) error {
 	nBlock, _, nTxs, err := s.inv.LoadFullBlock(nextBlockId)
-	if nBlock.PrevBlockId != s.Head {
-		return fmt.Errorf("block not based on this parent")
-	}
 	if err != nil {
 		return err
+	}
+	if nBlock.PrevBlockId != s.Head {
+		return fmt.Errorf("block not based on this parent")
 	}
 	for txId, tx := range nTxs {
 		// Remove tx from mempool
@@ -97,5 +115,16 @@ func (s *State) Advance(nextBlockId HashT) error {
 		}
 	}
 	s.Head = nextBlockId
+	return nil
+}
+
+// Advance the state through the given next blocks, does not verify much.
+// If this fails state will be corrupted, so copy before if necessary.
+func (s *State) AdvanceMany(nextBlockIds []HashT) error {
+	for _, nextBlockId := range nextBlockIds {
+		if err := s.Advance(nextBlockId); err != nil {
+			return err
+		}
+	}
 	return nil
 }
