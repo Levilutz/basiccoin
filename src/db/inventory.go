@@ -48,6 +48,11 @@ func (inv *Inv) StoreBlock(blockId HashT, b Block) error {
 	} else if !BelowTarget(blockId, b.Difficulty) {
 		return fmt.Errorf("block failed to beat target difficulty")
 	}
+	// TODO: Verify first tx is coinbase, and none others are
+	// TODO: Verify sum of all inputs and outputs is 0
+	// TODO: Verify num of txs within limits
+	// TODO: Verify total vSize within limits
+	// TODO (in caller): Verify difficulty matches ours
 	inv.blocks.Store(blockId, b)
 	return nil
 }
@@ -80,6 +85,11 @@ func (inv *Inv) StoreTx(txId HashT, tx Tx) error {
 	if _, ok := inv.txs.Load(txId); ok {
 		return ErrEntityKnown
 	}
+	// TODO: Verify referenced input known for each input
+	// TODO: Verify claimed public key matches hash for each input
+	// TODO: Verify signature valid for each input
+	// TODO: Verify output value < input value
+	// TODO: Verify vSize within limits
 	inv.txs.Store(txId, tx)
 	return nil
 }
