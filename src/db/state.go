@@ -19,7 +19,7 @@ func UtxoFromInput(txi TxIn) Utxo {
 	}
 }
 
-// State at a blockchain node.
+// State at a blockchain node. Responsible for preventing double-spends.
 // Meant to only be accessed synchronously by a single thread.
 type State struct {
 	Head    HashT
@@ -114,6 +114,14 @@ func (s *State) Advance(nextBlockId HashT) error {
 	}
 	for _, tx := range nTxs {
 		txId := tx.Hash()
+		// Verify above min block height
+		height, err := s.inv.GetBlockHeight(nextBlockId)
+		if err != nil {
+			return err
+		}
+		if height < tx.MinBlock {
+			return fmt.Errorf("tx cannot be included in block - too low")
+		}
 		// Remove tx from mempool
 		if !s.Mempool.Remove(txId) {
 			return fmt.Errorf("state corrupt - missing tx %x", txId)
@@ -144,4 +152,52 @@ func (s *State) AdvanceMany(nextBlockIds []HashT) error {
 		}
 	}
 	return nil
+}
+
+// Check whether a tx can be included in a new block based on this head.
+func (s *State) VerifyTxIncludable(txId HashT) error {
+	tx, ok := s.inv.LoadTx(txId)
+	if !ok {
+		return ErrEntityUnknown
+	}
+	height, err := s.inv.GetBlockHeight(s.Head)
+	if err != nil {
+		return err
+	}
+	if height+1 < tx.MinBlock {
+		return fmt.Errorf("tx cannot be included in block - too low")
+	}
+	if !s.Mempool.Includes(txId) {
+		return fmt.Errorf("tx does not exist in mempool")
+	}
+	for _, txi := range tx.Inputs {
+		if !s.Utxos.Includes(UtxoFromInput(txi)) {
+			return fmt.Errorf(
+				"tx input not available %x[%d]", txi.OriginTxId, txi.OriginTxOutInd,
+			)
+		}
+	}
+	return nil
+}
+
+// Create a new mining target block given where to send the reward.
+func (s *State) CreateMiningTarget(publicKeyHash HashT) Block {
+	difficulty, err := StringToHash(
+		"000000ffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+	)
+	if err != nil {
+		panic(err)
+	}
+	mem := s.Mempool.Copy()
+	mem.Filter(func(key HashT) bool {
+		return s.VerifyTxIncludable(key) == nil
+	})
+	// TODO: Start tx list with coinbae
+	// TODO: Annotate each mem item by rate, add best to tx list until we hit max vsize
+	// TODO: Build merkle tree from tx list
+	return Block{
+		PrevBlockId: s.Head,
+		MerkleRoot:  HashTZero, // TODO: WIP
+		Difficulty:  difficulty,
+	}
 }

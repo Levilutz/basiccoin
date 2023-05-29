@@ -85,6 +85,10 @@ func (tx Tx) VSize() uint64 {
 	return vSize
 }
 
+func (tx Tx) Rate() float64 {
+	return float64(tx.TotalInputs()-tx.TotalOutputs()) / float64(tx.VSize())
+}
+
 func (tx Tx) SignaturesValid() bool {
 	preSigHash := TxHashPreSig(tx.MinBlock, tx.Outputs)
 	for _, txi := range tx.Inputs {

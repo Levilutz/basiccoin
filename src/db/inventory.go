@@ -29,9 +29,11 @@ type InvReader interface {
 // Write-once read-many maps.
 // Only one thread should be making writes at a time, but many can be reading.
 type Inv struct {
+	// Main inventory
 	blocks  *util.SyncMap[HashT, Block]
 	merkles *util.SyncMap[HashT, MerkleNode]
 	txs     *util.SyncMap[HashT, Tx]
+	// Aux info (must be inserted before referenced main entity)
 	blockHs *util.SyncMap[HashT, uint32]
 }
 

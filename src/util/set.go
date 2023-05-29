@@ -49,3 +49,12 @@ func (s *Set[K]) Copy() *Set[K] {
 	}
 	return &Set[K]{s: newS}
 }
+
+// Filter based on a given func. If filter returns false, element is removed.
+func (s *Set[K]) Filter(filter func(key K) bool) {
+	for key := range s.s {
+		if !filter(key) {
+			delete(s.s, key)
+		}
+	}
+}
