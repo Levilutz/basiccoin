@@ -5,6 +5,7 @@ type TxIn struct {
 	OriginTxOutInd uint32
 	PublicKey      []byte
 	Signature      []byte
+	Value          uint32
 }
 
 func (txi TxIn) Hash() HashT {
@@ -13,12 +14,13 @@ func (txi TxIn) Hash() HashT {
 		txi.OriginTxOutInd,
 		txi.PublicKey,
 		txi.Signature,
+		txi.Value,
 	)
 }
 
 func (txi TxIn) VSize() uint64 {
-	// 32 from OriginTxId, 4 from OriginTxOutInd
-	return uint64(32 + 4 + len(txi.PublicKey) + len(txi.Signature))
+	// 32 from OriginTxId, 4 from OriginTxOutInd, 32 from Value
+	return uint64(32 + 4 + 32 + len(txi.PublicKey) + len(txi.Signature))
 }
 
 func TxInPackHasher(txins []TxIn) []Hasher {
@@ -53,6 +55,14 @@ func (tx Tx) Hash() HashT {
 	return DHashItems(
 		tx.MinBlock, DHashList(tx.Inputs), DHashList(tx.Outputs),
 	)
+}
+
+func (tx Tx) TotalInputs() uint64 {
+	total := uint64(0)
+	for _, txi := range tx.Inputs {
+		total += uint64(txi.Value)
+	}
+	return total
 }
 
 func (tx Tx) TotalOutputs() uint64 {

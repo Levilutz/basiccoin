@@ -18,7 +18,6 @@ type InvReader interface {
 	GetBlockHeritage(blockId HashT, maxLen int) ([]HashT, error)
 	GetBlockParentId(blockId HashT) (HashT, error)
 	GetTxInOrigin(txi TxIn) (TxOut, error)
-	GetTxSurplus(tx Tx) (uint64, error)
 	LoadBlock(blockId HashT) (Block, bool)
 	LoadMerkle(nodeId HashT) (MerkleNode, bool)
 	LoadMerkleTxs(root HashT) ([]Tx, error)
@@ -73,11 +72,8 @@ func (inv *Inv) StoreBlock(b Block) error {
 		if i == 0 {
 			totalOutputs += tx.TotalOutputs()
 		} else {
-			surplus, err := inv.GetTxSurplus(tx)
-			if err != nil {
-				return err
-			}
-			totalInputs += surplus
+			totalInputs += tx.TotalInputs()
+			totalOutputs += tx.TotalOutputs()
 		}
 		totalVSize += tx.VSize()
 	}
@@ -132,15 +128,15 @@ func (inv *Inv) StoreTx(tx Tx) error {
 	}
 	// Verify outputs < inputs (or outputs >= blockReward if coinbase)
 	if len(tx.Inputs) > 0 {
-		if _, err := inv.GetTxSurplus(tx); err != nil {
-			return err
+		if tx.TotalOutputs() >= tx.TotalInputs() {
+			return fmt.Errorf("tx outputs exceed or match inputs")
 		}
 	} else {
 		if tx.TotalOutputs() < uint64(util.Constants.BlockReward) {
 			return fmt.Errorf("coinbase has insufficient block reward")
 		}
 	}
-	// Verify given public key matches hash on claimed utxo
+	// Verify given public key and value match those on origin utxo
 	for _, txi := range tx.Inputs {
 		origin, err := inv.GetTxInOrigin(txi)
 		if err != nil {
@@ -148,6 +144,9 @@ func (inv *Inv) StoreTx(tx Tx) error {
 		}
 		if DHash(txi.PublicKey) != origin.PublicKeyHash {
 			return fmt.Errorf("given public key does not match claimed utxo")
+		}
+		if txi.Value != origin.Value {
+			return fmt.Errorf("given value does not match claimed utxo")
 		}
 	}
 	inv.txs.Store(txId, tx)
@@ -165,24 +164,6 @@ func (inv *Inv) GetTxInOrigin(txi TxIn) (TxOut, error) {
 		return TxOut{}, ErrEntityUnknown
 	}
 	return originTx.Outputs[txi.OriginTxOutInd], nil
-}
-
-func (inv *Inv) GetTxSurplus(tx Tx) (uint64, error) {
-	// Sum up total tx inputs
-	totalInputs := uint64(0)
-	for _, txi := range tx.Inputs {
-		origin, err := inv.GetTxInOrigin(txi)
-		if err != nil {
-			return 0, err
-		}
-		totalInputs += uint64(origin.Value)
-	}
-	totalOutputs := tx.TotalOutputs()
-	// Verify and return
-	if totalOutputs >= totalInputs {
-		return 0, fmt.Errorf("tx outputs exceed or match inputs")
-	}
-	return totalInputs - totalOutputs, nil
 }
 
 // Load a tx or merkle, return a pointer to whichever exists and nil.
