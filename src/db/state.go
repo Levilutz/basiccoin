@@ -58,7 +58,8 @@ func (s *State) Rewind() error {
 	if err != nil {
 		return err
 	}
-	for txId, tx := range rTxs {
+	for _, tx := range rTxs {
+		txId := tx.Hash()
 		// Return tx back to mempool
 		s.Mempool.Add(txId)
 		// Return the tx inputs
@@ -108,7 +109,8 @@ func (s *State) Advance(nextBlockId HashT) error {
 	if nBlock.PrevBlockId != s.Head {
 		return fmt.Errorf("block not based on this parent")
 	}
-	for txId, tx := range nTxs {
+	for _, tx := range nTxs {
+		txId := tx.Hash()
 		// Remove tx from mempool
 		if !s.Mempool.Remove(txId) {
 			return fmt.Errorf("state corrupt - missing tx %x", txId)

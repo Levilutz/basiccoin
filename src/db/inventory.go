@@ -18,7 +18,7 @@ type InvReader interface {
 	GetBlockParentId(blockId HashT) (HashT, error)
 	GetBlockHeritage(blockId HashT, maxLen int) ([]HashT, error)
 	AnyBlockIdsKnown(blockIds []HashT) (HashT, bool)
-	LoadMerkleTxs(root HashT) (map[HashT]Tx, error)
+	LoadMerkleTxs(root HashT) ([]Tx, error)
 	VerifyEntityExists(id HashT) error
 	AncestorDepth(blockId, ancestorId HashT) (uint32, error)
 }
@@ -40,7 +40,8 @@ func NewInv() *Inv {
 }
 
 // Store a new block, ensures merkle root known and difficulty beat.
-func (inv *Inv) StoreBlock(blockId HashT, b Block) error {
+func (inv *Inv) StoreBlock(b Block) error {
+	blockId := b.Hash()
 	if _, ok := inv.blocks.Load(blockId); ok {
 		return ErrEntityKnown
 	} else if _, ok := inv.LoadMerkle(b.MerkleRoot); !ok {
@@ -63,7 +64,8 @@ func (inv *Inv) LoadBlock(blockId HashT) (Block, bool) {
 }
 
 // Store a new merkle, ensures children known.
-func (inv *Inv) StoreMerkle(nodeId HashT, merkle MerkleNode) error {
+func (inv *Inv) StoreMerkle(merkle MerkleNode) error {
+	nodeId := merkle.Hash()
 	if _, ok := inv.merkles.Load(nodeId); ok {
 		return ErrEntityKnown
 	} else if err := inv.VerifyEntityExists(merkle.LChild); err != nil {
@@ -81,7 +83,8 @@ func (inv *Inv) LoadMerkle(nodeId HashT) (MerkleNode, bool) {
 }
 
 // Store a new transaction.
-func (inv *Inv) StoreTx(txId HashT, tx Tx) error {
+func (inv *Inv) StoreTx(tx Tx) error {
+	txId := tx.Hash()
 	if _, ok := inv.txs.Load(txId); ok {
 		return ErrEntityKnown
 	}
@@ -148,8 +151,8 @@ func (inv *Inv) AnyBlockIdsKnown(blockIds []HashT) (HashT, bool) {
 }
 
 // Load all txs descended from a merkle node.
-func (inv *Inv) LoadMerkleTxs(root HashT) (map[HashT]Tx, error) {
-	outTxs := make(map[HashT]Tx)
+func (inv *Inv) LoadMerkleTxs(root HashT) ([]Tx, error) {
+	outTxs := make([]Tx, 0)
 	// Go through each node in tree, categorizing as either tx or merkle
 	idQueue := util.NewQueue[HashT]()
 	visitedIds := util.NewSet[HashT]() // Prevent cycles
@@ -170,7 +173,7 @@ func (inv *Inv) LoadMerkleTxs(root HashT) (map[HashT]Tx, error) {
 		// Load tx or merkle and categorize
 		tx, merkle := inv.LoadTxOrMerkle(nextId)
 		if tx != nil {
-			outTxs[nextId] = *tx
+			outTxs = append(outTxs, *tx)
 		} else if merkle != nil {
 			idQueue.Push(merkle.LChild)
 			if merkle.RChild != merkle.LChild {
@@ -194,17 +197,21 @@ func (inv *Inv) LoadMerkleTxs(root HashT) (map[HashT]Tx, error) {
 // Store full block with any new merkle nodes and txs. Only merkles / txs reachable
 // from the block merkleRoot are included, missing merkles and txs cause failure.
 func (inv *Inv) StoreFullBlock(
-	blockId HashT, block Block, merkles map[HashT]MerkleNode, txs map[HashT]Tx,
+	block Block, merkles []MerkleNode, txs []Tx,
 ) error {
+	blockId := block.Hash()
 	// Skip if known
 	_, ok := inv.LoadBlock(blockId)
 	if ok {
 		return ErrEntityKnown
 	}
 
+	merkleMap := HasherMap(merkles)
+	txMap := HasherMap(txs)
+
 	// What to add at the end
-	newMerkles := make(map[HashT]MerkleNode)
-	newTxs := make(map[HashT]Tx)
+	newMerkles := make([]MerkleNode, 0)
+	newTxs := make([]Tx, 0)
 
 	// Go through tree from merkle root. If unknown but provided in args, add to inv
 	idQueue := util.NewQueue[HashT]()
@@ -230,12 +237,12 @@ func (inv *Inv) StoreFullBlock(
 		}
 
 		// Unknown, check if id exists as merkle or tx in args
-		if tx, ok := txs[nextId]; ok {
+		if tx, ok := txMap[nextId]; ok {
 			// Id exists as tx in args
-			newTxs[nextId] = tx
-		} else if merkle, ok := merkles[nextId]; ok {
+			newTxs = append(newTxs, tx)
+		} else if merkle, ok := merkleMap[nextId]; ok {
 			// Id exists as merkle in args
-			newMerkles[nextId] = merkle
+			newMerkles = append(newMerkles, merkle)
 			idQueue.Push(merkle.LChild)
 			if merkle.RChild != merkle.LChild {
 				idQueue.Push(merkle.RChild)
@@ -247,19 +254,19 @@ func (inv *Inv) StoreFullBlock(
 	}
 
 	// Add from the sets created earlier
-	for txId, tx := range newTxs {
-		err := inv.StoreTx(txId, tx)
+	for _, tx := range newTxs {
+		err := inv.StoreTx(tx)
 		if err != nil {
 			return err
 		}
 	}
-	for merkleId, merkle := range newMerkles {
-		err := inv.StoreMerkle(merkleId, merkle)
+	for _, merkle := range newMerkles {
+		err := inv.StoreMerkle(merkle)
 		if err != nil {
 			return err
 		}
 	}
-	err := inv.StoreBlock(blockId, block)
+	err := inv.StoreBlock(block)
 	if err != nil {
 		return err
 	}

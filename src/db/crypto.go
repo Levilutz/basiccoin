@@ -178,6 +178,14 @@ func HashesToString(hashes []HashT) string {
 	return out
 }
 
+func HasherMap[K Hasher](list []K) map[HashT]K {
+	out := make(map[HashT]K)
+	for _, item := range list {
+		out[item.Hash()] = item
+	}
+	return out
+}
+
 // Generate a new ecdsa private key.
 func NewEcdsa() (*ecdsa.PrivateKey, error) {
 	return ecdsa.GenerateKey(elliptic.P256(), rand.Reader)

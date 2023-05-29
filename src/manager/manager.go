@@ -204,7 +204,7 @@ func (m *Manager) handleMinedSolution(sol db.Block) error {
 	if sol.PrevBlockId != m.state.Head {
 		return fmt.Errorf("block not based on this parent")
 	}
-	err := m.inv.StoreBlock(hash, sol)
+	err := m.inv.StoreBlock(sol)
 	if err != nil {
 		return err
 	}

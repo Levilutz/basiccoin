@@ -12,6 +12,15 @@ func NewSet[K comparable]() *Set[K] {
 	}
 }
 
+// Create a new set from a list.
+func NewSetFromList[K comparable](list []K) *Set[K] {
+	s := NewSet[K]()
+	for _, item := range list {
+		s.Add(item)
+	}
+	return s
+}
+
 // Add a key to the set.
 func (s *Set[K]) Add(key K) {
 	s.s[key] = struct{}{}
