@@ -2,6 +2,7 @@ package db
 
 import (
 	"fmt"
+	"sort"
 
 	"github.com/levilutz/basiccoin/src/util"
 )
@@ -191,6 +192,20 @@ func (s *State) VerifyTxIncludable(txId HashT) error {
 	return nil
 }
 
+// Get includable mempool txs sorted be fee rate, descending.
+func (s *State) getSortedIncludableMempool() []HashT {
+	mem := s.Mempool.Copy()
+	mem.Filter(func(key HashT) bool {
+		return s.VerifyTxIncludable(key) == nil
+	})
+	memL := mem.ToList()
+	sort.Slice(memL, func(i, j int) bool {
+		// > instead of < because we want descending.
+		return s.mempoolRates[memL[i]] > s.mempoolRates[memL[j]]
+	})
+	return memL
+}
+
 // Create a new mining target block given where to send the reward.
 func (s *State) CreateMiningTarget(publicKeyHash HashT) Block {
 	difficulty, err := StringToHash(
@@ -199,27 +214,42 @@ func (s *State) CreateMiningTarget(publicKeyHash HashT) Block {
 	if err != nil {
 		panic(err)
 	}
-	mem := s.Mempool.Copy()
-	mem.Filter(func(key HashT) bool {
-		return s.VerifyTxIncludable(key) == nil
-	})
 	// Build tx list until we hit max size
-	txs := make([]Tx, 1)
-	txFees := uint64(0)
-	// Placeholder for coinbase
-	txs[0] = Tx{}
-	// TODO: Annotate each mem item by rate, add best to tx list until we hit max vsize
+	outTxs := make([]Tx, 1)
+	outTxs[0] = Tx{} // Placeholder for coinbase
+	totalFees := uint64(0)
+	sizeLeft := util.Constants.MaxBlockVSize - CoinbaseVSize()
+	candidateTxIds := s.getSortedIncludableMempool()
+	for _, txId := range candidateTxIds {
+		tx, ok := s.inv.LoadTx(txId)
+		if !ok {
+			panic(ErrEntityUnknown)
+		}
+		// Check if tx is too big to fit in space left
+		vSize := tx.VSize()
+		if vSize > sizeLeft {
+			continue
+		}
+		// Include tx in out set
+		outTxs = append(outTxs, tx)
+		sizeLeft -= vSize
+		totalFees += tx.TotalInputs() - tx.TotalOutputs()
+		// If we're out of space, break
+		if sizeLeft < MinNonCoinbaseVSize() {
+			break
+		}
+	}
 	// Actually make coinbase tx
 	headHeight, err := s.inv.GetBlockHeight(s.Head)
 	if err != nil {
 		panic(err)
 	}
-	txs[0] = Tx{
+	outTxs[0] = Tx{
 		MinBlock: headHeight + 1,
 		Inputs:   make([]TxIn, 0),
 		Outputs: []TxOut{
 			{
-				Value:         uint64(txFees) + util.Constants.BlockReward,
+				Value:         uint64(totalFees) + util.Constants.BlockReward,
 				PublicKeyHash: publicKeyHash,
 			},
 		},
