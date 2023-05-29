@@ -128,13 +128,16 @@ func (inv *Inv) StoreTx(tx Tx) error {
 	} else if tx.VSize() > util.Constants.MaxTxVSize {
 		return fmt.Errorf("tx VSize exceeds limit")
 	}
-	// Verify outputs < inputs (or outputs >= blockReward if coinbase)
 	if len(tx.Inputs) > 0 {
+		// Not coinbase - verify total outputs < total inputs
 		if tx.TotalOutputs() >= tx.TotalInputs() {
 			return fmt.Errorf("tx outputs exceed or match inputs")
 		}
 	} else {
-		if tx.TotalOutputs() < uint64(util.Constants.BlockReward) {
+		// Coinbase - verify outputs exist and total outputs >= BlockReward
+		if len(tx.Outputs) == 0 {
+			return fmt.Errorf("coinbase must have at least 1 output")
+		} else if tx.TotalOutputs() < uint64(util.Constants.BlockReward) {
 			return fmt.Errorf("coinbase has insufficient block reward")
 		}
 	}
