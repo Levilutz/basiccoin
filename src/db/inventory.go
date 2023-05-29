@@ -129,10 +129,14 @@ func (inv *Inv) StoreTx(tx Tx) error {
 	} else if tx.VSize() > util.Constants.MaxTxVSize {
 		return fmt.Errorf("tx VSize exceeds limit")
 	}
-	// Verify outputs < inputs (unless coinbase)
+	// Verify outputs < inputs (or outputs >= blockReward if coinbase)
 	if len(tx.Inputs) > 0 {
 		if _, err := inv.GetTxSurplus(tx); err != nil {
 			return err
+		}
+	} else {
+		if tx.TotalOutputs() < uint64(util.Constants.BlockReward) {
+			return fmt.Errorf("coinbase has insufficient block reward")
 		}
 	}
 	// Verify given public key matches hash on claimed utxo
