@@ -11,16 +11,19 @@ var ErrEntityKnown = errors.New("entity known")
 var ErrEntityUnknown = errors.New("entity unknown")
 
 type InvReader interface {
+	AncestorDepth(blockId HashT, ancestorId HashT) (uint32, error)
+	AnyBlockIdsKnown(blockIds []HashT) (HashT, bool)
+	GetBlockHeight(blockId HashT) (uint32, error)
+	GetBlockHeritage(blockId HashT, maxLen int) ([]HashT, error)
+	GetBlockParentId(blockId HashT) (HashT, error)
+	GetTxInOrigin(txi TxIn) (TxOut, error)
+	GetTxSurplus(tx Tx) (uint64, error)
 	LoadBlock(blockId HashT) (Block, bool)
 	LoadMerkle(nodeId HashT) (MerkleNode, bool)
+	LoadMerkleTxs(root HashT) ([]Tx, error)
 	LoadTx(txId HashT) (Tx, bool)
 	LoadTxOrMerkle(id HashT) (*Tx, *MerkleNode)
-	GetBlockParentId(blockId HashT) (HashT, error)
-	GetBlockHeritage(blockId HashT, maxLen int) ([]HashT, error)
-	AnyBlockIdsKnown(blockIds []HashT) (HashT, bool)
-	LoadMerkleTxs(root HashT) ([]Tx, error)
 	VerifyEntityExists(id HashT) error
-	AncestorDepth(blockId, ancestorId HashT) (uint32, error)
 }
 
 // Write-once read-many maps.
@@ -29,20 +32,25 @@ type Inv struct {
 	blocks  *util.SyncMap[HashT, Block]
 	merkles *util.SyncMap[HashT, MerkleNode]
 	txs     *util.SyncMap[HashT, Tx]
+	blockHs *util.SyncMap[HashT, uint32]
 }
 
 func NewInv() *Inv {
-	return &Inv{
+	inv := &Inv{
 		blocks:  util.NewSyncMap[HashT, Block](),
 		merkles: util.NewSyncMap[HashT, MerkleNode](),
 		txs:     util.NewSyncMap[HashT, Tx](),
+		blockHs: util.NewSyncMap[HashT, uint32](),
 	}
+	inv.blockHs.Store(HashTZero, 0)
+	inv.blocks.Store(HashTZero, Block{})
+	return inv
 }
 
 // Store a new block, ensures merkle root known and difficulty beat.
 func (inv *Inv) StoreBlock(b Block) error {
 	blockId := b.Hash()
-	if _, ok := inv.blocks.Load(blockId); ok {
+	if _, ok := inv.LoadBlock(blockId); ok {
 		return ErrEntityKnown
 	} else if !BelowTarget(blockId, b.Difficulty) {
 		return fmt.Errorf("block failed to beat target difficulty")
@@ -60,6 +68,11 @@ func (inv *Inv) StoreBlock(b Block) error {
 	// TODO: Verify sum of all inputs and outputs is 0
 	// TODO: Verify total vSize within limits
 	// TODO (in caller): Verify difficulty matches ours
+	parentHeight, err := inv.GetBlockHeight(b.PrevBlockId)
+	if err != nil {
+		return err
+	}
+	inv.blockHs.Store(blockId, parentHeight+1)
 	inv.blocks.Store(blockId, b)
 	return nil
 }
@@ -164,10 +177,19 @@ func (inv *Inv) LoadTxOrMerkle(id HashT) (*Tx, *MerkleNode) {
 
 func (inv *Inv) GetBlockParentId(blockId HashT) (HashT, error) {
 	block, ok := inv.LoadBlock(blockId)
-	if !ok {
+	if !ok || blockId == HashTZero {
 		return HashT{}, ErrEntityUnknown
 	}
 	return block.PrevBlockId, nil
+}
+
+// Get a block's height (0x0 is height 0, origin block is height 1).
+func (inv *Inv) GetBlockHeight(blockId HashT) (uint32, error) {
+	h, ok := inv.blockHs.Load(blockId)
+	if !ok {
+		return 0, ErrEntityUnknown
+	}
+	return h, nil
 }
 
 func (inv *Inv) GetBlockHeritage(blockId HashT, maxLen int) ([]HashT, error) {

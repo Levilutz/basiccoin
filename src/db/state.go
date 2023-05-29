@@ -50,6 +50,9 @@ func (s *State) Copy() *State {
 // Rewind a state to its parent block.
 // If this fails state will be corrupted, so copy before if necessary.
 func (s *State) Rewind() error {
+	if s.Head == HashTZero {
+		return fmt.Errorf("cannot rewind - at origin")
+	}
 	rBlock, ok := s.inv.LoadBlock(s.Head)
 	if !ok {
 		return ErrEntityUnknown
