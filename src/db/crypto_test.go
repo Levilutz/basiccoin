@@ -3,18 +3,11 @@ package db_test
 import (
 	"fmt"
 	"math/big"
-	"os"
 	"testing"
 
 	. "github.com/levilutz/basiccoin/src/db"
 	"github.com/levilutz/basiccoin/src/util"
 )
-
-func TestMain(m *testing.M) {
-	util.InitComputedConstants()
-	code := m.Run()
-	os.Exit(code)
-}
 
 // Test that DHashItems and DHashList agree
 func TestHashAlternates(t *testing.T) {

@@ -103,3 +103,32 @@ func (tx Tx) SignaturesValid() bool {
 func TxHashPreSig(minBlock uint32, outputs []TxOut) HashT {
 	return DHashItems(minBlock, DHashList(outputs))
 }
+
+func MinNonCoinbaseVSize() uint64 {
+	return Tx{
+		MinBlock: 0,
+		Inputs: []TxIn{
+			{
+				OriginTxId:     HashTZero,
+				OriginTxOutInd: 0,
+				PublicKey:      []byte{},
+				Signature:      []byte{},
+				Value:          0,
+			},
+		},
+		Outputs: make([]TxOut, 0),
+	}.VSize()
+}
+
+func CoinbaseVSize() uint64 {
+	return Tx{
+		MinBlock: 0,
+		Inputs:   make([]TxIn, 0),
+		Outputs: []TxOut{
+			{
+				Value:         0,
+				PublicKeyHash: HashTZero,
+			},
+		},
+	}.VSize()
+}

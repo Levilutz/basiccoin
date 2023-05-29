@@ -192,8 +192,28 @@ func (s *State) CreateMiningTarget(publicKeyHash HashT) Block {
 	mem.Filter(func(key HashT) bool {
 		return s.VerifyTxIncludable(key) == nil
 	})
-	// TODO: Start tx list with coinbae
+	// Build tx list until we hit max size
+	txs := make([]Tx, 0)
 	// TODO: Annotate each mem item by rate, add best to tx list until we hit max vsize
+	// Make coinbase tx
+	headHeight, err := s.inv.GetBlockHeight(s.Head)
+	if err != nil {
+		panic(err)
+	}
+	coinbase := Tx{
+		MinBlock: headHeight + 1,
+		Inputs:   make([]TxIn, 0),
+		Outputs: []TxOut{
+			{
+				Value:         0,
+				PublicKeyHash: publicKeyHash,
+			},
+		},
+	}
+	txs = append(txs, coinbase) // TODO: put at start
+	if len(txs) == 0 {
+		panic("WIP")
+	}
 	// TODO: Build merkle tree from tx list
 	return Block{
 		PrevBlockId: s.Head,

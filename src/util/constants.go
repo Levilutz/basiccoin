@@ -14,9 +14,7 @@ type ConstantsType struct {
 	Miners               int           `json:"miners"`
 	MinPeers             int           `json:"maxPeers"`
 	MaxPeers             int           `json:"minPeers"`
-	MaxBlockTxs          uint64        `json:"maxBlockTxs"`
 	MaxBlockVSize        uint64        `json:"maxBlockVSize"`
-	MaxTreeSize          uint64        `json:"maxTreeSize"`
 	MaxTxVSize           uint64        `json:"maxTxVSize"`
 	PeerPingFreq         time.Duration `json:"peerPingFreq"`
 	PrintPeersUpdateFreq time.Duration `json:"printPeersUpdateFreq"`
@@ -33,7 +31,6 @@ var Constants = ConstantsType{
 	LocalAddr:            "localhost:21720",
 	MinPeers:             3,
 	MaxPeers:             8,
-	MaxBlockTxs:          256,
 	MaxBlockVSize:        100000,
 	MaxTxVSize:           5000,
 	PeerPingFreq:         time.Second * 5,
@@ -42,11 +39,6 @@ var Constants = ConstantsType{
 	SeedAddr:             "",
 	SeekNewPeersFreq:     time.Second * 10,
 	Version:              "0.1.0",
-}
-
-// Initialize constants that are computed from other constants.
-func InitComputedConstants() {
-	Constants.MaxTreeSize = 2*Constants.MaxBlockTxs - 1
 }
 
 // Compute 2^256 as a big.Int.

@@ -62,7 +62,7 @@ func (inv *Inv) StoreBlock(b Block) error {
 		return err
 	} else if len(txs) == 0 {
 		return fmt.Errorf("block has no txs")
-	} else if len(txs) > int(util.Constants.MaxBlockTxs) {
+	} else if len(txs) > int(BlockMaxTxs()) {
 		return fmt.Errorf("block has too many txs")
 	} else if len(txs[0].Inputs) != 0 {
 		return fmt.Errorf("block missing coinbase tx")
@@ -135,8 +135,8 @@ func (inv *Inv) StoreTx(tx Tx) error {
 		}
 	} else {
 		// Coinbase - verify outputs exist and total outputs >= BlockReward
-		if len(tx.Outputs) == 0 {
-			return fmt.Errorf("coinbase must have at least 1 output")
+		if len(tx.Outputs) != 1 {
+			return fmt.Errorf("coinbase must have 1 output")
 		} else if tx.TotalOutputs() < uint64(util.Constants.BlockReward) {
 			return fmt.Errorf("coinbase has insufficient block reward")
 		}
@@ -235,7 +235,7 @@ func (inv *Inv) LoadMerkleTxs(root HashT) ([]Tx, error) {
 	idQueue := util.NewQueue[HashT]()
 	visitedIds := util.NewSet[HashT]() // Prevent cycles
 	idQueue.Push(root)
-	for i := 0; i < int(util.Constants.MaxTreeSize); i++ {
+	for i := 0; i < int(MerkleTreeMaxSize()); i++ {
 		// Pop next id, finish if we've cleared queue
 		nextId, ok := idQueue.Pop()
 		if !ok {
@@ -266,7 +266,7 @@ func (inv *Inv) LoadMerkleTxs(root HashT) ([]Tx, error) {
 	_, ok := idQueue.Pop()
 	if ok {
 		return nil, fmt.Errorf(
-			"tree exceeds max size of %d", util.Constants.MaxTreeSize,
+			"tree exceeds max size of %d", MerkleTreeMaxSize(),
 		)
 	}
 	return outTxs, nil
@@ -295,7 +295,7 @@ func (inv *Inv) StoreFullBlock(
 	idQueue := util.NewQueue[HashT]()
 	visitedIds := util.NewSet[HashT]() // Prevent cycles
 	idQueue.Push(block.MerkleRoot)
-	for i := 0; i < int(util.Constants.MaxTreeSize); i++ {
+	for i := uint64(0); i < MerkleTreeMaxSize(); i++ {
 		// Pop next id, finish if we've cleared queue
 		nextId, ok := idQueue.Pop()
 		if !ok {

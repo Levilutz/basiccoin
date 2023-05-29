@@ -1,6 +1,10 @@
 package db
 
-import "fmt"
+import (
+	"fmt"
+
+	"github.com/levilutz/basiccoin/src/util"
+)
 
 type MerkleNode struct {
 	LChild HashT
@@ -28,4 +32,18 @@ func (b Block) VerifyProofOfWork() error {
 		return fmt.Errorf("failed to beat claimed target")
 	}
 	return nil
+}
+
+// The maximum number of txs that could theoretically be in a block, including coinbase.
+func BlockMaxTxs() uint64 {
+	standardTxSpace := util.Constants.MaxBlockVSize - CoinbaseVSize()
+	// +1 to "round up"
+	maxStandardTxs := standardTxSpace/MinNonCoinbaseVSize() + 1
+	// +1 to re-include coinbase tx
+	return maxStandardTxs + 1
+}
+
+// The maximum possible size of a block's merkle tree, including tx leafs.
+func MerkleTreeMaxSize() uint64 {
+	return BlockMaxTxs()*2 - 1
 }
