@@ -81,11 +81,6 @@ func (s *State) RewindUntil(blockId HashT) error {
 	return nil
 }
 
-// Verify whether a state should be allowed to advance to the given next block.
-func (s *State) ShouldAdvance(nextBlockId HashT) error {
-	return nil
-}
-
 // Advance a state to a given next block, does not verify much.
 // If this fails state will be corrupted, so copy before if necessary.
 func (s *State) Advance(nextBlockId HashT) error {
