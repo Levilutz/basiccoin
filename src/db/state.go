@@ -50,7 +50,11 @@ func (s *State) Copy() *State {
 // Rewind a state to its parent block.
 // If this fails state will be corrupted, so copy before if necessary.
 func (s *State) Rewind() error {
-	rBlock, _, rTxs, err := s.inv.LoadFullBlock(s.Head)
+	rBlock, ok := s.inv.LoadBlock(s.Head)
+	if !ok {
+		return ErrEntityUnknown
+	}
+	rTxs, err := s.inv.LoadMerkleTxs(rBlock.MerkleRoot)
 	if err != nil {
 		return err
 	}
@@ -93,7 +97,11 @@ func (s *State) RewindUntil(blockId HashT) error {
 // Advance a state to a given next block, does not verify much.
 // If this fails state will be corrupted, so copy before if necessary.
 func (s *State) Advance(nextBlockId HashT) error {
-	nBlock, _, nTxs, err := s.inv.LoadFullBlock(nextBlockId)
+	nBlock, ok := s.inv.LoadBlock(s.Head)
+	if !ok {
+		return ErrEntityUnknown
+	}
+	nTxs, err := s.inv.LoadMerkleTxs(nBlock.MerkleRoot)
 	if err != nil {
 		return err
 	}

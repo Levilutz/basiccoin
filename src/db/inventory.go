@@ -18,7 +18,7 @@ type InvReader interface {
 	GetBlockParentId(blockId HashT) (HashT, error)
 	GetBlockHeritage(blockId HashT, maxLen int) ([]HashT, error)
 	AnyBlockIdsKnown(blockIds []HashT) (HashT, bool)
-	LoadFullBlock(blockId HashT) (Block, map[HashT]MerkleNode, map[HashT]Tx, error)
+	LoadMerkleTxs(root HashT) (map[HashT]Tx, error)
 	VerifyEntityExists(id HashT) error
 	AncestorDepth(blockId, ancestorId HashT) (uint32, error)
 }
@@ -147,6 +147,50 @@ func (inv *Inv) AnyBlockIdsKnown(blockIds []HashT) (HashT, bool) {
 	return HashTZero, false
 }
 
+// Load all txs descended from a merkle node.
+func (inv *Inv) LoadMerkleTxs(root HashT) (map[HashT]Tx, error) {
+	outTxs := make(map[HashT]Tx)
+	// Go through each node in tree, categorizing as either tx or merkle
+	idQueue := util.NewQueue[HashT]()
+	visitedIds := util.NewSet[HashT]() // Prevent cycles
+	idQueue.Push(root)
+	for i := 0; i < int(util.Constants.MaxTreeSize); i++ {
+		// Pop next id, finish if we've cleared queue
+		nextId, ok := idQueue.Pop()
+		if !ok {
+			break
+		}
+
+		// Prevent cycles
+		if visitedIds.Includes(nextId) {
+			return nil, fmt.Errorf("circular visit to id %x", nextId)
+		}
+		visitedIds.Add(nextId)
+
+		// Load tx or merkle and categorize
+		tx, merkle := inv.LoadTxOrMerkle(nextId)
+		if tx != nil {
+			outTxs[nextId] = *tx
+		} else if merkle != nil {
+			idQueue.Push(merkle.LChild)
+			if merkle.RChild != merkle.LChild {
+				idQueue.Push(merkle.RChild)
+			}
+		} else {
+			return nil, ErrEntityUnknown
+		}
+	}
+
+	// Verify we didn't just hit limit
+	_, ok := idQueue.Pop()
+	if ok {
+		return nil, fmt.Errorf(
+			"tree exceeds max size of %d", util.Constants.MaxTreeSize,
+		)
+	}
+	return outTxs, nil
+}
+
 // Store full block with any new merkle nodes and txs. Only merkles / txs reachable
 // from the block merkleRoot are included, missing merkles and txs cause failure.
 func (inv *Inv) StoreFullBlock(
@@ -220,62 +264,6 @@ func (inv *Inv) StoreFullBlock(
 		return err
 	}
 	return nil
-}
-
-// Given a block id, load all merkle nodes and transactions from the block.
-func (inv *Inv) LoadFullBlock(
-	blockId HashT,
-) (Block, map[HashT]MerkleNode, map[HashT]Tx, error) {
-	outMerkles := make(map[HashT]MerkleNode)
-	outTxs := make(map[HashT]Tx)
-
-	// Retrieve block header
-	b, ok := inv.LoadBlock(blockId)
-	if !ok {
-		return Block{}, nil, nil, ErrEntityUnknown
-	}
-
-	// Go through each node in tree, categorizing as either tx or merkle
-	idQueue := util.NewQueue[HashT]()
-	visitedIds := util.NewSet[HashT]() // Prevent cycles
-	idQueue.Push(b.MerkleRoot)
-	for i := 0; i < int(util.Constants.MaxTreeSize); i++ {
-		// Pop next id, finish if we've cleared queue
-		nextId, ok := idQueue.Pop()
-		if !ok {
-			break
-		}
-
-		// Prevent cycles
-		if visitedIds.Includes(nextId) {
-			return Block{}, nil, nil, fmt.Errorf("circular visit to id %x", nextId)
-		}
-		visitedIds.Add(nextId)
-
-		// Load tx or merkle and categorize
-		tx, merkle := inv.LoadTxOrMerkle(nextId)
-		if tx != nil {
-			outTxs[nextId] = *tx
-		} else if merkle != nil {
-			outMerkles[nextId] = *merkle
-			idQueue.Push(merkle.LChild)
-			if merkle.RChild != merkle.LChild {
-				idQueue.Push(merkle.RChild)
-			}
-		} else {
-			return Block{}, nil, nil, ErrEntityUnknown
-		}
-	}
-
-	// Verify we didn't just hit limit
-	_, ok = idQueue.Pop()
-	if ok {
-		return Block{}, nil, nil, fmt.Errorf(
-			"tree exceeds max size of %d", util.Constants.MaxTreeSize,
-		)
-	}
-
-	return b, outMerkles, outTxs, nil
 }
 
 // Returns error if entity not known, or nil if known.
