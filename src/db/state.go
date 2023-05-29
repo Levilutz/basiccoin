@@ -98,7 +98,7 @@ func (s *State) RewindUntil(blockId HashT) error {
 	return nil
 }
 
-// Advance a state to a given next block, does not verify much.
+// Advance a state to a given next block.
 // If this fails state will be corrupted, so copy before if necessary.
 func (s *State) Advance(nextBlockId HashT) error {
 	nBlock, ok := s.inv.LoadBlock(s.Head)
@@ -114,6 +114,10 @@ func (s *State) Advance(nextBlockId HashT) error {
 	}
 	for _, tx := range nTxs {
 		txId := tx.Hash()
+		err := s.VerifyTxIncludable(txId)
+		if err != nil {
+			return err
+		}
 		// Verify above min block height
 		height, err := s.inv.GetBlockHeight(nextBlockId)
 		if err != nil {
@@ -143,7 +147,7 @@ func (s *State) Advance(nextBlockId HashT) error {
 	return nil
 }
 
-// Advance the state through the given next blocks, does not verify much.
+// Advance the state through the given next blocks.
 // If this fails state will be corrupted, so copy before if necessary.
 func (s *State) AdvanceMany(nextBlockIds []HashT) error {
 	for _, nextBlockId := range nextBlockIds {
@@ -170,6 +174,8 @@ func (s *State) VerifyTxIncludable(txId HashT) error {
 	if !s.Mempool.Includes(txId) {
 		return fmt.Errorf("tx does not exist in mempool")
 	}
+	// Verify each tx input's claimed utxo is available
+	// This is the primary guard against double-spends
 	for _, txi := range tx.Inputs {
 		if !s.Utxos.Includes(UtxoFromInput(txi)) {
 			return fmt.Errorf(
@@ -193,26 +199,25 @@ func (s *State) CreateMiningTarget(publicKeyHash HashT) Block {
 		return s.VerifyTxIncludable(key) == nil
 	})
 	// Build tx list until we hit max size
-	txs := make([]Tx, 0)
+	txs := make([]Tx, 1)
+	txFees := uint64(0)
+	// Placeholder for coinbase
+	txs[0] = Tx{}
 	// TODO: Annotate each mem item by rate, add best to tx list until we hit max vsize
-	// Make coinbase tx
+	// Actually make coinbase tx
 	headHeight, err := s.inv.GetBlockHeight(s.Head)
 	if err != nil {
 		panic(err)
 	}
-	coinbase := Tx{
+	txs[0] = Tx{
 		MinBlock: headHeight + 1,
 		Inputs:   make([]TxIn, 0),
 		Outputs: []TxOut{
 			{
-				Value:         0,
+				Value:         uint32(txFees) + util.Constants.BlockReward,
 				PublicKeyHash: publicKeyHash,
 			},
 		},
-	}
-	txs = append(txs, coinbase) // TODO: put at start
-	if len(txs) == 0 {
-		panic("WIP")
 	}
 	// TODO: Build merkle tree from tx list
 	return Block{
