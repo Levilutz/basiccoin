@@ -22,28 +22,31 @@ func UtxoFromInput(txi TxIn) Utxo {
 // State at a blockchain node. Responsible for preventing double-spends.
 // Meant to only be accessed synchronously by a single thread.
 type State struct {
-	Head    HashT
-	Mempool *util.Set[HashT]
-	Utxos   *util.Set[Utxo]
-	inv     InvReader
-}
+	Head         HashT
+	Mempool      *util.Set[HashT]
+	Utxos        *util.Set[Utxo]
+	inv          InvReader
+	mempoolRates map[HashT]float64
+} // TODO make all fields private
 
 func NewState(inv InvReader) *State {
 	return &State{
-		Head:    HashTZero,
-		Mempool: util.NewSet[HashT](),
-		Utxos:   util.NewSet[Utxo](),
-		inv:     inv,
+		Head:         HashTZero,
+		Mempool:      util.NewSet[HashT](),
+		Utxos:        util.NewSet[Utxo](),
+		inv:          inv,
+		mempoolRates: make(map[HashT]float64),
 	}
 }
 
 // Copy a state.
 func (s *State) Copy() *State {
 	return &State{
-		Head:    s.Head,
-		Mempool: s.Mempool.Copy(),
-		Utxos:   s.Utxos.Copy(),
-		inv:     s.inv,
+		Head:         s.Head,
+		Mempool:      s.Mempool.Copy(),
+		Utxos:        s.Utxos.Copy(),
+		inv:          s.inv,
+		mempoolRates: util.CopyMap(s.mempoolRates),
 	}
 }
 
@@ -65,6 +68,7 @@ func (s *State) Rewind() error {
 		txId := tx.Hash()
 		// Return tx back to mempool
 		s.Mempool.Add(txId)
+		s.mempoolRates[txId] = tx.Rate()
 		// Return the tx inputs
 		for _, txi := range tx.Inputs {
 			s.Utxos.Add(UtxoFromInput(txi))
@@ -130,6 +134,7 @@ func (s *State) Advance(nextBlockId HashT) error {
 		if !s.Mempool.Remove(txId) {
 			return fmt.Errorf("state corrupt - missing tx %x", txId)
 		}
+		delete(s.mempoolRates, txId)
 		// Consume the tx inputs
 		for _, txi := range tx.Inputs {
 			if !s.Utxos.Remove(UtxoFromInput(txi)) {

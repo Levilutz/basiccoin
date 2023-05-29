@@ -21,6 +21,15 @@ func Aggregate[K any](chans []chan K) <-chan K {
 	return out
 }
 
+// Shallow copy a map.
+func CopyMap[K comparable, V any](m map[K]V) map[K]V {
+	out := make(map[K]V, len(m))
+	for k, v := range m {
+		out[k] = v
+	}
+	return out
+}
+
 // Generate UUID
 func UUID() (string, error) {
 	b := make([]byte, 16)
