@@ -12,7 +12,7 @@ type Miner struct {
 	target      db.Block
 	newTargetCh chan db.Block
 	killCh      chan struct{}
-	nextNonce   uint32
+	nextNonce   uint64
 }
 
 func NewMiner() *Miner {
@@ -52,7 +52,7 @@ func (m *Miner) Loop() {
 			return
 
 		default:
-			if m.target.MerkleRoot == db.HashTZero || m.nextNonce == 1<<32-1 {
+			if m.target.MerkleRoot == db.HashTZero || m.nextNonce == 1<<64-1 {
 				time.Sleep(time.Second)
 			} else {
 				solution, ok := m.mine(1 << 16)
@@ -64,9 +64,9 @@ func (m *Miner) Loop() {
 	}
 }
 
-// Keep trying nonces until it hits 2^32-1, then quit.
-func (m *Miner) mine(rounds uint32) (db.Block, bool) {
-	for i := uint32(0); i < rounds; i++ {
+// Keep trying nonces until it hits 2^64-1, then quit.
+func (m *Miner) mine(rounds uint64) (db.Block, bool) {
+	for i := uint64(0); i < rounds; i++ {
 		target := db.Block{
 			PrevBlockId: m.target.PrevBlockId,
 			MerkleRoot:  m.target.MerkleRoot,
@@ -74,13 +74,13 @@ func (m *Miner) mine(rounds uint32) (db.Block, bool) {
 			Nonce:       m.nextNonce,
 		}
 		hash := target.Hash()
-		if m.nextNonce != 1<<32-1 {
+		if m.nextNonce != 1<<64-1 {
 			m.nextNonce += 1
 		}
 		if db.BelowTarget(hash, m.target.Difficulty) {
 			return target, true
 		}
-		if m.nextNonce == 1<<32-1 {
+		if m.nextNonce == 1<<64-1 {
 			return db.Block{}, false
 		}
 	}

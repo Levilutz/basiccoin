@@ -7,7 +7,7 @@ import (
 
 // Types of the constants struct.
 type ConstantsType struct {
-	BlockReward          uint32        `json:"blockReward"`
+	BlockReward          uint64        `json:"blockReward"`
 	DebugNetwork         bool          `json:"debugNetwork"`
 	LocalAddr            string        `json:"localAddr"`
 	Listen               bool          `json:"listen"`

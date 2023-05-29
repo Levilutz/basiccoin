@@ -54,10 +54,10 @@ func DHash(content ...[]byte) HashT {
 	return singleHash(first[:])
 }
 
-// Generate a new double hash from the given uint32
-func DHashUint32(value uint32) HashT {
-	bs := make([]byte, 4)
-	binary.BigEndian.PutUint32(bs, value)
+// Generate a new double hash from the given uint64
+func DHashUint64(value uint64) HashT {
+	bs := make([]byte, 8)
+	binary.BigEndian.PutUint64(bs, value)
 	return DHash(bs)
 }
 
@@ -96,8 +96,8 @@ func DHashItems(children ...any) HashT {
 			itemHash = item
 		case []byte:
 			itemHash = DHash(item)
-		case uint32:
-			itemHash = DHashUint32(item)
+		case uint64:
+			itemHash = DHashUint64(item)
 		default:
 			panic(fmt.Sprintf("unhashable type: %T", item))
 		}

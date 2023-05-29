@@ -9,7 +9,7 @@ import (
 // Unspent transaction output.
 type Utxo struct {
 	TxId HashT
-	Ind  uint32
+	Ind  uint64
 }
 
 func UtxoFromInput(txi TxIn) Utxo {
@@ -71,7 +71,7 @@ func (s *State) Rewind() error {
 		}
 		// Remove the tx outputs from the utxo set
 		for i := range tx.Outputs {
-			if !s.Utxos.Remove(Utxo{TxId: txId, Ind: uint32(i)}) {
+			if !s.Utxos.Remove(Utxo{TxId: txId, Ind: uint64(i)}) {
 				return fmt.Errorf("state corrupt - missing utxo %x[%d]", txId, i)
 			}
 		}
@@ -87,7 +87,7 @@ func (s *State) RewindUntil(blockId HashT) error {
 	if err != nil {
 		return err
 	}
-	for i := uint32(0); i < depth; i++ {
+	for i := uint64(0); i < depth; i++ {
 		if err := s.Rewind(); err != nil {
 			return err
 		}
@@ -140,7 +140,7 @@ func (s *State) Advance(nextBlockId HashT) error {
 		}
 		// Add the tx outputs
 		for i := range tx.Outputs {
-			s.Utxos.Add(Utxo{TxId: txId, Ind: uint32(i)})
+			s.Utxos.Add(Utxo{TxId: txId, Ind: uint64(i)})
 		}
 	}
 	s.Head = nextBlockId
@@ -214,7 +214,7 @@ func (s *State) CreateMiningTarget(publicKeyHash HashT) Block {
 		Inputs:   make([]TxIn, 0),
 		Outputs: []TxOut{
 			{
-				Value:         uint32(txFees) + util.Constants.BlockReward,
+				Value:         uint64(txFees) + util.Constants.BlockReward,
 				PublicKeyHash: publicKeyHash,
 			},
 		},

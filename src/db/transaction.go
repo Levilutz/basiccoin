@@ -2,10 +2,10 @@ package db
 
 type TxIn struct {
 	OriginTxId     HashT
-	OriginTxOutInd uint32
+	OriginTxOutInd uint64
 	PublicKey      []byte
 	Signature      []byte
-	Value          uint32
+	Value          uint64
 }
 
 func (txi TxIn) Hash() HashT {
@@ -19,8 +19,8 @@ func (txi TxIn) Hash() HashT {
 }
 
 func (txi TxIn) VSize() uint64 {
-	// 32 from OriginTxId, 4 from OriginTxOutInd, 32 from Value
-	return uint64(32 + 4 + 32 + len(txi.PublicKey) + len(txi.Signature))
+	// 32 from OriginTxId, 8 from OriginTxOutInd, 8 from Value
+	return uint64(32 + 8 + 8 + len(txi.PublicKey) + len(txi.Signature))
 }
 
 func TxInPackHasher(txins []TxIn) []Hasher {
@@ -32,7 +32,7 @@ func TxInPackHasher(txins []TxIn) []Hasher {
 }
 
 type TxOut struct {
-	Value         uint32
+	Value         uint64
 	PublicKeyHash HashT
 }
 
@@ -41,12 +41,12 @@ func (txo TxOut) Hash() HashT {
 }
 
 func (txo TxOut) VSize() uint64 {
-	// 4 from Value, 32 from PublicKeyHash
-	return uint64(4 + 32)
+	// 8 from Value, 32 from PublicKeyHash
+	return uint64(8 + 32)
 }
 
 type Tx struct {
-	MinBlock uint32
+	MinBlock uint64
 	Inputs   []TxIn
 	Outputs  []TxOut
 }
@@ -74,8 +74,8 @@ func (tx Tx) TotalOutputs() uint64 {
 }
 
 func (tx Tx) VSize() uint64 {
-	// 4 from MinBlock, 32 each from top-level hash of Inputs and Outputs
-	vSize := uint64(4 + 32 + 32)
+	// 8 from MinBlock, 32 each from top-level hash of Inputs and Outputs
+	vSize := uint64(8 + 32 + 32)
 	for _, txi := range tx.Inputs {
 		vSize += txi.VSize()
 	}
@@ -100,7 +100,7 @@ func (tx Tx) SignaturesValid() bool {
 	return true
 }
 
-func TxHashPreSig(minBlock uint32, outputs []TxOut) HashT {
+func TxHashPreSig(minBlock uint64, outputs []TxOut) HashT {
 	return DHashItems(minBlock, DHashList(outputs))
 }
 

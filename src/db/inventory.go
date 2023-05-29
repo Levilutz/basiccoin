@@ -12,9 +12,9 @@ var ErrEntityUnknown = errors.New("entity unknown")
 
 // Interface of all the functions that can't invoke SyncMap.Store.
 type InvReader interface {
-	AncestorDepth(blockId HashT, ancestorId HashT) (uint32, error)
+	AncestorDepth(blockId HashT, ancestorId HashT) (uint64, error)
 	AnyBlockIdsKnown(blockIds []HashT) (HashT, bool)
-	GetBlockHeight(blockId HashT) (uint32, error)
+	GetBlockHeight(blockId HashT) (uint64, error)
 	GetBlockHeritage(blockId HashT, maxLen int) ([]HashT, error)
 	GetBlockParentId(blockId HashT) (HashT, error)
 	GetTxInOrigin(txi TxIn) (TxOut, error)
@@ -34,7 +34,7 @@ type Inv struct {
 	merkles *util.SyncMap[HashT, MerkleNode]
 	txs     *util.SyncMap[HashT, Tx]
 	// Aux info (must be inserted before referenced main entity)
-	blockHs *util.SyncMap[HashT, uint32]
+	blockHs *util.SyncMap[HashT, uint64]
 }
 
 func NewInv() *Inv {
@@ -42,7 +42,7 @@ func NewInv() *Inv {
 		blocks:  util.NewSyncMap[HashT, Block](),
 		merkles: util.NewSyncMap[HashT, MerkleNode](),
 		txs:     util.NewSyncMap[HashT, Tx](),
-		blockHs: util.NewSyncMap[HashT, uint32](),
+		blockHs: util.NewSyncMap[HashT, uint64](),
 	}
 	inv.blockHs.Store(HashTZero, 0)
 	inv.blocks.Store(HashTZero, Block{})
@@ -165,7 +165,7 @@ func (inv *Inv) LoadTx(txId HashT) (Tx, bool) {
 
 func (inv *Inv) GetTxInOrigin(txi TxIn) (TxOut, error) {
 	originTx, ok := inv.LoadTx(txi.OriginTxId)
-	if !ok || txi.OriginTxOutInd >= uint32(len(originTx.Outputs)) {
+	if !ok || txi.OriginTxOutInd >= uint64(len(originTx.Outputs)) {
 		return TxOut{}, ErrEntityUnknown
 	}
 	return originTx.Outputs[txi.OriginTxOutInd], nil
@@ -193,7 +193,7 @@ func (inv *Inv) GetBlockParentId(blockId HashT) (HashT, error) {
 }
 
 // Get a block's height (0x0 is height 0, origin block is height 1).
-func (inv *Inv) GetBlockHeight(blockId HashT) (uint32, error) {
+func (inv *Inv) GetBlockHeight(blockId HashT) (uint64, error) {
 	h, ok := inv.blockHs.Load(blockId)
 	if !ok {
 		return 0, ErrEntityUnknown
@@ -361,9 +361,9 @@ func (inv *Inv) VerifyEntityExists(id HashT) error {
 }
 
 // Returns how many blocks deep the ancestor is.
-func (inv *Inv) AncestorDepth(blockId, ancestorId HashT) (uint32, error) {
+func (inv *Inv) AncestorDepth(blockId, ancestorId HashT) (uint64, error) {
 	var err error
-	depth := uint32(0)
+	depth := uint64(0)
 	for blockId != ancestorId && blockId != HashTZero {
 		blockId, err = inv.GetBlockParentId(blockId)
 		if err != nil {
