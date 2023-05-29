@@ -1,6 +1,10 @@
 package db
 
-import "github.com/levilutz/basiccoin/src/util"
+import (
+	"fmt"
+
+	"github.com/levilutz/basiccoin/src/util"
+)
 
 // Unspent transaction output.
 type Utxo struct {
@@ -49,9 +53,9 @@ func (s *State) Rewind() error {
 			s.Utxos.Add(UtxoFromInput(txi))
 		}
 		// Remove the tx outputs from the utxo set
-		for i, _ := range tx.Outputs {
+		for i := range tx.Outputs {
 			if !s.Utxos.Remove(Utxo{TxId: txId, Ind: uint32(i)}) {
-				return err
+				return fmt.Errorf("state corrupt - missing utxo %x[%d]", txId, i)
 			}
 		}
 	}
@@ -59,13 +63,39 @@ func (s *State) Rewind() error {
 	return nil
 }
 
-// Verify whether a state should be allowed to advance to this block.
-func (s *State) CanAdvance(next Block) error {
+// Verify whether a state should be allowed to advance to the given next block.
+func (s *State) ShouldAdvance(nextBlockId HashT) error {
 	return nil
 }
 
-// Advance a state to the next block, does not verify.
+// Advance a state to a given next block, does not verify.
 // If this fails state will be corrupted, so copy before if necessary.
-func (s *State) Advance(next Block) error {
+func (s *State) Advance(nextBlockId HashT) error {
+	nBlock, _, nTxs, err := s.inv.LoadFullBlock(nextBlockId)
+	if nBlock.PrevBlockId != s.Head {
+		return fmt.Errorf("block not based on this parent")
+	}
+	if err != nil {
+		return err
+	}
+	for txId, tx := range nTxs {
+		// Remove tx from mempool
+		if !s.Mempool.Remove(txId) {
+			return fmt.Errorf("state corrupt - missing tx %x", txId)
+		}
+		// Consume the tx inputs
+		for _, txi := range tx.Inputs {
+			if !s.Utxos.Remove(UtxoFromInput(txi)) {
+				return fmt.Errorf(
+					"tx input not available %x[%d]", txi.OriginTxId, txi.OriginTxOutInd,
+				)
+			}
+		}
+		// Add the tx outputs
+		for i := range tx.Outputs {
+			s.Utxos.Add(Utxo{TxId: txId, Ind: uint32(i)})
+		}
+	}
+	s.Head = nextBlockId
 	return nil
 }
