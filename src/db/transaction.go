@@ -55,6 +55,14 @@ func (tx Tx) Hash() HashT {
 	)
 }
 
+func (tx Tx) TotalOutputs() uint64 {
+	total := uint64(0)
+	for _, txo := range tx.Outputs {
+		total += uint64(txo.Value)
+	}
+	return total
+}
+
 func (tx Tx) VSize() uint64 {
 	// 4 from MinBlock, 32 each from top-level hash of Inputs and Outputs
 	vSize := uint64(4 + 32 + 32)

@@ -65,9 +65,26 @@ func (inv *Inv) StoreBlock(b Block) error {
 	} else if len(txs[0].Inputs) != 0 {
 		return fmt.Errorf("block missing coinbase tx")
 	}
-	// TODO: Verify sum of all inputs and outputs is 0
-	// TODO: Verify total vSize within limits
-	// TODO (in caller): Verify difficulty matches ours
+	totalInputs := uint64(util.Constants.BlockReward)
+	totalOutputs := uint64(0)
+	totalVSize := uint64(0)
+	for i, tx := range txs {
+		if i == 0 {
+			totalOutputs += tx.TotalOutputs()
+		} else {
+			surplus, err := inv.GetTxSurplus(tx)
+			if err != nil {
+				return err
+			}
+			totalInputs += surplus
+		}
+		totalVSize += tx.VSize()
+	}
+	if totalInputs != totalOutputs {
+		return fmt.Errorf("total inputs and outputs do not match")
+	} else if totalVSize > util.Constants.MaxBlockVSize {
+		return fmt.Errorf("block exceeds max vSize")
+	}
 	parentHeight, err := inv.GetBlockHeight(b.PrevBlockId)
 	if err != nil {
 		return err
@@ -109,18 +126,23 @@ func (inv *Inv) StoreTx(tx Tx) error {
 	}
 	if !tx.SignaturesValid() {
 		return fmt.Errorf("tx signatures invalid")
-	} else if _, err := inv.GetTxSurplus(tx); err != nil {
-		return err
 	} else if tx.VSize() > util.Constants.MaxTxVSize {
 		return fmt.Errorf("tx VSize exceeds limit")
 	}
+	// Verify outputs < inputs (unless coinbase)
+	if len(tx.Inputs) > 0 {
+		if _, err := inv.GetTxSurplus(tx); err != nil {
+			return err
+		}
+	}
+	// Verify given public key matches hash on claimed utxo
 	for _, txi := range tx.Inputs {
 		origin, err := inv.GetTxInOrigin(txi)
 		if err != nil {
 			return err
 		}
 		if DHash(txi.PublicKey) != origin.PublicKeyHash {
-			return fmt.Errorf("claimed public key does not match hash")
+			return fmt.Errorf("given public key does not match claimed utxo")
 		}
 	}
 	inv.txs.Store(txId, tx)
@@ -150,11 +172,7 @@ func (inv *Inv) GetTxSurplus(tx Tx) (uint64, error) {
 		}
 		totalInputs += uint64(origin.Value)
 	}
-	// Sum up total tx outputs
-	totalOutputs := uint64(0)
-	for _, txo := range tx.Outputs {
-		totalOutputs += uint64(txo.Value)
-	}
+	totalOutputs := tx.TotalOutputs()
 	// Verify and return
 	if totalOutputs >= totalInputs {
 		return 0, fmt.Errorf("tx outputs exceed or match inputs")
