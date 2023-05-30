@@ -207,21 +207,24 @@ func (m *Manager) IntroducePeerConn(pc *peer.PeerConn, weAreInitiator bool) {
 
 func (m *Manager) handleMinedSolution(sol db.Block) error {
 	// Verify solution
-	hash := sol.Hash()
+	solBlockId := sol.Hash()
 	if sol.PrevBlockId != m.state.GetHead() {
 		return fmt.Errorf("block not based on this parent")
 	}
+	// TODO: Verify difficulty correct
 	err := m.inv.StoreBlock(sol)
 	if err != nil {
 		return fmt.Errorf("failed to store solution: %s", err.Error())
 	}
 	newState := m.state.Copy()
-	if err := newState.Advance(hash); err != nil {
+	if err := newState.Advance(solBlockId); err != nil {
 		return fmt.Errorf("failed to advance to mined block: %s", err.Error())
 	}
 	m.state = newState
-	// TODO: Verify difficulty correct
-	// TODO: Set new miner targets
+	// Set new miner targets
+	target := CreateMiningTarget(m.state, m.inv, db.HashTZero)
+	m.minerSet.SetTargets(target)
 	// TODO: Broadcast solution to peers
+	fmt.Printf("Mined block %x\n", solBlockId)
 	return nil
 }

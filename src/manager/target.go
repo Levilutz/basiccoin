@@ -8,7 +8,7 @@ import (
 // Create a new mining target block given where to send the reward.
 func CreateMiningTarget(s *db.State, inv *db.Inv, publicKeyHash db.HashT) db.Block {
 	difficulty, err := db.StringToHash(
-		"00000fffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+		"000000ffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
 	)
 	if err != nil {
 		panic(err)

@@ -15,7 +15,9 @@ func Aggregate[K any](chans []chan K) <-chan K {
 	for _, ch := range chans {
 		in := ch
 		go func() {
-			out <- <-in
+			for {
+				out <- <-in
+			}
 		}()
 	}
 	return out
