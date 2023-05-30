@@ -44,14 +44,15 @@ func BlockMaxTxs() uint64 {
 	return maxStandardTxs + 1
 }
 
-// The maximum possible size of a block's merkle tree, including tx leafs.
+// The (overestimated) max possible size of any block's merkle tree, including tx leafs.
 func MerkleTreeMaxSize() uint64 {
-	return BlockMaxTxs()*2 - 1
+	// Actual tree size <= floor(leafs * 20 / 9)
+	return uint64(float64(BlockMaxTxs()) * 20.0 / 9.0)
 }
 
 // Construct a merkle tree from a list of txIds.
-// Returns merkle nodes by hash, and order they should be inserted into inv. Last
-// id in list is the root.
+// Returns merkle nodes by hash, and order they should be inserted into inv. Last id in
+// list is the root.
 func MerkleFromTxIds(txIds []HashT) (map[HashT]MerkleNode, []HashT) {
 	if len(txIds) == 0 {
 		panic("need at least one tx to generate tree")
@@ -97,5 +98,5 @@ func MerkleFromTxIds(txIds []HashT) (map[HashT]MerkleNode, []HashT) {
 			outLayers[l] = append(outLayers[l], nodeId)
 		}
 	}
-	return outMap, util.FlattenLists(outLayers)
+	return outMap, util.FlattenLists(outLayers[1:])
 }

@@ -5,15 +5,24 @@ import (
 	"net"
 	"time"
 
+	"github.com/levilutz/basiccoin/src/db"
 	"github.com/levilutz/basiccoin/src/manager"
 	"github.com/levilutz/basiccoin/src/peer"
 	"github.com/levilutz/basiccoin/src/util"
 )
 
+func printComputedConstants() {
+	fmt.Println("CoinbaseVSize:", db.CoinbaseVSize())
+	fmt.Println("MinNonCoinbaseVSize:", db.MinNonCoinbaseVSize())
+	fmt.Println("BlockMaxTxs", db.BlockMaxTxs())
+	fmt.Println("MerkleTreeMaxSize", db.MerkleTreeMaxSize())
+}
+
 func main() {
 	cli_args := util.ParseCLIArgs()
 	util.PrettyPrint(cli_args)
 	util.PrettyPrint(util.Constants)
+	printComputedConstants()
 
 	manager := manager.NewManager()
 
