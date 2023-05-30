@@ -13,10 +13,15 @@ go build -o basiccoin ./src
 
 To start a new chain
 ```bash
-./basiccoin
+./basiccoin --addr="<addr:port to host from>"
 ```
 
 To connect to an existing chain
 ```bash
-./basiccoin --seed="<Peer's Address>"
+./basiccoin --seed="<addr:port of seed peer>"
+```
+
+For more info
+```bash
+./basiccoin --help
 ```
