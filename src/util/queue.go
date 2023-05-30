@@ -22,3 +22,7 @@ func (q *Queue[K]) Pop() (key K, ok bool) {
 	q.q = q.q[1:]
 	return key, true
 }
+
+func (q *Queue[K]) Size() int {
+	return len(q.q)
+}

@@ -53,19 +53,25 @@ func NewInv() *Inv {
 func (inv *Inv) StoreBlock(b Block) error {
 	blockId := b.Hash()
 	if _, ok := inv.LoadBlock(blockId); ok {
-		return ErrEntityKnown
+		return fmt.Errorf("block already known: %x", blockId)
 	} else if !BelowTarget(blockId, b.Difficulty) {
 		return fmt.Errorf("block failed to beat target difficulty")
 	}
+	parentHeight, err := inv.GetBlockHeight(b.PrevBlockId)
+	if err != nil {
+		return fmt.Errorf("failed to find parent height: %s", err.Error())
+	}
 	txs, err := inv.LoadMerkleTxs(b.MerkleRoot)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to find new block txs: %s", err.Error())
 	} else if len(txs) == 0 {
 		return fmt.Errorf("block has no txs")
 	} else if len(txs) > int(BlockMaxTxs()) {
 		return fmt.Errorf("block has too many txs")
 	} else if len(txs[0].Inputs) != 0 {
 		return fmt.Errorf("block missing coinbase tx")
+	} else if txs[0].MinBlock != parentHeight+1 {
+		return fmt.Errorf("coinbase MinBlock does not equal height")
 	}
 	totalInputs := uint64(util.Constants.BlockReward)
 	totalOutputs := uint64(0)
@@ -84,10 +90,6 @@ func (inv *Inv) StoreBlock(b Block) error {
 	} else if totalVSize > util.Constants.MaxBlockVSize {
 		return fmt.Errorf("block exceeds max vSize")
 	}
-	parentHeight, err := inv.GetBlockHeight(b.PrevBlockId)
-	if err != nil {
-		return err
-	}
 	inv.blockHs.Store(blockId, parentHeight+1)
 	inv.blocks.Store(blockId, b)
 	return nil
@@ -102,11 +104,11 @@ func (inv *Inv) LoadBlock(blockId HashT) (Block, bool) {
 func (inv *Inv) StoreMerkle(merkle MerkleNode) error {
 	nodeId := merkle.Hash()
 	if _, ok := inv.merkles.Load(nodeId); ok {
-		return ErrEntityKnown
+		return fmt.Errorf("merkle already known: %x", nodeId)
 	} else if err := inv.VerifyEntityExists(merkle.LChild); err != nil {
-		return err
+		return fmt.Errorf("failed to find LChild of %x: %s", nodeId, err.Error())
 	} else if err := inv.VerifyEntityExists(merkle.RChild); err != nil {
-		return err
+		return fmt.Errorf("failed to find RChild of %x: %s", nodeId, err.Error())
 	}
 	inv.merkles.Store(nodeId, merkle)
 	return nil
@@ -121,7 +123,7 @@ func (inv *Inv) LoadMerkle(nodeId HashT) (MerkleNode, bool) {
 func (inv *Inv) StoreTx(tx Tx) error {
 	txId := tx.Hash()
 	if _, ok := inv.txs.Load(txId); ok {
-		return ErrEntityKnown
+		return fmt.Errorf("tx already known: %x", txId)
 	}
 	if !tx.SignaturesValid() {
 		return fmt.Errorf("tx signatures invalid")
@@ -145,7 +147,12 @@ func (inv *Inv) StoreTx(tx Tx) error {
 	for _, txi := range tx.Inputs {
 		origin, err := inv.GetTxInOrigin(txi)
 		if err != nil {
-			return err
+			return fmt.Errorf(
+				"failed to find utxo %x[%d]: %s",
+				txi.OriginTxId,
+				txi.OriginTxOutInd,
+				err.Error(),
+			)
 		}
 		if DHash(txi.PublicKey) != origin.PublicKeyHash {
 			return fmt.Errorf("given public key does not match claimed utxo")
@@ -258,7 +265,7 @@ func (inv *Inv) LoadMerkleTxs(root HashT) ([]Tx, error) {
 				idQueue.Push(merkle.RChild)
 			}
 		} else {
-			return nil, ErrEntityUnknown
+			return nil, fmt.Errorf("unrecognized tree node: %x", nextId)
 		}
 	}
 

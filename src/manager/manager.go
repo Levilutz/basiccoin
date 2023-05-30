@@ -30,14 +30,16 @@ type Manager struct {
 
 func NewManager() *Manager {
 	inv := db.NewInv()
+	state := db.NewState(inv)
 	minerSet := miner.StartMinerSet(util.Constants.Miners)
-	// minerSet.SetTargets
+	initialTarget := CreateMiningTarget(state, inv, db.HashTZero)
+	minerSet.SetTargets(initialTarget)
 	return &Manager{
 		metConnChannel: make(chan MetConn),
 		mainBus:        make(chan any),
 		peers:          make(map[string]*peer.Peer),
 		inv:            inv,
-		state:          db.NewState(inv),
+		state:          state,
 		minerSet:       minerSet,
 	}
 }
@@ -81,7 +83,10 @@ func (m *Manager) Loop() {
 			m.printPeersUpdate()
 
 		case sol := <-m.minerSet.SolutionCh:
-			m.handleMinedSolution(sol)
+			err := m.handleMinedSolution(sol)
+			if err != nil {
+				fmt.Println("handleMinedSolution err:", err.Error())
+			}
 		}
 	}
 }
@@ -208,11 +213,11 @@ func (m *Manager) handleMinedSolution(sol db.Block) error {
 	}
 	err := m.inv.StoreBlock(sol)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to store solution: %s", err.Error())
 	}
 	newState := m.state.Copy()
 	if err := newState.Advance(hash); err != nil {
-		return err
+		return fmt.Errorf("failed to advance to mined block: %s", err.Error())
 	}
 	m.state = newState
 	// TODO: Verify difficulty correct

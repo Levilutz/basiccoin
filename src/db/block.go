@@ -27,6 +27,15 @@ func (b Block) Hash() HashT {
 	return DHashItems(b.PrevBlockId, b.MerkleRoot, b.Difficulty, b.Nonce)
 }
 
+func (b Block) String() string {
+	out := "Block{\n"
+	out += fmt.Sprintf("\tPrevBlockId: %x\n", b.PrevBlockId)
+	out += fmt.Sprintf("\tMerkleRoot: %x\n", b.MerkleRoot)
+	out += fmt.Sprintf("\tDifficulty: %x\n", b.Difficulty)
+	out += fmt.Sprintf("\tNonce: %d\n", b.Nonce)
+	return out + "}"
+}
+
 // Verify that the claimed proof of work is valid.
 func (b Block) VerifyProofOfWork() error {
 	if !BelowTarget(b.Hash(), b.Difficulty) {

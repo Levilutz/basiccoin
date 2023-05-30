@@ -106,13 +106,13 @@ func (s *State) RewindUntil(blockId HashT) error {
 // Advance a state to a given next block.
 // If this fails state will be corrupted, so copy before if necessary.
 func (s *State) Advance(nextBlockId HashT) error {
-	nBlock, ok := s.inv.LoadBlock(s.Head)
+	nBlock, ok := s.inv.LoadBlock(nextBlockId)
 	if !ok {
-		return ErrEntityUnknown
+		return fmt.Errorf("cannot advance, block unknown: %x", nextBlockId)
 	}
 	nTxs, err := s.inv.LoadMerkleTxs(nBlock.MerkleRoot)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to load merkle txs: %s", err.Error())
 	}
 	if nBlock.PrevBlockId != s.Head {
 		return fmt.Errorf("block not based on this parent")
@@ -121,12 +121,12 @@ func (s *State) Advance(nextBlockId HashT) error {
 		txId := tx.Hash()
 		err := s.VerifyTxIncludable(txId)
 		if err != nil {
-			return err
+			return fmt.Errorf("tx not includable: %s", err.Error())
 		}
 		// Verify above min block height
 		height, err := s.inv.GetBlockHeight(nextBlockId)
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to retrieve next block height: %s", err.Error())
 		}
 		if height < tx.MinBlock {
 			return fmt.Errorf("tx cannot be included in block - too low")
@@ -193,7 +193,7 @@ func (s *State) VerifyTxIncludable(txId HashT) error {
 }
 
 // Get includable mempool txs sorted be fee rate, descending.
-func (s *State) getSortedIncludableMempool() []HashT {
+func (s *State) GetSortedIncludableMempool() []HashT {
 	mem := s.Mempool.Copy()
 	mem.Filter(func(key HashT) bool {
 		return s.VerifyTxIncludable(key) == nil
@@ -206,66 +206,12 @@ func (s *State) getSortedIncludableMempool() []HashT {
 	return memL
 }
 
-// Create a new mining target block given where to send the reward.
-func (s *State) CreateMiningTarget(publicKeyHash HashT) Block {
-	difficulty, err := StringToHash(
-		"000000ffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
-	)
-	if err != nil {
-		panic(err)
+// Add a tx to the mempool.
+func (s *State) AddMempoolTx(txId HashT) {
+	tx, ok := s.inv.LoadTx(txId)
+	if !ok {
+		panic("tx should exist")
 	}
-	// Build tx list until we hit max size
-	outTxs := make([]Tx, 1)
-	outTxs[0] = Tx{} // Placeholder for coinbase
-	totalFees := uint64(0)
-	sizeLeft := util.Constants.MaxBlockVSize - CoinbaseVSize()
-	candidateTxIds := s.getSortedIncludableMempool()
-	for _, txId := range candidateTxIds {
-		tx, ok := s.inv.LoadTx(txId)
-		if !ok {
-			panic(ErrEntityUnknown)
-		}
-		// Check if tx is too big to fit in space left
-		vSize := tx.VSize()
-		if vSize > sizeLeft {
-			continue
-		}
-		// Include tx in out set
-		outTxs = append(outTxs, tx)
-		sizeLeft -= vSize
-		totalFees += tx.TotalInputs() - tx.TotalOutputs()
-		// If we're out of space, break
-		if sizeLeft < MinNonCoinbaseVSize() {
-			break
-		}
-	}
-	// Actually make coinbase tx
-	headHeight, err := s.inv.GetBlockHeight(s.Head)
-	if err != nil {
-		panic(err)
-	}
-	outTxs[0] = Tx{
-		MinBlock: headHeight + 1,
-		Inputs:   make([]TxIn, 0),
-		Outputs: []TxOut{
-			{
-				Value:         uint64(totalFees) + util.Constants.BlockReward,
-				PublicKeyHash: publicKeyHash,
-			},
-		},
-	}
-	// Build merkle tree from tx list
-	txIds := make([]HashT, len(outTxs))
-	for i := range txIds {
-		txIds[i] = outTxs[i].Hash()
-	}
-	merkleMap, merkleIds := MerkleFromTxIds(txIds)
-	for _, nodeId := range merkleIds {
-		s.inv.StoreMerkle(merkleMap[nodeId])
-	}
-	return Block{
-		PrevBlockId: s.Head,
-		MerkleRoot:  merkleIds[len(merkleIds)-1],
-		Difficulty:  difficulty,
-	}
+	s.Mempool.Add(txId)
+	s.mempoolRates[txId] = tx.Rate()
 }
