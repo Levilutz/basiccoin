@@ -254,10 +254,18 @@ func (s *State) CreateMiningTarget(publicKeyHash HashT) Block {
 			},
 		},
 	}
-	// TODO: Build merkle tree from tx list
+	// Build merkle tree from tx list
+	txIds := make([]HashT, len(outTxs))
+	for i := range txIds {
+		txIds[i] = outTxs[i].Hash()
+	}
+	merkleMap, merkleIds := MerkleFromTxIds(txIds)
+	for _, nodeId := range merkleIds {
+		s.inv.StoreMerkle(merkleMap[nodeId])
+	}
 	return Block{
 		PrevBlockId: s.Head,
-		MerkleRoot:  HashTZero, // TODO: WIP
+		MerkleRoot:  merkleIds[len(merkleIds)-1],
 		Difficulty:  difficulty,
 	}
 }
