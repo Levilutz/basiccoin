@@ -30,6 +30,15 @@ func CopyMap[K comparable, V any](m map[K]V) map[K]V {
 	return out
 }
 
+// Flatten a double list.
+func FlattenLists[K comparable](in [][]K) []K {
+	out := make([]K, 0)
+	for _, inL := range in {
+		out = append(out, inL...)
+	}
+	return out
+}
+
 // Generate UUID
 func UUID() (string, error) {
 	b := make([]byte, 16)
