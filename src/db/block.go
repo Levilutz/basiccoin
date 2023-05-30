@@ -20,11 +20,12 @@ type Block struct {
 	PrevBlockId HashT
 	MerkleRoot  HashT
 	Difficulty  HashT
+	Noise       HashT
 	Nonce       uint64
 }
 
 func (b Block) Hash() HashT {
-	return DHashItems(b.PrevBlockId, b.MerkleRoot, b.Difficulty, b.Nonce)
+	return DHashItems(b.PrevBlockId, b.MerkleRoot, b.Difficulty, b.Noise, b.Nonce)
 }
 
 func (b Block) String() string {
@@ -32,6 +33,7 @@ func (b Block) String() string {
 	out += fmt.Sprintf("\tPrevBlockId: %x\n", b.PrevBlockId)
 	out += fmt.Sprintf("\tMerkleRoot: %x\n", b.MerkleRoot)
 	out += fmt.Sprintf("\tDifficulty: %x\n", b.Difficulty)
+	out += fmt.Sprintf("\tNoise: %d\n", b.Noise)
 	out += fmt.Sprintf("\tNonce: %d\n", b.Nonce)
 	return out + "}"
 }

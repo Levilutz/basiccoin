@@ -71,6 +71,7 @@ func (m *Miner) mine(rounds uint64) (db.Block, bool) {
 			PrevBlockId: m.target.PrevBlockId,
 			MerkleRoot:  m.target.MerkleRoot,
 			Difficulty:  m.target.Difficulty,
+			Noise:       m.target.Noise,
 			Nonce:       m.nextNonce,
 		}
 		hash := target.Hash()
