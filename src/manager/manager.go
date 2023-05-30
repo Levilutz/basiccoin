@@ -208,7 +208,7 @@ func (m *Manager) IntroducePeerConn(pc *peer.PeerConn, weAreInitiator bool) {
 func (m *Manager) handleMinedSolution(sol db.Block) error {
 	// Verify solution
 	hash := sol.Hash()
-	if sol.PrevBlockId != m.state.Head {
+	if sol.PrevBlockId != m.state.GetHead() {
 		return fmt.Errorf("block not based on this parent")
 	}
 	err := m.inv.StoreBlock(sol)

@@ -39,7 +39,7 @@ func CreateMiningTarget(s *db.State, inv *db.Inv, publicKeyHash db.HashT) db.Blo
 		}
 	}
 	// Actually make coinbase tx
-	headHeight, err := inv.GetBlockHeight(s.Head)
+	headHeight, err := inv.GetBlockHeight(s.GetHead())
 	if err != nil {
 		panic(err)
 	}
@@ -81,7 +81,7 @@ func CreateMiningTarget(s *db.State, inv *db.Inv, publicKeyHash db.HashT) db.Blo
 		}
 	}
 	return db.Block{
-		PrevBlockId: s.Head,
+		PrevBlockId: s.GetHead(),
 		MerkleRoot:  merkleIds[len(merkleIds)-1],
 		Difficulty:  difficulty,
 	}
