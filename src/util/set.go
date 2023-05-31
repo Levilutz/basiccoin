@@ -69,3 +69,13 @@ func (s *Set[K]) ToList() []K {
 	}
 	return out
 }
+
+// Check whether this set intersects another.
+func (s *Set[K]) HasIntersection(other *Set[K]) bool {
+	for item := range other.s {
+		if s.Includes(item) {
+			return true
+		}
+	}
+	return false
+}

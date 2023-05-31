@@ -64,7 +64,7 @@ func verifyBlock(inv InvReader, block Block) error {
 // Checks left child exists.
 // Checks right child exists, if different from left child.
 // Checks new total vSize is within limit.
-// TODO: Checks no overlap between tx sets of children.
+// Checks no overlap between tx sets of children.
 func verifyMerkle(inv InvReader, merkle MerkleNode) error {
 	// Get left child size
 	totalSize := uint64(0)
@@ -79,6 +79,12 @@ func verifyMerkle(inv InvReader, merkle MerkleNode) error {
 			totalSize += inv.GetEntityVSize(merkle.RChild)
 		} else {
 			return fmt.Errorf("failed to find RChild: %x", merkle.RChild)
+		}
+		// Check no overlap between tx sets of children
+		lTxs := util.NewSetFromList(inv.GetMerkleTxIds(merkle.LChild))
+		rTxs := util.NewSetFromList(inv.GetMerkleTxIds(merkle.RChild))
+		if lTxs.HasIntersection(rTxs) {
+			return fmt.Errorf("merkle children are different but share txs")
 		}
 	}
 	if totalSize > util.Constants.MaxBlockVSize {

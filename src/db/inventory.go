@@ -22,6 +22,7 @@ type InvReader interface {
 	HasMerkle(nodeId HashT) bool
 	GetMerkle(merkleId HashT) MerkleNode
 	GetMerkleVSize(merkleId HashT) uint64
+	GetMerkleTxIds(root HashT) []HashT
 	GetMerkleTxs(root HashT) []Tx
 	HasTx(txId HashT) bool
 	GetTx(txId HashT) Tx
@@ -140,9 +141,9 @@ func (inv *Inv) GetMerkleVSize(merkleId HashT) uint64 {
 	return inv.merkles.Get(merkleId).vSize
 }
 
-// Load all txs descended from a merkle node.
-func (inv *Inv) GetMerkleTxs(root HashT) []Tx {
-	outTxs := make([]Tx, 0)
+// Load ids of all txs descended from a merkle node.
+func (inv *Inv) GetMerkleTxIds(root HashT) []HashT {
+	outTxIds := make([]HashT, 0)
 	// Go through each node in tree, categorizing as either tx or merkle
 	idQueue := util.NewQueue(root)
 	// Pick off queue until empty (finite bc merkle tree can't be cyclic)
@@ -150,7 +151,7 @@ func (inv *Inv) GetMerkleTxs(root HashT) []Tx {
 		nextId, _ := idQueue.Pop()
 		// Load tx or merkle and categorize
 		if inv.HasTx(nextId) {
-			outTxs = append(outTxs, inv.GetTx(nextId))
+			outTxIds = append(outTxIds, nextId)
 		} else if inv.HasMerkle(nextId) {
 			merkle := inv.GetMerkle(nextId)
 			idQueue.Push(merkle.LChild)
@@ -161,7 +162,17 @@ func (inv *Inv) GetMerkleTxs(root HashT) []Tx {
 			panic(fmt.Sprintf("unrecognized tree node: %x", nextId))
 		}
 	}
-	return outTxs
+	return outTxIds
+}
+
+// Load all txs descended from a merkle node.
+func (inv *Inv) GetMerkleTxs(root HashT) []Tx {
+	txIds := inv.GetMerkleTxIds(root)
+	out := make([]Tx, len(txIds))
+	for i, txId := range txIds {
+		out[i] = inv.GetTx(txId)
+	}
+	return out
 }
 
 // Return whether the given tx id exists.
