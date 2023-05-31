@@ -11,6 +11,8 @@ import (
 func handleReceiveNewBlockExchange(
 	pc *PeerConn, inv db.InvReader,
 ) (event events.CandidateLedgerUpgradeMainEvent, err error) {
+	var recId db.HashT
+	var ok bool
 	// Exchange init
 	topBlockIdStr := pc.RetryReadStringLine(7)
 	if err := pc.Err(); err != nil {
@@ -40,7 +42,7 @@ func handleReceiveNewBlockExchange(
 		if err != nil {
 			return event, err
 		}
-		recId, ok := inv.HasAnyBlock(newBlockIds.BlockIds)
+		recId, ok = inv.HasAnyBlock(newBlockIds.BlockIds)
 		// Add to list of needed block ids, until we hit the one we recognize
 		for _, blockId := range newBlockIds.BlockIds {
 			if ok && recId == blockId {
@@ -51,7 +53,7 @@ func handleReceiveNewBlockExchange(
 		// Stop the initiator from sending more block ids
 		if ok {
 			pc.TransmitStringLine("recognized")
-			pc.TransmitStringLine(fmt.Sprintf("%x", recId))
+			pc.TransmitMessage(BlockIdsMessage{BlockIds: []db.HashT{recId}})
 			if err := pc.Err(); err != nil {
 				return event, err
 			}
@@ -59,6 +61,7 @@ func handleReceiveNewBlockExchange(
 		}
 	}
 	// Exchange block headers
+	blocks := make(map[db.HashT]db.Block, len(neededBlockIds))
 	for _, expectedBlockId := range neededBlockIds {
 		block, err := ReceiveBlockHeaderMessage(pc)
 		if err != nil {
@@ -70,7 +73,19 @@ func handleReceiveNewBlockExchange(
 				"mismatched block %x != %x", blockId, expectedBlockId,
 			)
 		}
+		blocks[blockId] = block.Block
 	}
+	// Verify valid chain and proof of work (contains some ddos attacks to peer thread)
+	for i := 0; i < len(neededBlockIds)-1; i++ {
+		if blocks[neededBlockIds[i]].PrevBlockId != neededBlockIds[i+1] {
+			return event, fmt.Errorf("new block parent mismatched")
+		}
+	}
+	lastBlockId := neededBlockIds[len(neededBlockIds)-1]
+	if blocks[lastBlockId].PrevBlockId != recId {
+		return event, fmt.Errorf("last block does not attach to our chain")
+	}
+	// TODO: Verify proof of work beats ours (requires we know head)
 	// Check if higher work than existing head (from branch point)
 	// If not, terminate exchange
 	// Exchange merkles and txs
