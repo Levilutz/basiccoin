@@ -14,8 +14,8 @@ func receiveStandardMessage[R PeerMessage](pc *PeerConn) (R, error) {
 	// Cannot be method until golang allows type params on methods
 	var content R
 	data := pc.RetryReadLine(7)
-	if err := pc.Err(); err != nil {
-		return content, err
+	if pc.HasErr() {
+		return content, pc.Err()
 	}
 	return util.UnJsonB64[R](data)
 }
@@ -65,8 +65,8 @@ type AddrsMessage struct {
 // Construct an AddrsMessage
 func ReceiveAddrsMessage(pc *PeerConn) (AddrsMessage, error) {
 	numAddrs := pc.RetryReadIntLine(7)
-	if err := pc.Err(); err != nil {
-		return AddrsMessage{}, err
+	if pc.HasErr() {
+		return AddrsMessage{}, pc.Err()
 	}
 	addrs := make([]string, numAddrs)
 	for i := 0; i < numAddrs; i++ {
@@ -102,16 +102,16 @@ func ReceiveBlockIdsMessage(pc *PeerConn) (BlockIdsMessage, error) {
 	pc.ConsumeExpected("block-ids")
 	numBlockIds := pc.RetryReadIntLine(7)
 	line := pc.RetryReadStringLine(7)
-	if err := pc.Err(); err != nil {
-		return BlockIdsMessage{}, err
+	if pc.HasErr() {
+		return BlockIdsMessage{}, pc.Err()
 	}
 	hashes, err := db.StringToHashes(line, numBlockIds)
 	if err != nil {
 		return BlockIdsMessage{}, err
 	}
 	pc.ConsumeExpected("fin:block-ids")
-	if err := pc.Err(); err != nil {
-		return BlockIdsMessage{}, err
+	if pc.HasErr() {
+		return BlockIdsMessage{}, pc.Err()
 	}
 	return BlockIdsMessage{
 		BlockIds: hashes,
@@ -137,8 +137,8 @@ type BlockHeaderMessage struct {
 func ReceiveBlockHeaderMessage(pc *PeerConn) (BlockHeaderMessage, error) {
 	hashesLine := pc.RetryReadStringLine(7)
 	nonce := pc.RetryReadUint64Line(7)
-	if err := pc.Err(); err != nil {
-		return BlockHeaderMessage{}, err
+	if pc.HasErr() {
+		return BlockHeaderMessage{}, pc.Err()
 	}
 	hashes, err := db.StringToHashes(hashesLine, 4)
 	if err != nil {

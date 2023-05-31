@@ -270,6 +270,11 @@ func (pc *PeerConn) Close() error {
 	return pc.c.Close()
 }
 
+// Check whether we have a stored error.
+func (pc *PeerConn) HasErr() bool {
+	return pc.e != nil
+}
+
 // Pop the stored error
 func (pc *PeerConn) Err() error {
 	defer func() { pc.e = nil }()

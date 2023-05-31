@@ -79,7 +79,7 @@ func (p *Peer) Loop() {
 
 		default:
 			line := p.conn.ReadLineTimeout(100 * time.Millisecond)
-			if err := p.conn.Err(); err != nil {
+			if p.conn.HasErr() {
 				continue
 			}
 			shouldClose, err = p.handleReceivedLine(line)
@@ -136,8 +136,8 @@ func (p *Peer) handleReceivedLine(line []byte) (bool, error) {
 	}
 
 	p.conn.TransmitStringLine("ack:" + command)
-	if err := p.conn.Err(); err != nil {
-		return false, err
+	if p.conn.HasErr() {
+		return false, p.conn.Err()
 	}
 
 	if command == "ping" {
@@ -183,8 +183,8 @@ func (p *Peer) issuePeerCommand(command string, handler func() error) (bool, err
 	p.conn.TransmitStringLine("cmd:" + command)
 	// Expect to receive either "ack:our command" or "cmd:their command"
 	resp := p.conn.RetryReadLine(7)
-	if err := p.conn.Err(); err != nil {
-		return false, err
+	if p.conn.HasErr() {
+		return false, p.conn.Err()
 	}
 	// Happy path - they acknowledged us
 	if string(resp) == "ack:"+command {
@@ -203,16 +203,16 @@ func (p *Peer) issuePeerCommand(command string, handler func() error) (bool, err
 				return shouldClose, err
 			}
 			p.conn.ConsumeExpected("ack:" + command)
-			if err := p.conn.Err(); err != nil {
-				return false, err
+			if p.conn.HasErr() {
+				return false, p.conn.Err()
 			}
 			return false, handler()
 
 		} else {
 			// If we received the og handshake, expect to be honored, then honor theirs
 			p.conn.ConsumeExpected("ack:" + command)
-			if err := p.conn.Err(); err != nil {
-				return false, err
+			if p.conn.HasErr() {
+				return false, p.conn.Err()
 			}
 			err := handler()
 			if err != nil {
@@ -235,8 +235,8 @@ func (p *Peer) handleClose(issuing bool, notifyMainBus bool) error {
 			}
 		}()
 	}
-	if err := p.conn.Err(); err != nil {
-		return err
+	if p.conn.HasErr() {
+		return p.conn.Err()
 	}
 	return p.conn.Close()
 }

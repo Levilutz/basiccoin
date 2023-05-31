@@ -15,8 +15,8 @@ func handleReceiveNewBlockExchange(
 	var ok bool
 	// Exchange init
 	topBlockIdStr := pc.RetryReadStringLine(7)
-	if err := pc.Err(); err != nil {
-		return event, err
+	if pc.HasErr() {
+		return event, pc.Err()
 	}
 	topBlockId, err := db.StringToHash(topBlockIdStr)
 	if err != nil {
@@ -24,15 +24,15 @@ func handleReceiveNewBlockExchange(
 	}
 	if inv.HasBlock(topBlockId) {
 		pc.TransmitStringLine("fin:new-block")
-		if err := pc.Err(); err != nil {
-			return event, err
+		if pc.HasErr() {
+			return event, pc.Err()
 		}
 		return event, fmt.Errorf("block id known")
 	}
 	// Exchange block ids
 	pc.TransmitStringLine("next-blocks")
-	if err := pc.Err(); err != nil {
-		return event, err
+	if pc.HasErr() {
+		return event, pc.Err()
 	}
 	neededBlockIds := []db.HashT{
 		topBlockId,
@@ -54,8 +54,8 @@ func handleReceiveNewBlockExchange(
 		if ok {
 			pc.TransmitStringLine("recognized")
 			pc.TransmitMessage(BlockIdsMessage{BlockIds: []db.HashT{recId}})
-			if err := pc.Err(); err != nil {
-				return event, err
+			if pc.HasErr() {
+				return event, pc.Err()
 			}
 			break
 		}
@@ -98,8 +98,8 @@ func handleTransmitNewBlockExchange(
 	// Exchange init
 	pc.TransmitStringLine(fmt.Sprintf("%x", blockId))
 	resp := pc.RetryReadStringLine(7)
-	if err := pc.Err(); err != nil {
-		return err
+	if pc.HasErr() {
+		return pc.Err()
 	}
 	if resp == "fin:new-block" {
 		return nil
@@ -111,8 +111,8 @@ func handleTransmitNewBlockExchange(
 		nextBlocks := inv.GetBlockAncestors(blockId, 20)
 		pc.TransmitMessage(BlockIdsMessage{BlockIds: nextBlocks})
 		resp = pc.RetryReadStringLine(7)
-		if err := pc.Err(); err != nil {
-			return err
+		if pc.HasErr() {
+			return pc.Err()
 		}
 	}
 	if resp != "recognized" {
