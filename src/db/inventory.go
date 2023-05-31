@@ -21,36 +21,49 @@ type InvReader interface {
 	GetBlockAncestorDepth(blockId HashT, ancestorId HashT) (uint64, bool)
 	HasMerkle(nodeId HashT) bool
 	GetMerkle(merkleId HashT) MerkleNode
+	GetMerkleVSize(merkleId HashT) uint64
 	GetMerkleTxs(root HashT) []Tx
 	HasTx(txId HashT) bool
 	GetTx(txId HashT) Tx
+	GetTxVSize(txId HashT) uint64
 	HasTxOut(txId HashT, ind uint64) bool
 	GetTxOut(txId HashT, ind uint64) TxOut
-	GetEntityVSize(nodeId HashT) uint64
+}
+
+type blockRecord struct {
+	block  Block
+	height uint64
+}
+
+type merkleRecord struct {
+	merkle MerkleNode
+	vSize  uint64
+}
+
+type txRecord struct {
+	tx    Tx
+	vSize uint64
 }
 
 // Write-once read-many maps.
 // Only one thread should be making writes at a time, but many can be reading.
 type Inv struct {
 	// Main inventory
-	blocks  *util.SyncMap[HashT, Block]
-	merkles *util.SyncMap[HashT, MerkleNode]
-	txs     *util.SyncMap[HashT, Tx]
-	// Aux info (must be inserted before referenced main entity)
-	blockHeights *util.SyncMap[HashT, uint64]
-	entityVSizes *util.SyncMap[HashT, uint64]
+	blocks  *util.SyncMap[HashT, blockRecord]
+	merkles *util.SyncMap[HashT, merkleRecord]
+	txs     *util.SyncMap[HashT, txRecord]
 }
 
 func NewInv() *Inv {
 	inv := &Inv{
-		blocks:       util.NewSyncMap[HashT, Block](),
-		merkles:      util.NewSyncMap[HashT, MerkleNode](),
-		txs:          util.NewSyncMap[HashT, Tx](),
-		blockHeights: util.NewSyncMap[HashT, uint64](),
-		entityVSizes: util.NewSyncMap[HashT, uint64](),
+		blocks:  util.NewSyncMap[HashT, blockRecord](),
+		merkles: util.NewSyncMap[HashT, merkleRecord](),
+		txs:     util.NewSyncMap[HashT, txRecord](),
 	}
-	inv.blockHeights.Store(HashTZero, 0)
-	inv.blocks.Store(HashTZero, Block{})
+	inv.blocks.Store(HashTZero, blockRecord{
+		block:  Block{},
+		height: 0,
+	})
 	return inv
 }
 
@@ -70,12 +83,12 @@ func (inv *Inv) HasAnyBlock(blockIds []HashT) (HashT, bool) {
 
 // Get a block, panic if it doesn't exist.
 func (inv *Inv) GetBlock(blockId HashT) Block {
-	return inv.blocks.Get(blockId)
+	return inv.blocks.Get(blockId).block
 }
 
 // Get a block's height (0x0 is height 0, origin block is height 1).
 func (inv *Inv) GetBlockHeight(blockId HashT) uint64 {
-	return inv.blockHeights.Get(blockId)
+	return inv.blocks.Get(blockId).height
 }
 
 func (inv *Inv) GetBlockParentId(blockId HashT) HashT {
@@ -117,7 +130,12 @@ func (inv *Inv) HasMerkle(nodeId HashT) bool {
 
 // Get a merkle, panic if it doesn't exist.
 func (inv *Inv) GetMerkle(merkleId HashT) MerkleNode {
-	return inv.merkles.Get(merkleId)
+	return inv.merkles.Get(merkleId).merkle
+}
+
+// Get the vSize of all txs descended from a merkle node, panic if it doesn't exist.
+func (inv *Inv) GetMerkleVSize(merkleId HashT) uint64 {
+	return inv.merkles.Get(merkleId).vSize
 }
 
 // Load all txs descended from a merkle node.
@@ -151,7 +169,12 @@ func (inv *Inv) HasTx(txId HashT) bool {
 
 // Get a tx, panic if it doesn't exist.
 func (inv *Inv) GetTx(txId HashT) Tx {
-	return inv.txs.Get(txId)
+	return inv.txs.Get(txId).tx
+}
+
+// Get a tx's vSize, panic if it doesn't exist.
+func (inv *Inv) GetTxVSize(txId HashT) uint64 {
+	return inv.txs.Get(txId).vSize
 }
 
 // Return whether the given tx has the given output index.
@@ -165,11 +188,6 @@ func (inv *Inv) HasTxOut(txId HashT, ind uint64) bool {
 // Get the given output from the given tx.
 func (inv *Inv) GetTxOut(txId HashT, ind uint64) TxOut {
 	return inv.GetTx(txId).Outputs[ind]
-}
-
-// Get VSize of all txs descended from a merkle node.
-func (inv *Inv) GetEntityVSize(nodeId HashT) uint64 {
-	return inv.entityVSizes.Get(nodeId)
 }
 
 // Verify and store a new block.
@@ -216,11 +234,13 @@ func (inv *Inv) StoreBlock(b Block) error {
 	}
 	if totalInputs != totalOutputs {
 		return fmt.Errorf("total inputs and outputs do not match")
-	} else if inv.GetEntityVSize(b.MerkleRoot) > util.Constants.MaxBlockVSize {
+	} else if inv.GetMerkleVSize(b.MerkleRoot) > util.Constants.MaxBlockVSize {
 		return fmt.Errorf("block exceeds max vSize")
 	}
-	inv.blockHeights.Store(blockId, parentHeight+1)
-	inv.blocks.Store(blockId, b)
+	inv.blocks.Store(blockId, blockRecord{
+		block:  b,
+		height: parentHeight + 1,
+	})
 	return nil
 }
 
@@ -229,17 +249,33 @@ func (inv *Inv) StoreMerkle(merkle MerkleNode) error {
 	nodeId := merkle.Hash()
 	if inv.HasMerkle(nodeId) {
 		return fmt.Errorf("merkle already known: %x", nodeId)
-	} else if !inv.HasMerkle(merkle.LChild) && !inv.HasTx(merkle.LChild) {
-		return fmt.Errorf("failed to find LChild: %x", merkle.LChild)
-	} else if !inv.HasMerkle(merkle.RChild) && !inv.HasTx(merkle.RChild) {
-		return fmt.Errorf("failed to find RChild: %x", merkle.RChild)
 	}
-	totalSize := inv.GetEntityVSize(merkle.LChild) + inv.GetEntityVSize(merkle.RChild)
+	// Get left child size
+	totalSize := uint64(0)
+	if inv.HasMerkle(merkle.LChild) {
+		totalSize += inv.GetMerkleVSize(merkle.LChild)
+	} else if inv.HasTx(merkle.LChild) {
+		totalSize += inv.GetTxVSize(merkle.LChild)
+	} else {
+		return fmt.Errorf("failed to find LChild: %x", merkle.LChild)
+	}
+	// Get right child size (if appropriate)
+	if merkle.RChild != merkle.LChild {
+		if inv.HasMerkle(merkle.RChild) {
+			totalSize += inv.GetMerkleVSize(merkle.RChild)
+		} else if inv.HasTx(merkle.RChild) {
+			totalSize += inv.GetTxVSize(merkle.RChild)
+		} else {
+			return fmt.Errorf("failed to find RChild: %x", merkle.RChild)
+		}
+	}
 	if totalSize > util.Constants.MaxBlockVSize {
 		return fmt.Errorf("merkle cannot be created - would exceed max block vSize")
 	}
-	inv.entityVSizes.Store(nodeId, totalSize)
-	inv.merkles.Store(nodeId, merkle)
+	inv.merkles.Store(nodeId, merkleRecord{
+		merkle: merkle,
+		vSize:  totalSize,
+	})
 	return nil
 }
 
@@ -284,7 +320,9 @@ func (inv *Inv) StoreTx(tx Tx) error {
 			return fmt.Errorf("given value does not match claimed utxo")
 		}
 	}
-	inv.entityVSizes.Store(txId, vSize)
-	inv.txs.Store(txId, tx)
+	inv.txs.Store(txId, txRecord{
+		tx:    tx,
+		vSize: vSize,
+	})
 	return nil
 }
