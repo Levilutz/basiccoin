@@ -13,11 +13,17 @@ var ErrEntityUnknown = errors.New("entity unknown")
 // Interface of all the functions that can't invoke SyncMap.Store.
 type InvReader interface {
 	AncestorDepth(blockId HashT, ancestorId HashT) (uint64, error)
+	GetBlock(blockId HashT) Block
 	AnyBlockIdsKnown(blockIds []HashT) (HashT, bool)
 	GetBlockHeight(blockId HashT) (uint64, error)
 	GetBlockHeritage(blockId HashT, maxLen int) ([]HashT, error)
 	GetBlockParentId(blockId HashT) (HashT, error)
+	GetMerkle(merkleId HashT) MerkleNode
+	GetTx(txId HashT) Tx
 	GetTxInOrigin(txi TxIn) (TxOut, error)
+	HasBlock(blockId HashT) bool
+	HasMerkle(nodeId HashT) bool
+	HasTx(txId HashT) bool
 	LoadBlock(blockId HashT) (Block, bool)
 	LoadMerkle(nodeId HashT) (MerkleNode, bool)
 	LoadMerkleTxs(root HashT) ([]Tx, error)
@@ -100,6 +106,21 @@ func (inv *Inv) LoadBlock(blockId HashT) (Block, bool) {
 	return inv.blocks.Load(blockId)
 }
 
+// Return whether the given block id exists.
+func (inv *Inv) HasBlock(blockId HashT) bool {
+	_, ok := inv.blocks.Load(blockId)
+	return ok
+}
+
+// Get a block, panic if it doesn't exist.
+func (inv *Inv) GetBlock(blockId HashT) Block {
+	block, ok := inv.blocks.Load(blockId)
+	if !ok {
+		panic(fmt.Sprintf("block should exist: %x", blockId))
+	}
+	return block
+}
+
 // Store a new merkle, ensures children known.
 func (inv *Inv) StoreMerkle(merkle MerkleNode) error {
 	nodeId := merkle.Hash()
@@ -117,6 +138,21 @@ func (inv *Inv) StoreMerkle(merkle MerkleNode) error {
 // Load a merkle node, return the merkle and whether it exists.
 func (inv *Inv) LoadMerkle(nodeId HashT) (MerkleNode, bool) {
 	return inv.merkles.Load(nodeId)
+}
+
+// Return whether the given merkle id exists.
+func (inv *Inv) HasMerkle(nodeId HashT) bool {
+	_, ok := inv.merkles.Load(nodeId)
+	return ok
+}
+
+// Get a merkle, panic if it doesn't exist.
+func (inv *Inv) GetMerkle(merkleId HashT) MerkleNode {
+	merkle, ok := inv.merkles.Load(merkleId)
+	if !ok {
+		panic(fmt.Sprintf("merkle should exist: %x", merkleId))
+	}
+	return merkle
 }
 
 // Store a new transaction.
@@ -168,6 +204,21 @@ func (inv *Inv) StoreTx(tx Tx) error {
 // Load a tx, return the tx and whether it exists.
 func (inv *Inv) LoadTx(txId HashT) (Tx, bool) {
 	return inv.txs.Load(txId)
+}
+
+// Return whether the given tx id exists.
+func (inv *Inv) HasTx(txId HashT) bool {
+	_, ok := inv.txs.Load(txId)
+	return ok
+}
+
+// Get a tx, panic if it doesn't exist.
+func (inv *Inv) GetTx(txId HashT) Tx {
+	tx, ok := inv.txs.Load(txId)
+	if !ok {
+		panic(fmt.Sprintf("tx should exist: %x", txId))
+	}
+	return tx
 }
 
 func (inv *Inv) GetTxInOrigin(txi TxIn) (TxOut, error) {
