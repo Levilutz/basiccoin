@@ -28,6 +28,8 @@ type InvReader interface {
 	GetTxVSize(txId HashT) uint64
 	HasTxOut(txId HashT, ind uint64) bool
 	GetTxOut(txId HashT, ind uint64) TxOut
+	HasEntity(entityId HashT) bool
+	GetEntityVSize(entityId HashT) uint64
 }
 
 type blockRecord struct {
@@ -190,56 +192,33 @@ func (inv *Inv) GetTxOut(txId HashT, ind uint64) TxOut {
 	return inv.GetTx(txId).Outputs[ind]
 }
 
+// Return whether the given id exists as either a merkle or a tx.
+func (inv *Inv) HasEntity(entityId HashT) bool {
+	return inv.HasMerkle(entityId) || inv.HasTx(entityId)
+}
+
+// Return the vSize of the given merkle or tx, panic if neither exists.
+func (inv *Inv) GetEntityVSize(entityId HashT) uint64 {
+	if inv.HasMerkle(entityId) {
+		return inv.GetMerkleVSize(entityId)
+	}
+	return inv.GetTxVSize(entityId)
+}
+
 // Verify and store a new block.
 // For efficiency, this won't verify that each tx's claimed utxos are available.
 // Thus the caller (usually a State) should verify to prevent double-spends.
-func (inv *Inv) StoreBlock(b Block) error {
-	blockId := b.Hash()
+func (inv *Inv) StoreBlock(block Block) error {
+	blockId := block.Hash()
 	if inv.HasBlock(blockId) {
 		return fmt.Errorf("new block already known: %x", blockId)
-	} else if !BelowTarget(blockId, b.Difficulty) {
-		return fmt.Errorf("new block failed to beat target difficulty")
-	} else if !inv.HasMerkle(b.MerkleRoot) {
-		return fmt.Errorf("failed to find new block merkle root")
-	} else if !inv.HasBlock(b.PrevBlockId) {
-		return fmt.Errorf("failed to find new block parent id")
 	}
-	parentHeight := inv.GetBlockHeight(b.PrevBlockId)
-	txs := inv.GetMerkleTxs(b.MerkleRoot)
-	if len(txs) == 0 {
-		return fmt.Errorf("new block has no txs")
-	} else if len(txs) > int(BlockMaxTxs()) {
-		return fmt.Errorf("new block has too many txs")
-	} else if txs[0].MinBlock != parentHeight+1 {
-		return fmt.Errorf("coinbase MinBlock does not equal height")
-	}
-	totalInputs := uint64(util.Constants.BlockReward)
-	totalOutputs := uint64(0)
-	for i, tx := range txs {
-		inputValue := tx.InputsValue()
-		outputValue := tx.OutputsValue()
-		if i == 0 {
-			if len(tx.Inputs) != 0 || inputValue != 0 {
-				return fmt.Errorf("coinbase tx must have no inputs")
-			} else if len(tx.Outputs) != 1 || outputValue < util.Constants.BlockReward {
-				return fmt.Errorf("coinbase tx must have outputs > block reward")
-			}
-		} else {
-			if len(tx.Inputs) == 0 || inputValue <= outputValue {
-				return fmt.Errorf("non-coinbase tx must have inputs > outputs")
-			}
-		}
-		totalInputs += inputValue
-		totalOutputs += outputValue
-	}
-	if totalInputs != totalOutputs {
-		return fmt.Errorf("total inputs and outputs do not match")
-	} else if inv.GetMerkleVSize(b.MerkleRoot) > util.Constants.MaxBlockVSize {
-		return fmt.Errorf("block exceeds max vSize")
+	if err := verifyBlock(inv, block); err != nil {
+		return err
 	}
 	inv.blocks.Store(blockId, blockRecord{
-		block:  b,
-		height: parentHeight + 1,
+		block:  block,
+		height: inv.GetBlockHeight(block.PrevBlockId) + 1,
 	})
 	return nil
 }
@@ -250,27 +229,12 @@ func (inv *Inv) StoreMerkle(merkle MerkleNode) error {
 	if inv.HasMerkle(nodeId) {
 		return fmt.Errorf("merkle already known: %x", nodeId)
 	}
-	// Get left child size
-	totalSize := uint64(0)
-	if inv.HasMerkle(merkle.LChild) {
-		totalSize += inv.GetMerkleVSize(merkle.LChild)
-	} else if inv.HasTx(merkle.LChild) {
-		totalSize += inv.GetTxVSize(merkle.LChild)
-	} else {
-		return fmt.Errorf("failed to find LChild: %x", merkle.LChild)
+	if err := verifyMerkle(inv, merkle); err != nil {
+		return err
 	}
-	// Get right child size (if appropriate)
+	totalSize := inv.GetEntityVSize(merkle.LChild)
 	if merkle.RChild != merkle.LChild {
-		if inv.HasMerkle(merkle.RChild) {
-			totalSize += inv.GetMerkleVSize(merkle.RChild)
-		} else if inv.HasTx(merkle.RChild) {
-			totalSize += inv.GetTxVSize(merkle.RChild)
-		} else {
-			return fmt.Errorf("failed to find RChild: %x", merkle.RChild)
-		}
-	}
-	if totalSize > util.Constants.MaxBlockVSize {
-		return fmt.Errorf("merkle cannot be created - would exceed max block vSize")
+		totalSize += inv.GetEntityVSize(merkle.RChild)
 	}
 	inv.merkles.Store(nodeId, merkleRecord{
 		merkle: merkle,
@@ -282,47 +246,15 @@ func (inv *Inv) StoreMerkle(merkle MerkleNode) error {
 // Verify and store a new transaction.
 func (inv *Inv) StoreTx(tx Tx) error {
 	txId := tx.Hash()
-	vSize := tx.VSize()
 	if inv.HasTx(txId) {
 		return fmt.Errorf("tx already known: %x", txId)
-	} else if !tx.SignaturesValid() {
-		return fmt.Errorf("tx signatures invalid")
-	} else if vSize > util.Constants.MaxTxVSize {
-		return fmt.Errorf("tx VSize exceeds limit")
 	}
-	if len(tx.Inputs) > 0 {
-		// Not coinbase - verify total outputs < total inputs
-		if tx.OutputsValue() >= tx.InputsValue() {
-			return fmt.Errorf("tx outputs exceed or match inputs")
-		}
-	} else {
-		// Coinbase - verify outputs exist and total outputs >= BlockReward
-		if len(tx.Outputs) != 1 {
-			return fmt.Errorf("coinbase must have 1 output")
-		} else if tx.OutputsValue() < uint64(util.Constants.BlockReward) {
-			return fmt.Errorf("coinbase has insufficient block reward")
-		}
-	}
-	// Verify given public key and value match those on origin utxo
-	for _, txi := range tx.Inputs {
-		if !inv.HasTxOut(txi.OriginTxId, txi.OriginTxOutInd) {
-			return fmt.Errorf(
-				"failed to find utxo %x[%d]",
-				txi.OriginTxId,
-				txi.OriginTxOutInd,
-			)
-		}
-		origin := inv.GetTxOut(txi.OriginTxId, txi.OriginTxOutInd)
-		if DHash(txi.PublicKey) != origin.PublicKeyHash {
-			return fmt.Errorf("given public key does not match claimed utxo")
-		}
-		if txi.Value != origin.Value {
-			return fmt.Errorf("given value does not match claimed utxo")
-		}
+	if err := verifyTx(inv, tx); err != nil {
+		return err
 	}
 	inv.txs.Store(txId, txRecord{
 		tx:    tx,
-		vSize: vSize,
+		vSize: tx.VSize(),
 	})
 	return nil
 }
