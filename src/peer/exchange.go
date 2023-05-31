@@ -12,15 +12,15 @@ func handleReceiveNewBlockExchange(
 	pc *PeerConn, inv db.InvReader,
 ) (event events.CandidateLedgerUpgradeMainEvent, err error) {
 	// Exchange init
-	blockIdStr := pc.RetryReadStringLine(7)
+	topBlockIdStr := pc.RetryReadStringLine(7)
 	if err := pc.Err(); err != nil {
 		return event, err
 	}
-	blockId, err := db.StringToHash(blockIdStr)
+	topBlockId, err := db.StringToHash(topBlockIdStr)
 	if err != nil {
 		return event, err
 	}
-	if _, ok := inv.LoadBlock(blockId); ok {
+	if _, ok := inv.LoadBlock(topBlockId); ok {
 		pc.TransmitStringLine("fin:new-block")
 		if err := pc.Err(); err != nil {
 			return event, err
@@ -29,18 +29,48 @@ func handleReceiveNewBlockExchange(
 	}
 	// Exchange block ids
 	pc.TransmitStringLine("next-blocks")
+	if err := pc.Err(); err != nil {
+		return event, err
+	}
+	neededBlockIds := []db.HashT{
+		topBlockId,
+	}
 	for {
 		newBlockIds, err := ReceiveBlockIdsMessage(pc)
 		if err != nil {
 			return event, err
 		}
-		if recId, ok := inv.AnyBlockIdsKnown(newBlockIds.BlockIds); ok {
+		recId, ok := inv.AnyBlockIdsKnown(newBlockIds.BlockIds)
+		// Add to list of needed block ids, until we hit the one we recognize
+		for _, blockId := range newBlockIds.BlockIds {
+			if ok && recId == blockId {
+				break
+			}
+			neededBlockIds = append(neededBlockIds, blockId)
+		}
+		// Stop the initiator from sending more block ids
+		if ok {
 			pc.TransmitStringLine("recognized")
 			pc.TransmitStringLine(fmt.Sprintf("%x", recId))
+			if err := pc.Err(); err != nil {
+				return event, err
+			}
 			break
 		}
 	}
 	// Exchange block headers
+	for _, expectedBlockId := range neededBlockIds {
+		block, err := ReceiveBlockHeaderMessage(pc)
+		if err != nil {
+			return event, err
+		}
+		blockId := block.Block.Hash()
+		if blockId != expectedBlockId {
+			return event, fmt.Errorf(
+				"mismatched block %x != %x", blockId, expectedBlockId,
+			)
+		}
+	}
 	// Check if higher work than existing head (from branch point)
 	// If not, terminate exchange
 	// Exchange merkles and txs

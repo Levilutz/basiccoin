@@ -126,3 +126,43 @@ func (msg BlockIdsMessage) Transmit(pc *PeerConn) error {
 	pc.TransmitStringLine("fin:block-ids")
 	return pc.Err()
 }
+
+// BlockHeaderMessage
+
+type BlockHeaderMessage struct {
+	Block db.Block
+}
+
+// Construct a BlockHeaderMessage
+func ReceiveBlockHeaderMessage(pc *PeerConn) (BlockHeaderMessage, error) {
+	hashesLine := pc.RetryReadStringLine(7)
+	nonce := pc.RetryReadIntLine(7)
+	if err := pc.Err(); err != nil {
+		return BlockHeaderMessage{}, err
+	}
+	hashes, err := db.StringToHashes(hashesLine, 4)
+	if err != nil {
+		return BlockHeaderMessage{}, err
+	}
+	return BlockHeaderMessage{
+		Block: db.Block{
+			PrevBlockId: hashes[0],
+			MerkleRoot:  hashes[1],
+			Difficulty:  hashes[2],
+			Noise:       hashes[3],
+			Nonce:       uint64(nonce),
+		},
+	}, nil
+}
+
+// Transmit a BlockHeaderMessage over the channel.
+func (msg BlockHeaderMessage) Transmit(pc *PeerConn) error {
+	pc.TransmitStringLine(db.HashesToString([]db.HashT{
+		msg.Block.PrevBlockId,
+		msg.Block.MerkleRoot,
+		msg.Block.Difficulty,
+		msg.Block.Noise,
+	}))
+	pc.TransmitIntLine(int(msg.Block.Nonce)) // TODO Support int64 explicitly
+	return pc.Err()
+}

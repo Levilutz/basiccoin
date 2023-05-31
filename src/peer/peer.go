@@ -112,7 +112,6 @@ func (p *Peer) handleReceivedLine(line []byte) (bool, error) {
 		return false, fmt.Errorf("unrecognized line: %s", line)
 	}
 	command := string(line)[4:]
-	// TODO ack before handling
 	if command == "close" {
 		return true, p.handleClose(false, true)
 	}
