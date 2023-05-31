@@ -238,5 +238,5 @@ func (p *Peer) handleClose(issuing bool, notifyMainBus bool) error {
 	if err := p.conn.Err(); err != nil {
 		return err
 	}
-	return p.conn.C.Close()
+	return p.conn.Close()
 }

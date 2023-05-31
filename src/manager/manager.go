@@ -112,7 +112,7 @@ func (m *Manager) addMetConn(metConn MetConn) {
 	} else {
 		go func() {
 			metConn.PeerConn.TransmitStringLine("cmd:close")
-			metConn.PeerConn.C.Close()
+			metConn.PeerConn.Close()
 		}()
 	}
 }

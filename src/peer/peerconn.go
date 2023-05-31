@@ -17,19 +17,19 @@ import (
 
 // Encapsulate a low-level connection to peer.
 type PeerConn struct {
-	C *net.TCPConn
-	R *bufio.Reader
-	W *bufio.Writer
-	E error
+	c *net.TCPConn
+	r *bufio.Reader
+	w *bufio.Writer
+	e error
 }
 
 // Create a peer connection from a TCP Connection.
 func NewPeerConn(c *net.TCPConn) *PeerConn {
 	return &PeerConn{
-		C: c,
-		R: bufio.NewReader(c),
-		W: bufio.NewWriter(c),
-		E: nil,
+		c: c,
+		r: bufio.NewReader(c),
+		w: bufio.NewWriter(c),
+		e: nil,
 	}
 }
 
@@ -46,23 +46,13 @@ func ResolvePeerConn(addr string) (*PeerConn, error) {
 	return NewPeerConn(conn), nil
 }
 
-// Verify that a peer exists on this connection, then close.
-func (pc *PeerConn) VerifyAndClose() {
-	if pc.E != nil {
-		return
-	}
-	helloMsg := pc.Handshake()
-	pc.TransmitStringLine("cmd:close")
-	if pc.E != nil {
-	} else if err := pc.C.Close(); err != nil {
-		pc.E = err
-	} else if helloMsg.RuntimeID == util.Constants.RuntimeID {
-		pc.E = errors.New("peer is us")
-	}
+// Get local address as seen by peer.
+func (pc *PeerConn) LocalAddr() *net.TCPAddr {
+	return pc.c.LocalAddr().(*net.TCPAddr)
 }
 
 func (pc *PeerConn) Handshake() *HelloMessage {
-	if pc.E != nil {
+	if pc.e != nil {
 		return nil
 	}
 	pc.TransmitStringLine("basiccoin")
@@ -70,7 +60,7 @@ func (pc *PeerConn) Handshake() *HelloMessage {
 	pc.TransmitMessage(NewHelloMessage())
 	helloMsg, err := ReceiveHelloMessage(pc)
 	if err != nil {
-		pc.E = err
+		pc.e = err
 		return nil
 	}
 	return &helloMsg
@@ -79,54 +69,54 @@ func (pc *PeerConn) Handshake() *HelloMessage {
 // Transmit continue|close, and receive their continue|close. Return nil if both peers
 // want to connect, or a reason not to otherwise.
 func (pc *PeerConn) VerifyConnWanted(msg HelloMessage) {
-	if pc.E != nil {
+	if pc.e != nil {
 		return
 	}
 	// Close if we don't want connection
 	if msg.RuntimeID == util.Constants.RuntimeID ||
 		msg.Version != util.Constants.Version {
 		pc.TransmitStringLine("cmd:close")
-		if pc.E != nil {
+		if pc.e != nil {
 			return
 		}
-		if err := pc.C.Close(); err != nil {
-			pc.E = err
+		if err := pc.c.Close(); err != nil {
+			pc.e = err
 			return
 		}
-		pc.E = errors.New("we do not want connection")
+		pc.e = errors.New("we do not want connection")
 		return
 	}
 
 	pc.TransmitStringLine("cmd:continue")
 	// Receive whether they want to continue
 	contMsg := pc.RetryReadLine(7)
-	if pc.E != nil {
+	if pc.e != nil {
 		return
 	} else if string(contMsg) == "cmd:continue" {
 		return
 	} else if string(contMsg) == "cmd:close" {
-		if err := pc.C.Close(); err != nil {
-			pc.E = err
+		if err := pc.c.Close(); err != nil {
+			pc.e = err
 			return
 		}
-		pc.E = errors.New("peer does not want connection")
+		pc.e = errors.New("peer does not want connection")
 	} else {
-		pc.E = fmt.Errorf("expected continue|close, received '%s'", contMsg)
+		pc.e = fmt.Errorf("expected continue|close, received '%s'", contMsg)
 	}
 }
 
 // Consume the next line and assert that it matches msg.
 // Do not include \n in msg.
 func (pc *PeerConn) ConsumeExpected(msg string) {
-	if pc.E != nil {
+	if pc.e != nil {
 		return
 	}
 	data := pc.RetryReadLine(7)
-	if pc.E != nil {
+	if pc.e != nil {
 		return
 	}
 	if string(data) != msg {
-		pc.E = fmt.Errorf(
+		pc.e = fmt.Errorf(
 			"expected '%s', received '%s'", msg, string(data),
 		)
 	}
@@ -134,33 +124,33 @@ func (pc *PeerConn) ConsumeExpected(msg string) {
 
 // Transmit a Message.
 func (pc *PeerConn) TransmitMessage(msg PeerMessage) {
-	if pc.E != nil {
+	if pc.e != nil {
 		return
 	}
-	pc.E = msg.Transmit(pc)
+	pc.e = msg.Transmit(pc)
 }
 
 // Transmit bytes as a line.
 // Do not include \n in msg.
 func (pc *PeerConn) TransmitLine(msg []byte) {
-	if pc.E != nil {
+	if pc.e != nil {
 		return
 	}
 	if util.Constants.DebugNetwork {
 		fmt.Println("NET_OUT", string(msg))
 	}
-	_, err := pc.W.Write(append(msg, byte('\n')))
+	_, err := pc.w.Write(append(msg, byte('\n')))
 	if err != nil {
-		pc.E = err
+		pc.e = err
 		return
 	}
-	pc.E = pc.W.Flush()
+	pc.e = pc.w.Flush()
 }
 
 // Transmit a string as a line.
 // Do not include \n in msg.
 func (pc *PeerConn) TransmitStringLine(msg string) {
-	if pc.E != nil {
+	if pc.e != nil {
 		return
 	}
 	pc.TransmitLine([]byte(msg))
@@ -168,7 +158,7 @@ func (pc *PeerConn) TransmitStringLine(msg string) {
 
 // Transmit an int as a line.
 func (pc *PeerConn) TransmitIntLine(msg int) {
-	if pc.E != nil {
+	if pc.e != nil {
 		return
 	}
 	pc.TransmitLine([]byte(strconv.Itoa(msg)))
@@ -176,7 +166,7 @@ func (pc *PeerConn) TransmitIntLine(msg int) {
 
 // Transmit a uint64 as a line.
 func (pc *PeerConn) TransmitUint64Line(msg uint64) {
-	if pc.E != nil {
+	if pc.e != nil {
 		return
 	}
 	bs := make([]byte, 8)
@@ -187,11 +177,11 @@ func (pc *PeerConn) TransmitUint64Line(msg uint64) {
 // Retry reading a string line, exponential wait.
 // See RetryReadLine for more info.
 func (pc *PeerConn) RetryReadStringLine(attempts int) string {
-	if pc.E != nil {
+	if pc.e != nil {
 		return ""
 	}
 	raw := pc.RetryReadLine(attempts)
-	if pc.E != nil {
+	if pc.e != nil {
 		return ""
 	}
 	return string(raw)
@@ -200,16 +190,16 @@ func (pc *PeerConn) RetryReadStringLine(attempts int) string {
 // Retry reading an int line, exponential wait.
 // See RetryReadLine for more info.
 func (pc *PeerConn) RetryReadIntLine(attempts int) int {
-	if pc.E != nil {
+	if pc.e != nil {
 		return 0
 	}
 	raw := pc.RetryReadLine(attempts)
-	if pc.E != nil {
+	if pc.e != nil {
 		return 0
 	}
 	num, err := strconv.Atoi(string(raw))
 	if err != nil {
-		pc.E = err
+		pc.e = err
 		return 0
 	}
 	return num
@@ -218,16 +208,16 @@ func (pc *PeerConn) RetryReadIntLine(attempts int) int {
 // Retry reading a uint64 line, exponential wait.
 // See RetryReadLine for more info.
 func (pc *PeerConn) RetryReadUint64Line(attempts int) uint64 {
-	if pc.E != nil {
+	if pc.e != nil {
 		return 0
 	}
 	raw := pc.RetryReadLine(attempts)
-	if pc.E != nil {
+	if pc.e != nil {
 		return 0
 	}
 	out, err := hex.DecodeString(string(raw))
 	if err != nil {
-		pc.E = err
+		pc.e = err
 		return 0
 	}
 	return binary.BigEndian.Uint64(out)
@@ -237,35 +227,35 @@ func (pc *PeerConn) RetryReadUint64Line(attempts int) uint64 {
 // Attempt delays begin at 100ms and multiply by 2.
 // Estimated max total runtime = (2^attempts - 1) * 0.1 seconds.
 func (pc *PeerConn) RetryReadLine(attempts int) []byte {
-	if pc.E != nil {
+	if pc.e != nil {
 		return nil
 	}
 	delay := time.Duration(100) * time.Millisecond
 	for i := 0; i < attempts; i++ {
 		data := pc.ReadLineTimeout(delay)
-		if pc.E == nil {
+		if pc.e == nil {
 			return data
-		} else if errors.Is(pc.E, io.EOF) || errors.Is(pc.E, os.ErrDeadlineExceeded) {
-			pc.E = nil
+		} else if errors.Is(pc.e, io.EOF) || errors.Is(pc.e, os.ErrDeadlineExceeded) {
+			pc.e = nil
 			delay *= time.Duration(2)
 		} else {
 			return nil
 		}
 	}
-	pc.E = io.EOF
+	pc.e = io.EOF
 	return nil
 }
 
 // Attempt to read a line, with timeout
 func (pc *PeerConn) ReadLineTimeout(timeout time.Duration) []byte {
-	if pc.E != nil {
+	if pc.e != nil {
 		return nil
 	}
-	defer pc.C.SetReadDeadline(time.Time{})
-	pc.C.SetReadDeadline(time.Now().Add(timeout))
-	data, err := pc.R.ReadBytes(byte('\n'))
+	defer pc.c.SetReadDeadline(time.Time{})
+	pc.c.SetReadDeadline(time.Now().Add(timeout))
+	data, err := pc.r.ReadBytes(byte('\n'))
 	if err != nil {
-		pc.E = err
+		pc.e = err
 		return nil
 	}
 	data = data[:len(data)-1] // len(data) will always be at least 1
@@ -275,8 +265,13 @@ func (pc *PeerConn) ReadLineTimeout(timeout time.Duration) []byte {
 	return data
 }
 
+// Close the connection.
+func (pc *PeerConn) Close() error {
+	return pc.c.Close()
+}
+
 // Pop the stored error
 func (pc *PeerConn) Err() error {
-	defer func() { pc.E = nil }()
-	return pc.E
+	defer func() { pc.e = nil }()
+	return pc.e
 }

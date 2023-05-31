@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"net"
 	"time"
 
 	"github.com/levilutz/basiccoin/src/db"
@@ -41,8 +40,7 @@ func main() {
 
 		// Set local addr if not set from args
 		if cli_args.LocalAddr == "" {
-			localTcpAddr := pc.C.LocalAddr().(*net.TCPAddr)
-			util.Constants.LocalAddr = localTcpAddr.IP.String() + ":21720"
+			util.Constants.LocalAddr = pc.LocalAddr().IP.String() + ":21720"
 			fmt.Println("Discovered address of", util.Constants.LocalAddr)
 		}
 
