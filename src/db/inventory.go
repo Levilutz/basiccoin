@@ -22,11 +22,11 @@ type InvReader interface {
 	HasMerkle(nodeId HashT) bool
 	GetMerkle(merkleId HashT) MerkleNode
 	GetMerkleTxs(root HashT) []Tx
-	GetMerkleVSize(root HashT) uint64
 	HasTx(txId HashT) bool
 	GetTx(txId HashT) Tx
 	HasTxOut(txId HashT, ind uint64) bool
 	GetTxOut(txId HashT, ind uint64) TxOut
+	GetEntityVSize(nodeId HashT) uint64
 }
 
 // Write-once read-many maps.
@@ -37,17 +37,19 @@ type Inv struct {
 	merkles *util.SyncMap[HashT, MerkleNode]
 	txs     *util.SyncMap[HashT, Tx]
 	// Aux info (must be inserted before referenced main entity)
-	blockHs *util.SyncMap[HashT, uint64]
+	blockHeights *util.SyncMap[HashT, uint64]
+	entityVSizes *util.SyncMap[HashT, uint64]
 }
 
 func NewInv() *Inv {
 	inv := &Inv{
-		blocks:  util.NewSyncMap[HashT, Block](),
-		merkles: util.NewSyncMap[HashT, MerkleNode](),
-		txs:     util.NewSyncMap[HashT, Tx](),
-		blockHs: util.NewSyncMap[HashT, uint64](),
+		blocks:       util.NewSyncMap[HashT, Block](),
+		merkles:      util.NewSyncMap[HashT, MerkleNode](),
+		txs:          util.NewSyncMap[HashT, Tx](),
+		blockHeights: util.NewSyncMap[HashT, uint64](),
+		entityVSizes: util.NewSyncMap[HashT, uint64](),
 	}
-	inv.blockHs.Store(HashTZero, 0)
+	inv.blockHeights.Store(HashTZero, 0)
 	inv.blocks.Store(HashTZero, Block{})
 	return inv
 }
@@ -78,7 +80,7 @@ func (inv *Inv) GetBlock(blockId HashT) Block {
 
 // Get a block's height (0x0 is height 0, origin block is height 1).
 func (inv *Inv) GetBlockHeight(blockId HashT) uint64 {
-	h, ok := inv.blockHs.Load(blockId)
+	h, ok := inv.blockHeights.Load(blockId)
 	if !ok {
 		panic(fmt.Sprintf("block should exist: %x", blockId))
 	}
@@ -156,16 +158,6 @@ func (inv *Inv) GetMerkleTxs(root HashT) []Tx {
 	return outTxs
 }
 
-// Get VSize of all txs descended from a merkle node.
-func (inv *Inv) GetMerkleVSize(root HashT) uint64 {
-	txs := inv.GetMerkleTxs(root)
-	total := uint64(0)
-	for _, tx := range txs {
-		total += tx.VSize()
-	}
-	return total
-}
-
 // Return whether the given tx id exists.
 func (inv *Inv) HasTx(txId HashT) bool {
 	_, ok := inv.txs.Load(txId)
@@ -192,6 +184,15 @@ func (inv *Inv) HasTxOut(txId HashT, ind uint64) bool {
 // Get the given output from the given tx.
 func (inv *Inv) GetTxOut(txId HashT, ind uint64) TxOut {
 	return inv.GetTx(txId).Outputs[ind]
+}
+
+// Get VSize of all txs descended from a merkle node.
+func (inv *Inv) GetEntityVSize(nodeId HashT) uint64 {
+	vSize, ok := inv.entityVSizes.Load(nodeId)
+	if !ok {
+		panic(fmt.Sprintf("entity should exist: %x", nodeId))
+	}
+	return vSize
 }
 
 // Verify and store a new block.
@@ -239,10 +240,10 @@ func (inv *Inv) StoreBlock(b Block) error {
 	}
 	if totalInputs != totalOutputs {
 		return fmt.Errorf("total inputs and outputs do not match")
-	} else if inv.GetMerkleVSize(b.MerkleRoot) > util.Constants.MaxBlockVSize {
+	} else if inv.GetEntityVSize(b.MerkleRoot) > util.Constants.MaxBlockVSize {
 		return fmt.Errorf("block exceeds max vSize")
 	}
-	inv.blockHs.Store(blockId, parentHeight+1)
+	inv.blockHeights.Store(blockId, parentHeight+1)
 	inv.blocks.Store(blockId, b)
 	return nil
 }
@@ -257,10 +258,11 @@ func (inv *Inv) StoreMerkle(merkle MerkleNode) error {
 	} else if !inv.HasMerkle(merkle.RChild) && !inv.HasTx(merkle.RChild) {
 		return fmt.Errorf("failed to find RChild: %x", merkle.RChild)
 	}
-	totalSize := inv.GetMerkleVSize(merkle.LChild) + inv.GetMerkleVSize(merkle.RChild)
+	totalSize := inv.GetEntityVSize(merkle.LChild) + inv.GetEntityVSize(merkle.RChild)
 	if totalSize > util.Constants.MaxBlockVSize {
-		return fmt.Errorf("")
+		return fmt.Errorf("merkle cannot be created - would exceed max block vSize")
 	}
+	inv.entityVSizes.Store(nodeId, totalSize)
 	inv.merkles.Store(nodeId, merkle)
 	return nil
 }
@@ -268,11 +270,12 @@ func (inv *Inv) StoreMerkle(merkle MerkleNode) error {
 // Verify and store a new transaction.
 func (inv *Inv) StoreTx(tx Tx) error {
 	txId := tx.Hash()
+	vSize := tx.VSize()
 	if inv.HasTx(txId) {
 		return fmt.Errorf("tx already known: %x", txId)
 	} else if !tx.SignaturesValid() {
 		return fmt.Errorf("tx signatures invalid")
-	} else if tx.VSize() > util.Constants.MaxTxVSize {
+	} else if vSize > util.Constants.MaxTxVSize {
 		return fmt.Errorf("tx VSize exceeds limit")
 	}
 	if len(tx.Inputs) > 0 {
@@ -305,6 +308,7 @@ func (inv *Inv) StoreTx(tx Tx) error {
 			return fmt.Errorf("given value does not match claimed utxo")
 		}
 	}
+	inv.entityVSizes.Store(txId, vSize)
 	inv.txs.Store(txId, tx)
 	return nil
 }
