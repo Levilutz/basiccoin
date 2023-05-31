@@ -2,6 +2,8 @@ package peer
 
 import (
 	"bufio"
+	"encoding/binary"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
@@ -172,6 +174,16 @@ func (pc *PeerConn) TransmitIntLine(msg int) {
 	pc.TransmitLine([]byte(strconv.Itoa(msg)))
 }
 
+// Transmit a uint64 as a line.
+func (pc *PeerConn) TransmitUint64Line(msg uint64) {
+	if pc.E != nil {
+		return
+	}
+	bs := make([]byte, 8)
+	binary.BigEndian.PutUint64(bs, msg)
+	pc.TransmitStringLine(fmt.Sprintf("%x", bs))
+}
+
 // Retry reading a string line, exponential wait.
 // See RetryReadLine for more info.
 func (pc *PeerConn) RetryReadStringLine(attempts int) string {
@@ -201,6 +213,24 @@ func (pc *PeerConn) RetryReadIntLine(attempts int) int {
 		return 0
 	}
 	return num
+}
+
+// Retry reading a uint64 line, exponential wait.
+// See RetryReadLine for more info.
+func (pc *PeerConn) RetryReadUint64Line(attempts int) uint64 {
+	if pc.E != nil {
+		return 0
+	}
+	raw := pc.RetryReadLine(attempts)
+	if pc.E != nil {
+		return 0
+	}
+	out, err := hex.DecodeString(string(raw))
+	if err != nil {
+		pc.E = err
+		return 0
+	}
+	return binary.BigEndian.Uint64(out)
 }
 
 // Retry reading a line, exponential wait.

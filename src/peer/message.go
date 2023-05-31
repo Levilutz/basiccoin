@@ -136,7 +136,7 @@ type BlockHeaderMessage struct {
 // Construct a BlockHeaderMessage
 func ReceiveBlockHeaderMessage(pc *PeerConn) (BlockHeaderMessage, error) {
 	hashesLine := pc.RetryReadStringLine(7)
-	nonce := pc.RetryReadIntLine(7)
+	nonce := pc.RetryReadUint64Line(7)
 	if err := pc.Err(); err != nil {
 		return BlockHeaderMessage{}, err
 	}
@@ -150,7 +150,7 @@ func ReceiveBlockHeaderMessage(pc *PeerConn) (BlockHeaderMessage, error) {
 			MerkleRoot:  hashes[1],
 			Difficulty:  hashes[2],
 			Noise:       hashes[3],
-			Nonce:       uint64(nonce),
+			Nonce:       nonce,
 		},
 	}, nil
 }
@@ -163,6 +163,6 @@ func (msg BlockHeaderMessage) Transmit(pc *PeerConn) error {
 		msg.Block.Difficulty,
 		msg.Block.Noise,
 	}))
-	pc.TransmitIntLine(int(msg.Block.Nonce)) // TODO Support int64 explicitly
+	pc.TransmitUint64Line(msg.Block.Nonce)
 	return pc.Err()
 }
