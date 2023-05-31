@@ -56,8 +56,7 @@ func NewInv() *Inv {
 
 // Return whether the given block id exists.
 func (inv *Inv) HasBlock(blockId HashT) bool {
-	_, ok := inv.blocks.Load(blockId)
-	return ok
+	return inv.blocks.Has(blockId)
 }
 
 func (inv *Inv) HasAnyBlock(blockIds []HashT) (HashT, bool) {
@@ -71,20 +70,12 @@ func (inv *Inv) HasAnyBlock(blockIds []HashT) (HashT, bool) {
 
 // Get a block, panic if it doesn't exist.
 func (inv *Inv) GetBlock(blockId HashT) Block {
-	block, ok := inv.blocks.Load(blockId)
-	if !ok {
-		panic(fmt.Sprintf("block should exist: %x", blockId))
-	}
-	return block
+	return inv.blocks.Get(blockId)
 }
 
 // Get a block's height (0x0 is height 0, origin block is height 1).
 func (inv *Inv) GetBlockHeight(blockId HashT) uint64 {
-	h, ok := inv.blockHeights.Load(blockId)
-	if !ok {
-		panic(fmt.Sprintf("block should exist: %x", blockId))
-	}
-	return h
+	return inv.blockHeights.Get(blockId)
 }
 
 func (inv *Inv) GetBlockParentId(blockId HashT) HashT {
@@ -121,17 +112,12 @@ func (inv *Inv) GetBlockAncestorDepth(blockId, ancestorId HashT) (uint64, bool) 
 
 // Return whether the given merkle id exists.
 func (inv *Inv) HasMerkle(nodeId HashT) bool {
-	_, ok := inv.merkles.Load(nodeId)
-	return ok
+	return inv.merkles.Has(nodeId)
 }
 
 // Get a merkle, panic if it doesn't exist.
 func (inv *Inv) GetMerkle(merkleId HashT) MerkleNode {
-	merkle, ok := inv.merkles.Load(merkleId)
-	if !ok {
-		panic(fmt.Sprintf("merkle should exist: %x", merkleId))
-	}
-	return merkle
+	return inv.merkles.Get(merkleId)
 }
 
 // Load all txs descended from a merkle node.
@@ -160,17 +146,12 @@ func (inv *Inv) GetMerkleTxs(root HashT) []Tx {
 
 // Return whether the given tx id exists.
 func (inv *Inv) HasTx(txId HashT) bool {
-	_, ok := inv.txs.Load(txId)
-	return ok
+	return inv.txs.Has(txId)
 }
 
 // Get a tx, panic if it doesn't exist.
 func (inv *Inv) GetTx(txId HashT) Tx {
-	tx, ok := inv.txs.Load(txId)
-	if !ok {
-		panic(fmt.Sprintf("tx should exist: %x", txId))
-	}
-	return tx
+	return inv.txs.Get(txId)
 }
 
 // Return whether the given tx has the given output index.
@@ -188,11 +169,7 @@ func (inv *Inv) GetTxOut(txId HashT, ind uint64) TxOut {
 
 // Get VSize of all txs descended from a merkle node.
 func (inv *Inv) GetEntityVSize(nodeId HashT) uint64 {
-	vSize, ok := inv.entityVSizes.Load(nodeId)
-	if !ok {
-		panic(fmt.Sprintf("entity should exist: %x", nodeId))
-	}
-	return vSize
+	return inv.entityVSizes.Get(nodeId)
 }
 
 // Verify and store a new block.
