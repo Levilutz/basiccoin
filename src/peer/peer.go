@@ -13,11 +13,12 @@ import (
 // Encapsulate a high-level connection to a peer.
 type Peer struct {
 	HelloMsg       *HelloMessage
-	EventBus       chan any
+	EventBus       chan any // TODO: Make event bus private
 	conn           *PeerConn
 	mainBus        chan<- any
 	weAreInitiator bool
 	inv            db.InvReader
+	head           db.HashT
 }
 
 // Create a Peer.
@@ -32,6 +33,7 @@ func NewPeer(
 	mainBus chan any,
 	weAreInitiator bool,
 	inv db.InvReader,
+	head db.HashT,
 ) *Peer {
 	return &Peer{
 		HelloMsg:       msg,
@@ -40,7 +42,16 @@ func NewPeer(
 		mainBus:        mainBus,
 		weAreInitiator: weAreInitiator,
 		inv:            inv,
+		head:           head,
 	}
+}
+
+func (p *Peer) SetHead(head db.HashT) {
+	go func() {
+		p.EventBus <- events.NewHeadPeerEvent{
+			Head: head,
+		}
+	}()
 }
 
 // Loop handling events from our message bus and the peer.
@@ -87,6 +98,10 @@ func (p *Peer) handlePeerBusEvent(event any) (bool, error) {
 	switch msg := event.(type) {
 	case events.ShouldEndPeerEvent:
 		return true, p.handleClose(true, false)
+
+	case events.NewHeadPeerEvent:
+		p.head = msg.Head
+		// TODO: Inform the peer of our head block
 
 	case events.PeersDataPeerEvent:
 		return p.issuePeerCommand("addrs", func() error {

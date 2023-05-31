@@ -12,6 +12,7 @@ services:
     command:
       - "/basiccoin"
       - "--addr=node1:21720"
+      - "--miners=1"
 
   node2:
     image: basiccoin:latest
@@ -30,3 +31,4 @@ services:
     command:
       - "/basiccoin"
       - "--seed=node3:21720"
+      - "--miners=1"

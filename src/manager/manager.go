@@ -104,6 +104,7 @@ func (m *Manager) addMetConn(metConn MetConn) {
 			m.mainBus,
 			metConn.WeAreInitiator,
 			m.inv,
+			m.state.GetHead(),
 		)
 		go peer.Loop()
 		m.peers[metConn.HelloMsg.RuntimeID] = peer
@@ -224,7 +225,10 @@ func (m *Manager) handleMinedSolution(sol db.Block) error {
 	// Set new miner targets
 	target := CreateMiningTarget(m.state, m.inv, db.HashTZero)
 	m.minerSet.SetTargets(target)
-	// TODO: Broadcast solution to peers
+	// Broadcast solution to peers
+	for _, p := range m.peers {
+		p.SetHead(solBlockId)
+	}
 	fmt.Printf("Mined block %x\n", solBlockId)
 	return nil
 }

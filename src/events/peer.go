@@ -10,6 +10,11 @@ type ShouldEndPeerEvent struct {
 	NotifyMainBus bool
 }
 
+// Inform this peer of a new head.
+type NewHeadPeerEvent struct {
+	Head db.HashT
+}
+
 // Inform the peer of a Block with its Merkle tree and Txs.
 type BlockDataPeerEvent struct {
 	// Block, Merkle, Txs
