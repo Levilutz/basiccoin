@@ -8,7 +8,7 @@ import (
 	"github.com/levilutz/basiccoin/src/util"
 )
 
-// Test that a transaction can be hashed in full
+// Test that a transaction can be hashed in full.
 func TestTransactionHash(t *testing.T) {
 	// Generate signatures
 	generateWithPublic := func() (*ecdsa.PrivateKey, []byte) {

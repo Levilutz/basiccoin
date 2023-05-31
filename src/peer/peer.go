@@ -20,8 +20,12 @@ type Peer struct {
 	inv            db.InvReader
 }
 
-// Create a Peer from the result of a successfull handshake on a PeerConn, the
-// associated PeerConn, and a bus to emit events back to the manager loop.
+// Create a Peer.
+// "msg" is the result of a successful handshake on a PeerConn.
+// "pc" is the peerconn on which we have already handshaked.
+// "mainBus" is a bus on which to emit events back to the manager.
+// "weAreInitiator" is whether we are the peer that initiated the connection.
+// "inv" is a InvReader.
 func NewPeer(
 	msg *HelloMessage,
 	pc *PeerConn,
@@ -39,7 +43,7 @@ func NewPeer(
 	}
 }
 
-// Loop handling events from our message bus and the peer
+// Loop handling events from our message bus and the peer.
 func (p *Peer) Loop() {
 	defer fmt.Println("Peer closed:", p.HelloMsg.RuntimeID)
 	var err error

@@ -62,8 +62,8 @@ func MerkleTreeMaxSize() uint64 {
 }
 
 // Construct a merkle tree from a list of txIds.
-// Returns merkle nodes by hash, and order they should be inserted into inv. Last id in
-// list is the root.
+// Returns merkle nodes by hash, and order they should be inserted into inv.
+// Last id in list is the root.
 func MerkleFromTxIds(txIds []HashT) (map[HashT]MerkleNode, []HashT) {
 	if len(txIds) == 0 {
 		panic("need at least one tx to generate tree")

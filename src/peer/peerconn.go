@@ -205,7 +205,7 @@ func (pc *PeerConn) RetryReadIntLine(attempts int) int {
 
 // Retry reading a line, exponential wait.
 // Attempt delays begin at 100ms and multiply by 2.
-// Estimated max total runtime = (2^attempts - 1) * 0.1 seconds
+// Estimated max total runtime = (2^attempts - 1) * 0.1 seconds.
 func (pc *PeerConn) RetryReadLine(attempts int) []byte {
 	if pc.E != nil {
 		return nil

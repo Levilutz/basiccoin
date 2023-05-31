@@ -196,9 +196,8 @@ func (inv *Inv) GetEntityVSize(nodeId HashT) uint64 {
 }
 
 // Verify and store a new block.
-// Notably, this won't verify that each tx's claimed utxos are available (for efficiency
-// reasons). As such, the caller (ideally only ever a State instance) should verify to
-// prevent double-spends.
+// For efficiency, this won't verify that each tx's claimed utxos are available.
+// Thus the caller (usually a State) should verify to prevent double-spends.
 func (inv *Inv) StoreBlock(b Block) error {
 	blockId := b.Hash()
 	if inv.HasBlock(blockId) {
@@ -222,21 +221,21 @@ func (inv *Inv) StoreBlock(b Block) error {
 	totalInputs := uint64(util.Constants.BlockReward)
 	totalOutputs := uint64(0)
 	for i, tx := range txs {
-		inputsValue := tx.InputsValue()
-		outputsValue := tx.OutputsValue()
+		inputValue := tx.InputsValue()
+		outputValue := tx.OutputsValue()
 		if i == 0 {
-			if len(tx.Inputs) != 0 || inputsValue != 0 {
+			if len(tx.Inputs) != 0 || inputValue != 0 {
 				return fmt.Errorf("coinbase tx must have no inputs")
-			} else if len(tx.Outputs) != 1 || outputsValue < util.Constants.BlockReward {
+			} else if len(tx.Outputs) != 1 || outputValue < util.Constants.BlockReward {
 				return fmt.Errorf("coinbase tx must have outputs > block reward")
 			}
 		} else {
-			if len(tx.Inputs) == 0 || inputsValue <= outputsValue {
+			if len(tx.Inputs) == 0 || inputValue <= outputValue {
 				return fmt.Errorf("non-coinbase tx must have inputs > outputs")
 			}
 		}
-		totalInputs += inputsValue
-		totalOutputs += outputsValue
+		totalInputs += inputValue
+		totalOutputs += outputValue
 	}
 	if totalInputs != totalOutputs {
 		return fmt.Errorf("total inputs and outputs do not match")

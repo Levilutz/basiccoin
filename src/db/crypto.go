@@ -81,10 +81,11 @@ func DHashList[T Hasher](items []T) HashT {
 }
 
 // Generate root-node hash of depth-1 tree, given children.
-// If child is a hash, it's included unchanged. If child is a Hashable, it's Hash()
-// method is run and that's included. If child is an int, it's converted to string, then
-// bytes, then hashed. If child is a []byte, it's hashed normally. If unknown type,
-// it panics (should be unreachable).
+// If child is a hash, it's included unchanged.
+// If child is a Hashable, it's Hash() method is run and the output is included.
+// If child is an int, it's converted to big endian bytes, hashed, then included.
+// If child is a []byte, it's hashed normally.
+// If unknown type, it panics (should be unreachable).
 func DHashItems(children ...any) HashT {
 	itemHashes := make([][]byte, len(children))
 	for i := 0; i < len(children); i++ {
