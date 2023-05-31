@@ -29,7 +29,7 @@ func CreateMiningTarget(s *db.State, inv *db.Inv, publicKeyHash db.HashT) db.Blo
 		// Include tx in out set
 		outTxs = append(outTxs, tx)
 		sizeLeft -= vSize
-		totalFees += tx.TotalInputs() - tx.TotalOutputs()
+		totalFees += tx.InputsValue() - tx.OutputsValue()
 		// If we're out of space, break
 		if sizeLeft < db.MinNonCoinbaseVSize() {
 			break

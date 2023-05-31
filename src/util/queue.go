@@ -4,9 +4,9 @@ type Queue[K any] struct {
 	q []K
 }
 
-func NewQueue[K any]() *Queue[K] {
+func NewQueue[K any](items ...K) *Queue[K] {
 	return &Queue[K]{
-		q: make([]K, 0),
+		q: items,
 	}
 }
 

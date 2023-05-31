@@ -170,7 +170,7 @@ func (s *State) VerifyTxIncludable(txId HashT) error {
 		return fmt.Errorf("tx does not exist in mempool")
 	}
 	// Verify each tx input's claimed utxo is available
-	// This is the primary guard against double-spends
+	// This guards against double-spends
 	for _, txi := range tx.Inputs {
 		if !s.utxos.Includes(UtxoFromInput(txi)) {
 			return fmt.Errorf(

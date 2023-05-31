@@ -57,7 +57,7 @@ func (tx Tx) Hash() HashT {
 	)
 }
 
-func (tx Tx) TotalInputs() uint64 {
+func (tx Tx) InputsValue() uint64 {
 	total := uint64(0)
 	for _, txi := range tx.Inputs {
 		total += uint64(txi.Value)
@@ -65,7 +65,7 @@ func (tx Tx) TotalInputs() uint64 {
 	return total
 }
 
-func (tx Tx) TotalOutputs() uint64 {
+func (tx Tx) OutputsValue() uint64 {
 	total := uint64(0)
 	for _, txo := range tx.Outputs {
 		total += uint64(txo.Value)
@@ -86,7 +86,7 @@ func (tx Tx) VSize() uint64 {
 }
 
 func (tx Tx) Rate() float64 {
-	return float64(tx.TotalInputs()-tx.TotalOutputs()) / float64(tx.VSize())
+	return float64(tx.InputsValue()-tx.OutputsValue()) / float64(tx.VSize())
 }
 
 func (tx Tx) SignaturesValid() bool {
