@@ -12,24 +12,20 @@ var ErrEntityUnknown = errors.New("entity unknown")
 
 // Interface of all the functions that can't invoke SyncMap.Store.
 type InvReader interface {
-	AncestorDepth(blockId HashT, ancestorId HashT) (uint64, error)
-	GetBlock(blockId HashT) Block
-	AnyBlockIdsKnown(blockIds []HashT) (HashT, bool)
-	GetBlockHeight(blockId HashT) (uint64, error)
-	GetBlockHeritage(blockId HashT, maxLen int) ([]HashT, error)
-	GetBlockParentId(blockId HashT) (HashT, error)
-	GetMerkle(merkleId HashT) MerkleNode
-	GetTx(txId HashT) Tx
-	GetTxInOrigin(txi TxIn) (TxOut, error)
 	HasBlock(blockId HashT) bool
+	HasAnyBlock(blockIds []HashT) (HashT, bool)
+	GetBlock(blockId HashT) Block
+	GetBlockHeight(blockId HashT) uint64
+	GetBlockParentId(blockId HashT) HashT
+	GetBlockAncestors(blockId HashT, maxLen int) []HashT
+	GetBlockAncestorDepth(blockId HashT, ancestorId HashT) (uint64, bool)
 	HasMerkle(nodeId HashT) bool
+	GetMerkle(merkleId HashT) MerkleNode
+	GetMerkleTxs(root HashT) []Tx
 	HasTx(txId HashT) bool
-	LoadBlock(blockId HashT) (Block, bool)
-	LoadMerkle(nodeId HashT) (MerkleNode, bool)
-	LoadMerkleTxs(root HashT) ([]Tx, error)
-	LoadTx(txId HashT) (Tx, bool)
-	LoadTxOrMerkle(id HashT) (*Tx, *MerkleNode)
-	VerifyEntityExists(id HashT) error
+	GetTx(txId HashT) Tx
+	HasTxOut(txId HashT, ind uint64) bool
+	GetTxOut(txId HashT, ind uint64) TxOut
 }
 
 // Write-once read-many maps.
@@ -55,22 +51,170 @@ func NewInv() *Inv {
 	return inv
 }
 
+// Return whether the given block id exists.
+func (inv *Inv) HasBlock(blockId HashT) bool {
+	_, ok := inv.blocks.Load(blockId)
+	return ok
+}
+
+func (inv *Inv) HasAnyBlock(blockIds []HashT) (HashT, bool) {
+	for i := 0; i < len(blockIds); i++ {
+		if inv.HasBlock(blockIds[i]) {
+			return blockIds[i], true
+		}
+	}
+	return HashTZero, false
+}
+
+// Get a block, panic if it doesn't exist.
+func (inv *Inv) GetBlock(blockId HashT) Block {
+	block, ok := inv.blocks.Load(blockId)
+	if !ok {
+		panic(fmt.Sprintf("block should exist: %x", blockId))
+	}
+	return block
+}
+
+// Get a block's height (0x0 is height 0, origin block is height 1).
+func (inv *Inv) GetBlockHeight(blockId HashT) uint64 {
+	h, ok := inv.blockHs.Load(blockId)
+	if !ok {
+		panic(fmt.Sprintf("block should exist: %x", blockId))
+	}
+	return h
+}
+
+func (inv *Inv) GetBlockParentId(blockId HashT) HashT {
+	if blockId == HashTZero {
+		panic("Cannot get parent of root block")
+	}
+	return inv.GetBlock(blockId).PrevBlockId
+}
+
+func (inv *Inv) GetBlockAncestors(blockId HashT, maxLen int) []HashT {
+	out := make([]HashT, 0)
+	next := blockId
+	for i := 0; i < maxLen; i++ {
+		next = inv.GetBlockParentId(next)
+		out = append(out, next)
+		if next == HashTZero {
+			break
+		}
+	}
+	return out
+}
+
+// Returns how many blocks deep the ancestor is, and whether we have this ancestor.
+func (inv *Inv) GetBlockAncestorDepth(blockId, ancestorId HashT) (uint64, bool) {
+	depth := uint64(0)
+	for blockId != ancestorId && blockId != HashTZero {
+		blockId = inv.GetBlockParentId(blockId)
+	}
+	if blockId != ancestorId {
+		return 0, false
+	}
+	return depth, true
+}
+
+// Return whether the given merkle id exists.
+func (inv *Inv) HasMerkle(nodeId HashT) bool {
+	_, ok := inv.merkles.Load(nodeId)
+	return ok
+}
+
+// Get a merkle, panic if it doesn't exist.
+func (inv *Inv) GetMerkle(merkleId HashT) MerkleNode {
+	merkle, ok := inv.merkles.Load(merkleId)
+	if !ok {
+		panic(fmt.Sprintf("merkle should exist: %x", merkleId))
+	}
+	return merkle
+}
+
+// Load all txs descended from a merkle node.
+func (inv *Inv) GetMerkleTxs(root HashT) []Tx {
+	outTxs := make([]Tx, 0)
+	// Go through each node in tree, categorizing as either tx or merkle
+	idQueue := util.NewQueue[HashT]()
+	visitedIds := util.NewSet[HashT]() // Prevent cycles
+	idQueue.Push(root)
+	for i := 0; i < int(MerkleTreeMaxSize()); i++ {
+		// Pop next id, finish if we've cleared queue
+		nextId, ok := idQueue.Pop()
+		if !ok {
+			break
+		}
+
+		// Prevent cycles
+		if visitedIds.Includes(nextId) {
+			panic(fmt.Sprintf("circular visit to id %x", nextId))
+		}
+		visitedIds.Add(nextId)
+
+		// Load tx or merkle and categorize
+		if inv.HasTx(nextId) {
+			outTxs = append(outTxs, inv.GetTx(nextId))
+		} else if inv.HasMerkle(nextId) {
+			merkle := inv.GetMerkle(nextId)
+			idQueue.Push(merkle.LChild)
+			if merkle.RChild != merkle.LChild {
+				idQueue.Push(merkle.RChild)
+			}
+		} else {
+			// TODO requires verification on merkle insert that subtrees don't break limit
+			panic(fmt.Sprintf("unrecognized tree node: %x", nextId))
+		}
+	}
+
+	// Verify we didn't just hit limit
+	if idQueue.Size() > 0 {
+		panic(fmt.Sprintf("tree exceeds max size of %d", MerkleTreeMaxSize()))
+	}
+	return outTxs
+}
+
+// Return whether the given tx id exists.
+func (inv *Inv) HasTx(txId HashT) bool {
+	_, ok := inv.txs.Load(txId)
+	return ok
+}
+
+// Get a tx, panic if it doesn't exist.
+func (inv *Inv) GetTx(txId HashT) Tx {
+	tx, ok := inv.txs.Load(txId)
+	if !ok {
+		panic(fmt.Sprintf("tx should exist: %x", txId))
+	}
+	return tx
+}
+
+// Return whether the given tx has the given output index.
+func (inv *Inv) HasTxOut(txId HashT, ind uint64) bool {
+	if !inv.HasTx(txId) {
+		return false
+	}
+	return ind >= uint64(len(inv.GetTx(txId).Outputs))
+}
+
+// Get the given output from the given tx.
+func (inv *Inv) GetTxOut(txId HashT, ind uint64) TxOut {
+	return inv.GetTx(txId).Outputs[ind]
+}
+
 // Store a new block, ensures merkle root known and difficulty beat.
 func (inv *Inv) StoreBlock(b Block) error {
+	// Pre-insertion verification
 	blockId := b.Hash()
-	if _, ok := inv.LoadBlock(blockId); ok {
+	if inv.HasBlock(blockId) {
 		return fmt.Errorf("block already known: %x", blockId)
 	} else if !BelowTarget(blockId, b.Difficulty) {
 		return fmt.Errorf("block failed to beat target difficulty")
+	} else if !inv.HasMerkle(b.MerkleRoot) {
+		return fmt.Errorf("failed to find new block merkle root")
 	}
-	parentHeight, err := inv.GetBlockHeight(b.PrevBlockId)
-	if err != nil {
-		return fmt.Errorf("failed to find parent height: %s", err.Error())
-	}
-	txs, err := inv.LoadMerkleTxs(b.MerkleRoot)
-	if err != nil {
-		return fmt.Errorf("failed to find new block txs: %s", err.Error())
-	} else if len(txs) == 0 {
+	parentHeight := inv.GetBlockHeight(b.PrevBlockId)
+	txs := inv.GetMerkleTxs(b.MerkleRoot)
+	if len(txs) == 0 {
 		return fmt.Errorf("block has no txs")
 	} else if len(txs) > int(BlockMaxTxs()) {
 		return fmt.Errorf("block has too many txs")
@@ -96,69 +240,33 @@ func (inv *Inv) StoreBlock(b Block) error {
 	} else if totalVSize > util.Constants.MaxBlockVSize {
 		return fmt.Errorf("block exceeds max vSize")
 	}
+	// Insert
 	inv.blockHs.Store(blockId, parentHeight+1)
 	inv.blocks.Store(blockId, b)
 	return nil
 }
 
-// Load a block, return the block and whether it exists.
-func (inv *Inv) LoadBlock(blockId HashT) (Block, bool) {
-	return inv.blocks.Load(blockId)
-}
-
-// Return whether the given block id exists.
-func (inv *Inv) HasBlock(blockId HashT) bool {
-	_, ok := inv.blocks.Load(blockId)
-	return ok
-}
-
-// Get a block, panic if it doesn't exist.
-func (inv *Inv) GetBlock(blockId HashT) Block {
-	block, ok := inv.blocks.Load(blockId)
-	if !ok {
-		panic(fmt.Sprintf("block should exist: %x", blockId))
-	}
-	return block
-}
-
 // Store a new merkle, ensures children known.
 func (inv *Inv) StoreMerkle(merkle MerkleNode) error {
+	// Pre-insertion verification
 	nodeId := merkle.Hash()
-	if _, ok := inv.merkles.Load(nodeId); ok {
+	if inv.HasMerkle(nodeId) {
 		return fmt.Errorf("merkle already known: %x", nodeId)
-	} else if err := inv.VerifyEntityExists(merkle.LChild); err != nil {
-		return fmt.Errorf("failed to find LChild of %x: %s", nodeId, err.Error())
-	} else if err := inv.VerifyEntityExists(merkle.RChild); err != nil {
-		return fmt.Errorf("failed to find RChild of %x: %s", nodeId, err.Error())
+	} else if !inv.HasMerkle(merkle.LChild) && !inv.HasTx(merkle.LChild) {
+		return fmt.Errorf("failed to find LChild: %x", merkle.LChild)
+	} else if !inv.HasMerkle(merkle.RChild) && !inv.HasTx(merkle.RChild) {
+		return fmt.Errorf("failed to find RChild: %x", merkle.RChild)
 	}
+	// Insert
 	inv.merkles.Store(nodeId, merkle)
 	return nil
 }
 
-// Load a merkle node, return the merkle and whether it exists.
-func (inv *Inv) LoadMerkle(nodeId HashT) (MerkleNode, bool) {
-	return inv.merkles.Load(nodeId)
-}
-
-// Return whether the given merkle id exists.
-func (inv *Inv) HasMerkle(nodeId HashT) bool {
-	_, ok := inv.merkles.Load(nodeId)
-	return ok
-}
-
-// Get a merkle, panic if it doesn't exist.
-func (inv *Inv) GetMerkle(merkleId HashT) MerkleNode {
-	merkle, ok := inv.merkles.Load(merkleId)
-	if !ok {
-		panic(fmt.Sprintf("merkle should exist: %x", merkleId))
-	}
-	return merkle
-}
-
 // Store a new transaction.
 func (inv *Inv) StoreTx(tx Tx) error {
+	// Pre-insertion verification
 	txId := tx.Hash()
-	if _, ok := inv.txs.Load(txId); ok {
+	if inv.HasTx(txId) {
 		return fmt.Errorf("tx already known: %x", txId)
 	}
 	if !tx.SignaturesValid() {
@@ -181,15 +289,14 @@ func (inv *Inv) StoreTx(tx Tx) error {
 	}
 	// Verify given public key and value match those on origin utxo
 	for _, txi := range tx.Inputs {
-		origin, err := inv.GetTxInOrigin(txi)
-		if err != nil {
+		if !inv.HasTxOut(txi.OriginTxId, txi.OriginTxOutInd) {
 			return fmt.Errorf(
-				"failed to find utxo %x[%d]: %s",
+				"failed to find utxo %x[%d]",
 				txi.OriginTxId,
 				txi.OriginTxOutInd,
-				err.Error(),
 			)
 		}
+		origin := inv.GetTxOut(txi.OriginTxId, txi.OriginTxOutInd)
 		if DHash(txi.PublicKey) != origin.PublicKeyHash {
 			return fmt.Errorf("given public key does not match claimed utxo")
 		}
@@ -197,239 +304,7 @@ func (inv *Inv) StoreTx(tx Tx) error {
 			return fmt.Errorf("given value does not match claimed utxo")
 		}
 	}
+	// Insert
 	inv.txs.Store(txId, tx)
 	return nil
-}
-
-// Load a tx, return the tx and whether it exists.
-func (inv *Inv) LoadTx(txId HashT) (Tx, bool) {
-	return inv.txs.Load(txId)
-}
-
-// Return whether the given tx id exists.
-func (inv *Inv) HasTx(txId HashT) bool {
-	_, ok := inv.txs.Load(txId)
-	return ok
-}
-
-// Get a tx, panic if it doesn't exist.
-func (inv *Inv) GetTx(txId HashT) Tx {
-	tx, ok := inv.txs.Load(txId)
-	if !ok {
-		panic(fmt.Sprintf("tx should exist: %x", txId))
-	}
-	return tx
-}
-
-func (inv *Inv) GetTxInOrigin(txi TxIn) (TxOut, error) {
-	originTx, ok := inv.LoadTx(txi.OriginTxId)
-	if !ok || txi.OriginTxOutInd >= uint64(len(originTx.Outputs)) {
-		return TxOut{}, ErrEntityUnknown
-	}
-	return originTx.Outputs[txi.OriginTxOutInd], nil
-}
-
-// Load a tx or merkle, return a pointer to whichever exists and nil.
-func (inv *Inv) LoadTxOrMerkle(id HashT) (*Tx, *MerkleNode) {
-	merkle, ok := inv.LoadMerkle(id)
-	if ok {
-		return nil, &merkle
-	}
-	tx, ok := inv.LoadTx(id)
-	if ok {
-		return &tx, nil
-	}
-	return nil, nil
-}
-
-func (inv *Inv) GetBlockParentId(blockId HashT) (HashT, error) {
-	block, ok := inv.LoadBlock(blockId)
-	if !ok || blockId == HashTZero {
-		return HashT{}, ErrEntityUnknown
-	}
-	return block.PrevBlockId, nil
-}
-
-// Get a block's height (0x0 is height 0, origin block is height 1).
-func (inv *Inv) GetBlockHeight(blockId HashT) (uint64, error) {
-	h, ok := inv.blockHs.Load(blockId)
-	if !ok {
-		return 0, ErrEntityUnknown
-	}
-	return h, nil
-}
-
-func (inv *Inv) GetBlockHeritage(blockId HashT, maxLen int) ([]HashT, error) {
-	out := make([]HashT, 0)
-	next := blockId
-	var err error
-	for i := 0; i < maxLen; i++ {
-		next, err = inv.GetBlockParentId(next)
-		if err != nil {
-			return nil, err
-		}
-		out = append(out, next)
-		if next == HashTZero {
-			break
-		}
-	}
-	return out, nil
-}
-
-func (inv *Inv) AnyBlockIdsKnown(blockIds []HashT) (HashT, bool) {
-	for i := 0; i < len(blockIds); i++ {
-		_, ok := inv.LoadBlock(blockIds[i])
-		if ok {
-			return blockIds[i], true
-		}
-	}
-	return HashTZero, false
-}
-
-// Load all txs descended from a merkle node.
-func (inv *Inv) LoadMerkleTxs(root HashT) ([]Tx, error) {
-	outTxs := make([]Tx, 0)
-	// Go through each node in tree, categorizing as either tx or merkle
-	idQueue := util.NewQueue[HashT]()
-	visitedIds := util.NewSet[HashT]() // Prevent cycles
-	idQueue.Push(root)
-	for i := 0; i < int(MerkleTreeMaxSize()); i++ {
-		// Pop next id, finish if we've cleared queue
-		nextId, ok := idQueue.Pop()
-		if !ok {
-			break
-		}
-
-		// Prevent cycles
-		if visitedIds.Includes(nextId) {
-			return nil, fmt.Errorf("circular visit to id %x", nextId)
-		}
-		visitedIds.Add(nextId)
-
-		// Load tx or merkle and categorize
-		tx, merkle := inv.LoadTxOrMerkle(nextId)
-		if tx != nil {
-			outTxs = append(outTxs, *tx)
-		} else if merkle != nil {
-			idQueue.Push(merkle.LChild)
-			if merkle.RChild != merkle.LChild {
-				idQueue.Push(merkle.RChild)
-			}
-		} else {
-			return nil, fmt.Errorf("unrecognized tree node: %x", nextId)
-		}
-	}
-
-	// Verify we didn't just hit limit
-	_, ok := idQueue.Pop()
-	if ok {
-		return nil, fmt.Errorf(
-			"tree exceeds max size of %d", MerkleTreeMaxSize(),
-		)
-	}
-	return outTxs, nil
-}
-
-// Store full block with any new merkle nodes and txs. Only merkles / txs reachable
-// from the block merkleRoot are included, missing merkles and txs cause failure.
-func (inv *Inv) StoreFullBlock(
-	block Block, merkles []MerkleNode, txs []Tx,
-) error {
-	blockId := block.Hash()
-	// Skip if known
-	_, ok := inv.LoadBlock(blockId)
-	if ok {
-		return ErrEntityKnown
-	}
-
-	merkleMap := HasherMap(merkles)
-	txMap := HasherMap(txs)
-
-	// What to add at the end
-	newMerkles := make([]MerkleNode, 0)
-	newTxs := make([]Tx, 0)
-
-	// Go through tree from merkle root. If unknown but provided in args, add to inv
-	idQueue := util.NewQueue[HashT]()
-	visitedIds := util.NewSet[HashT]() // Prevent cycles
-	idQueue.Push(block.MerkleRoot)
-	for i := uint64(0); i < MerkleTreeMaxSize(); i++ {
-		// Pop next id, finish if we've cleared queue
-		nextId, ok := idQueue.Pop()
-		if !ok {
-			break
-		}
-
-		// Prevent cycles
-		if visitedIds.Includes(nextId) {
-			return fmt.Errorf("circular visit to id %x", nextId)
-		}
-		visitedIds.Add(nextId)
-
-		// If entity known, skip
-		txP, merkleP := inv.LoadTxOrMerkle(nextId)
-		if txP != nil || merkleP != nil {
-			continue
-		}
-
-		// Unknown, check if id exists as merkle or tx in args
-		if tx, ok := txMap[nextId]; ok {
-			// Id exists as tx in args
-			newTxs = append(newTxs, tx)
-		} else if merkle, ok := merkleMap[nextId]; ok {
-			// Id exists as merkle in args
-			newMerkles = append(newMerkles, merkle)
-			idQueue.Push(merkle.LChild)
-			if merkle.RChild != merkle.LChild {
-				idQueue.Push(merkle.RChild)
-			}
-		} else {
-			// Unrecognized and not provided in args, err
-			return ErrEntityUnknown
-		}
-	}
-
-	// Add from the sets created earlier
-	for _, tx := range newTxs {
-		err := inv.StoreTx(tx)
-		if err != nil {
-			return err
-		}
-	}
-	for _, merkle := range newMerkles {
-		err := inv.StoreMerkle(merkle)
-		if err != nil {
-			return err
-		}
-	}
-	err := inv.StoreBlock(block)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-// Returns error if entity not known, or nil if known.
-func (inv *Inv) VerifyEntityExists(id HashT) error {
-	txP, merkleP := inv.LoadTxOrMerkle(id)
-	if txP == nil && merkleP == nil {
-		return ErrEntityUnknown
-	}
-	return nil
-}
-
-// Returns how many blocks deep the ancestor is.
-func (inv *Inv) AncestorDepth(blockId, ancestorId HashT) (uint64, error) {
-	var err error
-	depth := uint64(0)
-	for blockId != ancestorId && blockId != HashTZero {
-		blockId, err = inv.GetBlockParentId(blockId)
-		if err != nil {
-			return 0, err
-		}
-	}
-	if blockId != ancestorId {
-		return 0, fmt.Errorf("block does not trace to ancestor")
-	}
-	return depth, nil
 }

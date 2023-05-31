@@ -20,7 +20,7 @@ func handleReceiveNewBlockExchange(
 	if err != nil {
 		return event, err
 	}
-	if _, ok := inv.LoadBlock(topBlockId); ok {
+	if inv.HasBlock(topBlockId) {
 		pc.TransmitStringLine("fin:new-block")
 		if err := pc.Err(); err != nil {
 			return event, err
@@ -40,7 +40,7 @@ func handleReceiveNewBlockExchange(
 		if err != nil {
 			return event, err
 		}
-		recId, ok := inv.AnyBlockIdsKnown(newBlockIds.BlockIds)
+		recId, ok := inv.HasAnyBlock(newBlockIds.BlockIds)
 		// Add to list of needed block ids, until we hit the one we recognize
 		for _, blockId := range newBlockIds.BlockIds {
 			if ok && recId == blockId {
@@ -93,10 +93,7 @@ func handleTransmitNewBlockExchange(
 	}
 	// Exchange block ids
 	for resp == "next-blocks" {
-		nextBlocks, err := inv.GetBlockHeritage(blockId, 20)
-		if err != nil {
-			return err
-		}
+		nextBlocks := inv.GetBlockAncestors(blockId, 20)
 		pc.TransmitMessage(BlockIdsMessage{BlockIds: nextBlocks})
 		resp = pc.RetryReadStringLine(7)
 		if err := pc.Err(); err != nil {

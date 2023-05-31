@@ -20,10 +20,7 @@ func CreateMiningTarget(s *db.State, inv *db.Inv, publicKeyHash db.HashT) db.Blo
 	sizeLeft := util.Constants.MaxBlockVSize - db.CoinbaseVSize()
 	candidateTxIds := s.GetSortedIncludableMempool()
 	for _, txId := range candidateTxIds {
-		tx, ok := inv.LoadTx(txId)
-		if !ok {
-			panic(db.ErrEntityUnknown)
-		}
+		tx := inv.GetTx(txId)
 		// Check if tx is too big to fit in space left
 		vSize := tx.VSize()
 		if vSize > sizeLeft {
@@ -39,7 +36,7 @@ func CreateMiningTarget(s *db.State, inv *db.Inv, publicKeyHash db.HashT) db.Blo
 		}
 	}
 	// Actually make coinbase tx
-	headHeight, err := inv.GetBlockHeight(s.GetHead())
+	headHeight := inv.GetBlockHeight(s.GetHead())
 	if err != nil {
 		panic(err)
 	}
@@ -60,8 +57,7 @@ func CreateMiningTarget(s *db.State, inv *db.Inv, publicKeyHash db.HashT) db.Blo
 	}
 	// Store the coinbase tx
 	coinbaseId := outTxs[0].Hash()
-	_, ok := inv.LoadTx(coinbaseId)
-	if !ok {
+	if !inv.HasTx(coinbaseId) {
 		err := inv.StoreTx(outTxs[0])
 		if err != nil {
 			panic(err)
@@ -71,8 +67,7 @@ func CreateMiningTarget(s *db.State, inv *db.Inv, publicKeyHash db.HashT) db.Blo
 	// Store each merkle node
 	merkleMap, merkleIds := db.MerkleFromTxIds(txIds)
 	for _, nodeId := range merkleIds {
-		_, ok := inv.LoadMerkle(nodeId)
-		if ok {
+		if inv.HasMerkle(nodeId) {
 			continue
 		}
 		err := inv.StoreMerkle(merkleMap[nodeId])

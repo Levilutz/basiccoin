@@ -61,14 +61,8 @@ func (s *State) Rewind() error {
 	if s.head == HashTZero {
 		return fmt.Errorf("cannot rewind - at origin")
 	}
-	rBlock, ok := s.inv.LoadBlock(s.head)
-	if !ok {
-		return ErrEntityUnknown
-	}
-	rTxs, err := s.inv.LoadMerkleTxs(rBlock.MerkleRoot)
-	if err != nil {
-		return err
-	}
+	rBlock := s.inv.GetBlock(s.head)
+	rTxs := s.inv.GetMerkleTxs(rBlock.MerkleRoot)
 	for _, tx := range rTxs {
 		txId := tx.Hash()
 		// Return tx back to mempool
@@ -92,9 +86,9 @@ func (s *State) Rewind() error {
 // Rewind a state until head is the given block.
 // If this fails state will be corrupted, so copy before if necessary.
 func (s *State) RewindUntil(blockId HashT) error {
-	depth, err := s.inv.AncestorDepth(s.head, blockId)
-	if err != nil {
-		return err
+	depth, ok := s.inv.GetBlockAncestorDepth(s.head, blockId)
+	if !ok {
+		return fmt.Errorf("head does not have ancestor %x", blockId)
 	}
 	for i := uint64(0); i < depth; i++ {
 		if err := s.Rewind(); err != nil {
@@ -110,14 +104,11 @@ func (s *State) RewindUntil(blockId HashT) error {
 // Advance a state to a given next block.
 // If this fails state will be corrupted, so copy before if necessary.
 func (s *State) Advance(nextBlockId HashT) error {
-	nBlock, ok := s.inv.LoadBlock(nextBlockId)
-	if !ok {
+	if !s.inv.HasBlock(nextBlockId) {
 		return fmt.Errorf("cannot advance, block unknown: %x", nextBlockId)
 	}
-	nTxs, err := s.inv.LoadMerkleTxs(nBlock.MerkleRoot)
-	if err != nil {
-		return fmt.Errorf("failed to load merkle txs: %s", err.Error())
-	}
+	nBlock := s.inv.GetBlock(nextBlockId)
+	nTxs := s.inv.GetMerkleTxs(nBlock.MerkleRoot)
 	if nBlock.PrevBlockId != s.head {
 		return fmt.Errorf("block not based on this parent")
 	}
@@ -128,10 +119,7 @@ func (s *State) Advance(nextBlockId HashT) error {
 			return fmt.Errorf("tx not includable: %s", err.Error())
 		}
 		// Verify above min block height
-		height, err := s.inv.GetBlockHeight(nextBlockId)
-		if err != nil {
-			return fmt.Errorf("failed to retrieve next block height: %s", err.Error())
-		}
+		height := s.inv.GetBlockHeight(nextBlockId)
 		if height < tx.MinBlock {
 			return fmt.Errorf("tx cannot be included in block - too low")
 		}
@@ -170,14 +158,11 @@ func (s *State) AdvanceMany(nextBlockIds []HashT) error {
 
 // Check whether a tx can be included in a new block based on this head.
 func (s *State) VerifyTxIncludable(txId HashT) error {
-	tx, ok := s.inv.LoadTx(txId)
-	if !ok {
+	if !s.inv.HasTx(txId) {
 		return ErrEntityUnknown
 	}
-	height, err := s.inv.GetBlockHeight(s.head)
-	if err != nil {
-		return err
-	}
+	tx := s.inv.GetTx(txId)
+	height := s.inv.GetBlockHeight(s.head)
 	if height+1 < tx.MinBlock {
 		return fmt.Errorf("tx cannot be included in block - too low")
 	}
@@ -212,10 +197,7 @@ func (s *State) GetSortedIncludableMempool() []HashT {
 
 // Add a tx to the mempool.
 func (s *State) AddMempoolTx(txId HashT) {
-	tx, ok := s.inv.LoadTx(txId)
-	if !ok {
-		panic("tx should exist")
-	}
+	tx := s.inv.GetTx(txId)
 	s.mempool.Add(txId)
 	s.mempoolRates[txId] = tx.Rate()
 }
