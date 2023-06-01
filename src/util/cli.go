@@ -7,6 +7,7 @@ type CLIArgs struct {
 	LocalAddr string `json:"localAddr"`
 	Miners    int    `json:"miners"`
 	SeedAddr  string `json:"seedAddr"`
+	Verbose   bool   `json:"verbose"`
 }
 
 func ParseCLIArgs() CLIArgs {
@@ -15,6 +16,7 @@ func ParseCLIArgs() CLIArgs {
 	localAddr := flag.String("addr", "", "Address to host from")
 	miners := flag.Int("miners", 0, "How many miner instances (defaults to 0)")
 	seedAddr := flag.String("seed", "", "Seed peer, or nothing to create new network")
+	verbose := flag.Bool("v", false, "Whether to show debug logs")
 
 	// Do the parse
 	flag.Parse()
@@ -32,6 +34,9 @@ func ParseCLIArgs() CLIArgs {
 	}
 	if *seedAddr != "" {
 		Constants.SeedAddr = *seedAddr
+	}
+	if *verbose {
+		Constants.Debug = true
 	}
 
 	// Return all (even those in constants)

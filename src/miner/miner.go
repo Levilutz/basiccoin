@@ -41,7 +41,7 @@ func (m *Miner) Kill() {
 
 // Loop handling events and searching for block solutions.
 func (m *Miner) Loop() {
-	defer fmt.Println("Miner closed")
+	defer fmt.Println("miner closed")
 	for {
 		select {
 		case newTarget := <-m.newTargetCh:

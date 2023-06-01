@@ -56,7 +56,7 @@ func (p *Peer) SyncHead(head db.HashT) {
 
 // Loop handling events from our message bus and the peer.
 func (p *Peer) Loop() {
-	defer fmt.Println("Peer closed:", p.HelloMsg.RuntimeID)
+	defer fmt.Println("peer closed:", p.HelloMsg.RuntimeID)
 	var err error
 	pingTicker := time.NewTicker(util.Constants.PeerPingFreq)
 	for {
@@ -117,7 +117,7 @@ func (p *Peer) handlePeerBusEvent(event any) (bool, error) {
 		})
 
 	default:
-		fmt.Printf("Unhandled peer event %T\n", event)
+		fmt.Printf("unhandled peer event %T\n", event)
 	}
 	return false, nil
 }
@@ -165,7 +165,7 @@ func (p *Peer) handleReceivedLine(line []byte) (bool, error) {
 		}()
 
 	} else {
-		fmt.Println("Unexpected peer message:", command)
+		fmt.Println("unexpected peer message:", command)
 	}
 
 	return false, nil

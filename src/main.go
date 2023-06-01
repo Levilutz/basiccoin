@@ -23,9 +23,8 @@ func main() {
 		util.PrettyPrint(cli_args)
 		util.PrettyPrint(util.Constants)
 		printComputedConstants()
-	} else {
-		fmt.Printf("Starting with id %x\n", util.Constants.RuntimeID)
 	}
+	fmt.Printf("starting with id %s\n", util.Constants.RuntimeID)
 
 	manager := manager.NewManager()
 
@@ -37,15 +36,15 @@ func main() {
 			if err == nil || i == 4 {
 				break
 			}
-			fmt.Println("Failed attempt to contact seed peer")
+			fmt.Println("failed attempt to connect to seed peer")
 			time.Sleep(5 * time.Second)
 		}
 		util.PanicErr(err)
-
+		fmt.Println("successfully connected to seed peer")
 		// Set local addr if not set from args
 		if cli_args.LocalAddr == "" {
 			util.Constants.LocalAddr = pc.LocalAddr().IP.String() + ":21720"
-			fmt.Println("Discovered address of", util.Constants.LocalAddr)
+			fmt.Println("discovered own address of", util.Constants.LocalAddr)
 		}
 
 		go manager.IntroducePeerConn(pc, true)

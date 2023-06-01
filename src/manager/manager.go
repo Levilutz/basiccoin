@@ -100,6 +100,7 @@ func (m *Manager) addMetConn(metConn MetConn) {
 		len(m.peers) < util.Constants.MaxPeers
 
 	if upgradeable {
+		fmt.Printf("adding new peer: %s\n", metConn.HelloMsg.RuntimeID)
 		peer := peer.NewPeer(
 			metConn.HelloMsg,
 			metConn.PeerConn,
@@ -112,6 +113,9 @@ func (m *Manager) addMetConn(metConn MetConn) {
 		m.peers[metConn.HelloMsg.RuntimeID] = peer
 
 	} else {
+		if util.Constants.Debug {
+			fmt.Printf("cancelling new peer: %s\n", metConn.HelloMsg.RuntimeID)
+		}
 		go func() {
 			metConn.PeerConn.TransmitStringLine("cmd:close")
 			metConn.PeerConn.Close()
