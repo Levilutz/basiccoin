@@ -11,7 +11,7 @@ type ShouldEndPeerEvent struct {
 }
 
 // Inform this peer of our head, sync if desired.
-type OutboundSyncPeerEvent struct {
+type SyncHeadPeerEvent struct {
 	Head db.HashT
 }
 

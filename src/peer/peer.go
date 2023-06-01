@@ -46,9 +46,9 @@ func NewPeer(
 	}
 }
 
-func (p *Peer) OutboundSync(head db.HashT) {
+func (p *Peer) SyncHead(head db.HashT) {
 	go func() {
-		p.EventBus <- events.OutboundSyncPeerEvent{
+		p.EventBus <- events.SyncHeadPeerEvent{
 			Head: head,
 		}
 	}()
@@ -99,7 +99,7 @@ func (p *Peer) handlePeerBusEvent(event any) (bool, error) {
 	case events.ShouldEndPeerEvent:
 		return true, p.handleClose(true, false)
 
-	case events.OutboundSyncPeerEvent:
+	case events.SyncHeadPeerEvent:
 		p.head = msg.Head
 		return p.issuePeerCommand("sync", p.handleSync)
 

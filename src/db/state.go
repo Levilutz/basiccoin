@@ -85,20 +85,19 @@ func (s *State) Rewind() error {
 
 // Rewind a state until head is the given block.
 // If this fails state will be corrupted, so copy before if necessary.
-func (s *State) RewindUntil(blockId HashT) error {
+func (s *State) RewindUntil(blockId HashT) {
 	depth, ok := s.inv.GetBlockAncestorDepth(s.head, blockId)
 	if !ok {
-		return fmt.Errorf("head does not have ancestor %x", blockId)
+		panic(fmt.Sprintf("head does not have ancestor %x", blockId))
 	}
 	for i := uint64(0); i < depth; i++ {
 		if err := s.Rewind(); err != nil {
-			return err
+			panic(err)
 		}
 	}
 	if s.head != blockId {
-		return fmt.Errorf("head is not expected value: %x != %x", s.head, blockId)
+		panic(fmt.Sprintf("head is not expected value: %x != %x", s.head, blockId))
 	}
-	return nil
 }
 
 // Advance a state to a given next block.

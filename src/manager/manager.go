@@ -211,11 +211,12 @@ func (m *Manager) IntroducePeerConn(pc *peer.PeerConn, weAreInitiator bool) {
 // Upgrade our chain to the given new head, if it seems the best.
 // Provide any blocks, merkles, or txs we might not know about (in the order to insert).
 func (m *Manager) handleNewBestChain(
-	head db.HashT,
+	newHead db.HashT,
 	blocks []db.Block,
 	merkles []db.MerkleNode,
 	txs []db.Tx,
 ) error {
+	oldHead := m.state.GetHead()
 	// Insert each entity into the inventory, in order.
 	for _, tx := range txs {
 		if !m.inv.HasTx(tx.Hash()) {
@@ -242,41 +243,37 @@ func (m *Manager) handleNewBestChain(
 		}
 	}
 	// Verify new total work is higher
-	if !m.inv.HasBlock(head) {
+	if !m.inv.HasBlock(newHead) {
 		return fmt.Errorf("provided head not known and not provided")
 	}
-	newWork := m.inv.GetBlockTotalWork(head)
-	ourWork := m.inv.GetBlockTotalWork(m.state.GetHead())
-	if !db.HashLT(ourWork, newWork) {
-		return fmt.Errorf("new chain is not higher work than current head")
+	newWork := m.inv.GetBlockTotalWork(newHead)
+	oldWork := m.inv.GetBlockTotalWork(oldHead)
+	if !db.HashLT(oldWork, newWork) {
+		return fmt.Errorf("new chain is not higher work than current chain")
 	}
 	// Find common ancestor of our chain heads
-	return nil
-}
-
-func (m *Manager) HandleMinedSolution(sol db.Block) error {
-	// Verify solution
-	solBlockId := sol.Hash()
-	if sol.PrevBlockId != m.state.GetHead() {
-		return fmt.Errorf("block not based on this parent")
-	}
-	// TODO: Verify difficulty correct
-	err := m.inv.StoreBlock(sol)
-	if err != nil {
-		return fmt.Errorf("failed to store solution: %s", err.Error())
-	}
+	lcaId := m.inv.GetBlockLCA(oldHead, newHead)
+	// Copy state, rewind to lca, and advance to new head
 	newState := m.state.Copy()
-	if err := newState.Advance(solBlockId); err != nil {
+	newState.RewindUntil(lcaId)
+	newBlocks := m.inv.GetBlockAncestorsUntil(newHead, lcaId)
+	// Iterate backwards, ignoring the lca
+	for i := len(newBlocks) - 2; i >= 0; i-- {
+		if err := newState.Advance(newBlocks[i]); err != nil {
+			return fmt.Errorf("failed to advance to mined block: %s", err.Error())
+		}
+	}
+	if err := newState.Advance(newHead); err != nil {
 		return fmt.Errorf("failed to advance to mined block: %s", err.Error())
 	}
+	// Shift to new head - this func shouldn't return err after this point
 	m.state = newState
 	// Set new miner targets
 	target := CreateMiningTarget(m.state, m.inv, db.HashTZero)
 	m.minerSet.SetTargets(target)
 	// Broadcast solution to peers
 	for _, p := range m.peers {
-		p.OutboundSync(solBlockId)
+		p.SyncHead(newHead)
 	}
-	fmt.Printf("Mined block %x\n", solBlockId)
 	return nil
 }

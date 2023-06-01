@@ -123,6 +123,27 @@ func (inv *Inv) GetBlockAncestors(blockId HashT, maxLen int) []HashT {
 	return out
 }
 
+// Gets block ancestors, from top, until the given block.
+// Includes untilId, does not include blockId.
+func (inv *Inv) GetBlockAncestorsUntil(blockId, untilId HashT) []HashT {
+	depth, ok := inv.GetBlockAncestorDepth(blockId, untilId)
+	if !ok {
+		panic("block does not have ancestor")
+	}
+	out := make([]HashT, depth)
+	for i := range out {
+		if blockId == HashTZero || blockId == untilId {
+			panic("exceeded expected ancestor depth")
+		}
+		blockId = inv.GetBlockParentId(blockId)
+		out[i] = blockId
+	}
+	if out[depth-1] != untilId {
+		panic("last ancestor should be given untilId")
+	}
+	return out
+}
+
 // Returns how many blocks deep the ancestor is, and whether we have this ancestor.
 func (inv *Inv) GetBlockAncestorDepth(blockId, ancestorId HashT) (uint64, bool) {
 	depth := uint64(0)
