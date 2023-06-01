@@ -101,7 +101,7 @@ func (p *Peer) handlePeerBusEvent(event any) (bool, error) {
 
 	case events.OutboundSyncPeerEvent:
 		p.head = msg.Head
-		return p.issuePeerCommand("sync", p.handleOutboundSync)
+		return p.issuePeerCommand("sync", p.handleSync)
 
 	case events.PeersDataPeerEvent:
 		return p.issuePeerCommand("addrs", func() error {
@@ -144,13 +144,10 @@ func (p *Peer) handleReceivedLine(line []byte) (bool, error) {
 		// ack above was sufficient
 
 	} else if command == "sync" {
-		msgP, err := p.handleInboundSync()
-		if err != nil {
+		// handleSync sends to main bus if appropriate
+		if err := p.handleSync(); err != nil {
 			return false, err
 		}
-		go func() {
-			p.mainBus <- *msgP
-		}()
 
 	} else if command == "addrs" {
 		msg, err := ReceiveAddrsMessage(p.conn)
@@ -251,10 +248,15 @@ func (p *Peer) handleClose(issuing bool, notifyMainBus bool) error {
 	return p.conn.Close()
 }
 
-func (p *Peer) handleOutboundSync() error {
+// Handle a sync, inbound or outbound.
+// If we're successful and we received the sync, send InboundSyncMainEvent to main.
+// If we're successful and we sent the sync or no sync occurred, send nothing to main.
+func (p *Peer) handleSync() error {
+	// TODO: Use total work, not heights
+	// ourHeight := p.inv.GetBlockHeight(p.head)
+	// theirHeight := p.conn.HandshakeHeights(ourHeight)
+	// if p.conn.HasErr() {
+	// 	return nil, p.conn.Err()
+	// }
 	return nil
-}
-
-func (p *Peer) handleInboundSync() (*events.InboundSyncMainEvent, error) {
-	return nil, nil
 }

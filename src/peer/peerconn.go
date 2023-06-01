@@ -66,6 +66,15 @@ func (pc *PeerConn) Handshake() *HelloMessage {
 	return &helloMsg
 }
 
+func (pc *PeerConn) HandshakeHeights(height uint64) uint64 {
+	if pc.e != nil {
+		return 0
+	}
+	pc.TransmitUint64Line(height)
+	theirHeight := pc.RetryReadUint64Line(7)
+	return theirHeight
+}
+
 // Transmit continue|close, and receive their continue|close. Return nil if both peers
 // want to connect, or a reason not to otherwise.
 func (pc *PeerConn) VerifyConnWanted(msg HelloMessage) {
