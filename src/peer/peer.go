@@ -56,7 +56,14 @@ func (p *Peer) SyncHead(head db.HashT) {
 
 // Loop handling events from our message bus and the peer.
 func (p *Peer) Loop() {
-	defer fmt.Println("peer closed:", p.HelloMsg.RuntimeID)
+	defer func() {
+		go func() {
+			fmt.Println("peer closed:", p.HelloMsg.RuntimeID)
+			p.mainBus <- events.PeerClosingMainEvent{
+				RuntimeID: p.HelloMsg.RuntimeID,
+			}
+		}()
+	}()
 	var err error
 	pingTicker := time.NewTicker(util.Constants.PeerPingFreq)
 	for {
@@ -97,7 +104,7 @@ func (p *Peer) Loop() {
 func (p *Peer) handlePeerBusEvent(event any) (bool, error) {
 	switch msg := event.(type) {
 	case events.ShouldEndPeerEvent:
-		return true, p.handleClose(true, false)
+		return true, p.handleClose(true)
 
 	case events.SyncHeadPeerEvent:
 		p.head = msg.Head
@@ -129,7 +136,7 @@ func (p *Peer) handleReceivedLine(line []byte) (bool, error) {
 	}
 	command := string(line)[4:]
 	if command == "close" {
-		return true, p.handleClose(false, true)
+		return true, p.handleClose(false)
 	}
 
 	p.conn.TransmitStringLine("ack:" + command)
@@ -189,7 +196,7 @@ func (p *Peer) issuePeerCommand(command string, handler func() error) (bool, err
 	if bytes.HasPrefix(resp, []byte("cmd:")) {
 		if string(resp) == "cmd:close" {
 			// If their command was a close, handle it immediately
-			return true, p.handleClose(false, true)
+			return true, p.handleClose(false)
 
 		} else if p.weAreInitiator {
 			// If we initiated the og handshake, honor their cmd, then expect ours to be
@@ -219,16 +226,9 @@ func (p *Peer) issuePeerCommand(command string, handler func() error) (bool, err
 	return false, nil
 }
 
-func (p *Peer) handleClose(issuing bool, notifyMainBus bool) error {
+func (p *Peer) handleClose(issuing bool) error {
 	if issuing {
 		p.conn.TransmitStringLine("cmd:close")
-	}
-	if notifyMainBus {
-		go func() {
-			p.mainBus <- events.PeerClosingMainEvent{
-				RuntimeID: p.HelloMsg.RuntimeID,
-			}
-		}()
 	}
 	if p.conn.HasErr() {
 		return p.conn.Err()
