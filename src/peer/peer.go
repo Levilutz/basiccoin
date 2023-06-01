@@ -116,9 +116,6 @@ func (p *Peer) handlePeerBusEvent(event any) (bool, error) {
 			return nil
 		})
 
-	case events.BroadcastBlockPeerEvent:
-		return false, handleTransmitNewBlockExchange(msg.BlockId, p.conn, p.inv)
-
 	default:
 		fmt.Printf("Unhandled peer event %T\n", event)
 	}
@@ -165,15 +162,6 @@ func (p *Peer) handleReceivedLine(line []byte) (bool, error) {
 			p.mainBus <- events.PeersWantedMainEvent{
 				PeerRuntimeID: p.HelloMsg.RuntimeID,
 			}
-		}()
-
-	} else if command == "new-block" {
-		mainBusEvent, err := handleReceiveNewBlockExchange(p.conn, p.inv)
-		if err != nil {
-			return false, err
-		}
-		go func() {
-			p.mainBus <- mainBusEvent
 		}()
 
 	} else {
@@ -331,7 +319,7 @@ func (p *Peer) handleReceiveSync() (*events.InboundSyncMainEvent, error) {
 	}
 	p.conn.TransmitStringLine("recognized")
 	// Receive blocks from peer
-	// Verify the chain's continuity and work
+	// Verify the chain's continuity, attaching to ours, and work
 	// Until our inv / local inv is complete, request entities, and add to table
 	// Build the event to send to manager
 	return &events.InboundSyncMainEvent{

@@ -30,11 +30,6 @@ type PeersDataPeerEvent struct {
 	PeerAddrs []string
 }
 
-// Inform the peer of a new block.
-type BroadcastBlockPeerEvent struct {
-	BlockId db.HashT
-}
-
 // Query Events
 
 // Retrieve other peers from the peer.
