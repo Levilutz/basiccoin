@@ -291,11 +291,49 @@ func (p *Peer) handleSync() error {
 
 // Send a chain sync.
 func (p *Peer) handleSendSync() error {
+	// Find last common ancestor with peer
+	neededBlockIds := make([]db.HashT, 0)
+	lcaId := p.head
+	p.conn.TransmitHashLine(lcaId)
+	resp := p.conn.RetryReadStringLine(7)
+	if p.conn.HasErr() {
+		return p.conn.Err()
+	}
+	for resp == "next" {
+		neededBlockIds = append(neededBlockIds, lcaId)
+		lcaId = p.inv.GetBlockParentId(lcaId)
+		p.conn.TransmitHashLine(lcaId)
+		resp = p.conn.RetryReadStringLine(7)
+		if p.conn.HasErr() {
+			return p.conn.Err()
+		}
+	}
+	if resp != "recognized" {
+		return fmt.Errorf("expected 'recognized', received %s", resp)
+	}
+	if len(neededBlockIds) == 0 {
+		panic("ruh roh")
+	}
+	// Send blocks to peer
+	// Check if peer verified the chain's work
+	// Until peer says "inv-complete", receive what entities they want, and send them
 	return nil
 }
 
 // Receive a chain sync.
 func (p *Peer) handleReceiveSync() (*events.InboundSyncMainEvent, error) {
+	// Find last common ancestor with peer
+	newHead := p.conn.RetryReadHashLine(7)
+	lcaId := newHead
+	for !p.inv.HasBlock(lcaId) {
+		p.conn.TransmitStringLine("next")
+		lcaId = p.conn.RetryReadHashLine(7)
+	}
+	p.conn.TransmitStringLine("recognized")
+	// Receive blocks from peer
+	// Verify the chain's continuity and work
+	// Until our inv / local inv is complete, request entities, and add to table
+	// Build the event to send to manager
 	return &events.InboundSyncMainEvent{
 		Head:    db.HashTZero,
 		Blocks:  nil,
