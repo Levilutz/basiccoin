@@ -19,7 +19,8 @@ type InvReader interface {
 	GetBlockTotalWork(blockId HashT) HashT
 	GetBlockParentId(blockId HashT) HashT
 	GetBlockAncestors(blockId HashT, maxLen int) []HashT
-	GetBlockAncestorDepth(blockId HashT, ancestorId HashT) (uint64, bool)
+	GetBlockAncestorDepth(blockId, ancestorId HashT) (uint64, bool)
+	GetBlockLCA(blockId, otherBlockId HashT) HashT
 	HasMerkle(nodeId HashT) bool
 	GetMerkle(merkleId HashT) MerkleNode
 	GetMerkleVSize(merkleId HashT) uint64
@@ -132,6 +133,23 @@ func (inv *Inv) GetBlockAncestorDepth(blockId, ancestorId HashT) (uint64, bool) 
 		return 0, false
 	}
 	return depth, true
+}
+
+// Return the most recent common ancestor of the two block ids.
+func (inv *Inv) GetBlockLCA(blockId, otherBlockId HashT) HashT {
+	// Move the higher block down until it's even with the other
+	for inv.GetBlockHeight(blockId) > inv.GetBlockHeight(otherBlockId) {
+		blockId = inv.GetBlockParentId(blockId)
+	}
+	for inv.GetBlockHeight(otherBlockId) > inv.GetBlockHeight(blockId) {
+		blockId = inv.GetBlockParentId(otherBlockId)
+	}
+	// Step both blocks until they're even
+	for blockId != otherBlockId {
+		blockId = inv.GetBlockParentId(blockId)
+		otherBlockId = inv.GetBlockParentId(otherBlockId)
+	}
+	return blockId
 }
 
 // Return whether the given merkle id exists.
