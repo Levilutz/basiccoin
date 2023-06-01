@@ -270,7 +270,7 @@ func (p *Peer) handleSync() error {
 		if p.conn.HasErr() {
 			return p.conn.Err()
 		}
-		// TODO: Send the sync
+		return p.handleSendSync()
 	} else {
 		// Receive a sync
 		p.conn.TransmitStringLine("sync-recv")
@@ -278,15 +278,28 @@ func (p *Peer) handleSync() error {
 		if p.conn.HasErr() {
 			return p.conn.Err()
 		}
-		// TODO: Receive the sync
+		eventP, err := p.handleReceiveSync()
+		if err != nil {
+			return err
+		}
 		go func() {
-			p.mainBus <- events.InboundSyncMainEvent{
-				Head:    db.HashTZero,
-				Blocks:  nil,
-				Merkles: nil,
-				Txs:     nil,
-			}
+			p.mainBus <- eventP
 		}()
+		return nil
 	}
+}
+
+// Send a chain sync.
+func (p *Peer) handleSendSync() error {
 	return nil
+}
+
+// Receive a chain sync.
+func (p *Peer) handleReceiveSync() (*events.InboundSyncMainEvent, error) {
+	return &events.InboundSyncMainEvent{
+		Head:    db.HashTZero,
+		Blocks:  nil,
+		Merkles: nil,
+		Txs:     nil,
+	}, nil
 }
