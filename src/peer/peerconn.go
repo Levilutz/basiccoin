@@ -12,6 +12,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/levilutz/basiccoin/src/db"
 	"github.com/levilutz/basiccoin/src/util"
 )
 
@@ -64,15 +65,6 @@ func (pc *PeerConn) Handshake() *HelloMessage {
 		return nil
 	}
 	return &helloMsg
-}
-
-func (pc *PeerConn) HandshakeHeights(height uint64) uint64 {
-	if pc.e != nil {
-		return 0
-	}
-	pc.TransmitUint64Line(height)
-	theirHeight := pc.RetryReadUint64Line(7)
-	return theirHeight
 }
 
 // Transmit continue|close, and receive their continue|close. Return nil if both peers
@@ -183,6 +175,14 @@ func (pc *PeerConn) TransmitUint64Line(msg uint64) {
 	pc.TransmitStringLine(fmt.Sprintf("%x", bs))
 }
 
+// Transmit a hash as a line.
+func (pc *PeerConn) TransmitHashLine(msg db.HashT) {
+	if pc.e != nil {
+		return
+	}
+	pc.TransmitStringLine(fmt.Sprintf("%x", msg))
+}
+
 // Retry reading a string line, exponential wait.
 // See RetryReadLine for more info.
 func (pc *PeerConn) RetryReadStringLine(attempts int) string {
@@ -230,6 +230,24 @@ func (pc *PeerConn) RetryReadUint64Line(attempts int) uint64 {
 		return 0
 	}
 	return binary.BigEndian.Uint64(out)
+}
+
+// Retry reading a hash line, exponential wait.
+// See RetryReadLine for more info.
+func (pc *PeerConn) RetryReadHashLine(attempts int) db.HashT {
+	if pc.e != nil {
+		return db.HashTZero
+	}
+	raw := pc.RetryReadLine(attempts)
+	if pc.e != nil {
+		return db.HashTZero
+	}
+	out, err := hex.DecodeString(string(raw))
+	if err != nil {
+		pc.e = err
+		return db.HashTZero
+	}
+	return db.HashT(out)
 }
 
 // Retry reading a line, exponential wait.

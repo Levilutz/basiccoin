@@ -16,6 +16,7 @@ type InvReader interface {
 	HasAnyBlock(blockIds []HashT) (HashT, bool)
 	GetBlock(blockId HashT) Block
 	GetBlockHeight(blockId HashT) uint64
+	GetBlockTotalWork(blockId HashT) HashT
 	GetBlockParentId(blockId HashT) HashT
 	GetBlockAncestors(blockId HashT, maxLen int) []HashT
 	GetBlockAncestorDepth(blockId HashT, ancestorId HashT) (uint64, bool)

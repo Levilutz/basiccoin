@@ -252,11 +252,16 @@ func (p *Peer) handleClose(issuing bool, notifyMainBus bool) error {
 // If we're successful and we received the sync, send InboundSyncMainEvent to main.
 // If we're successful and we sent the sync or no sync occurred, send nothing to main.
 func (p *Peer) handleSync() error {
-	// TODO: Use total work, not heights
-	// ourHeight := p.inv.GetBlockHeight(p.head)
-	// theirHeight := p.conn.HandshakeHeights(ourHeight)
-	// if p.conn.HasErr() {
-	// 	return nil, p.conn.Err()
-	// }
+	ourWork := p.inv.GetBlockTotalWork(p.head)
+	p.conn.TransmitHashLine(ourWork)
+	theirWork := p.conn.RetryReadHashLine(7)
+	if p.conn.HasErr() {
+		return p.conn.Err()
+	}
+	if theirWork == ourWork {
+		p.conn.TransmitStringLine("fin:sync")
+		p.conn.ConsumeExpected("fin:sync")
+		return p.conn.Err()
+	}
 	return nil
 }
