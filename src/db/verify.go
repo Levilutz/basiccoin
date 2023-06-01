@@ -17,7 +17,7 @@ import (
 // Checks total of all txs (including coinbase) has 0 surplus.
 // Checks block vSize is within limit (covered by verifyMerkle, but just to be safe).
 func verifyBlock(inv InvReader, block Block) error {
-	if !BelowTarget(block.Hash(), block.Difficulty) {
+	if !HashLT(block.Hash(), block.Difficulty) {
 		return fmt.Errorf("new block failed to beat target difficulty")
 	} else if !inv.HasMerkle(block.MerkleRoot) {
 		return fmt.Errorf("failed to find new block merkle root")

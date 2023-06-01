@@ -31,7 +31,7 @@ func TestMine(t *testing.T) {
 	case sol := <-m.SolutionCh:
 		fmt.Println(sol.Nonce)
 		fmt.Printf("%x\n", sol.Hash())
-		util.Assert(t, db.BelowTarget(sol.Hash(), sol.Difficulty), "not below target")
+		util.Assert(t, db.HashLT(sol.Hash(), sol.Difficulty), "not below target")
 
 	case <-timer.C:
 		util.Assert(t, false, "timed out mining")

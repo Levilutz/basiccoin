@@ -112,12 +112,13 @@ func HashHex(hash HashT) string {
 	return fmt.Sprintf("%x", hash)
 }
 
-// Whether a given hash is below a target (big-endian)
-func BelowTarget(value HashT, target HashT) bool {
+// Whether a < b, big-endian.
+// Also whether a given hash (a) is below a target (b).
+func HashLT(a HashT, b HashT) bool {
 	for i := 0; i < 32; i++ {
-		if value[i] > target[i] {
+		if a[i] > b[i] {
 			return false
-		} else if value[i] < target[i] {
+		} else if a[i] < b[i] {
 			return true
 		}
 	}

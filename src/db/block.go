@@ -40,7 +40,7 @@ func (b Block) String() string {
 
 // Verify that the claimed proof of work is valid.
 func (b Block) VerifyProofOfWork() error {
-	if !BelowTarget(b.Hash(), b.Difficulty) {
+	if !HashLT(b.Hash(), b.Difficulty) {
 		return fmt.Errorf("failed to beat claimed target")
 	}
 	return nil

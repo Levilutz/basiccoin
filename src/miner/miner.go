@@ -78,7 +78,7 @@ func (m *Miner) mine(rounds uint64) (db.Block, bool) {
 		if m.nextNonce != 1<<64-1 {
 			m.nextNonce += 1
 		}
-		if db.BelowTarget(hash, m.target.Difficulty) {
+		if db.HashLT(hash, m.target.Difficulty) {
 			return target, true
 		}
 		if m.nextNonce == 1<<64-1 {

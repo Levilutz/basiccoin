@@ -66,7 +66,7 @@ func TestBelowTarget(t *testing.T) {
 	for i := 0; i < 100; i++ {
 		for j := 0; j < 100; j++ {
 			cmp := nums[i].Cmp(&nums[j])
-			below := BelowTarget(hashes[i], hashes[j])
+			below := HashLT(hashes[i], hashes[j])
 			if cmp == 0 || cmp == 1 {
 				util.Assert(t, !below, "False positive")
 			} else {
