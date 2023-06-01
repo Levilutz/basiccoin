@@ -208,7 +208,7 @@ func (m *Manager) IntroducePeerConn(pc *peer.PeerConn, weAreInitiator bool) {
 	}
 }
 
-// Upgrade our chain to the given new head, if it seems the best.
+// Upgrades our chain to the given new head, if it proves to be better.
 // Provide any blocks, merkles, or txs we might not know about (in the order to insert).
 func (m *Manager) handleNewBestChain(
 	newHead db.HashT,
@@ -249,7 +249,7 @@ func (m *Manager) handleNewBestChain(
 	newWork := m.inv.GetBlockTotalWork(newHead)
 	oldWork := m.inv.GetBlockTotalWork(oldHead)
 	if !db.HashLT(oldWork, newWork) {
-		return fmt.Errorf("new chain is not higher work than current chain")
+		return fmt.Errorf("new chain is not higher total work than current chain")
 	}
 	// Find common ancestor of our chain heads
 	lcaId := m.inv.GetBlockLCA(oldHead, newHead)

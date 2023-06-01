@@ -270,6 +270,7 @@ func (p *Peer) handleSync() error {
 		if p.conn.HasErr() {
 			return p.conn.Err()
 		}
+		// TODO: Send the sync
 	} else {
 		// Receive a sync
 		p.conn.TransmitStringLine("sync-recv")
@@ -277,6 +278,15 @@ func (p *Peer) handleSync() error {
 		if p.conn.HasErr() {
 			return p.conn.Err()
 		}
+		// TODO: Receive the sync
+		go func() {
+			p.mainBus <- events.InboundSyncMainEvent{
+				Head:    db.HashTZero,
+				Blocks:  nil,
+				Merkles: nil,
+				Txs:     nil,
+			}
+		}()
 	}
 	return nil
 }
