@@ -124,13 +124,16 @@ func (inv *Inv) GetBlockAncestors(blockId HashT, maxLen int) []HashT {
 }
 
 // Gets block ancestors, from top, until the given block.
-// Includes untilId, does not include blockId.
+// Don't include either blockId or untilId.
 func (inv *Inv) GetBlockAncestorsUntil(blockId, untilId HashT) []HashT {
 	depth, ok := inv.GetBlockAncestorDepth(blockId, untilId)
 	if !ok {
 		panic("block does not have ancestor")
 	}
-	out := make([]HashT, depth)
+	if depth <= 1 {
+		return []HashT{}
+	}
+	out := make([]HashT, depth-1)
 	for i := range out {
 		if blockId == HashTZero || blockId == untilId {
 			panic("exceeded expected ancestor depth")
@@ -138,7 +141,7 @@ func (inv *Inv) GetBlockAncestorsUntil(blockId, untilId HashT) []HashT {
 		blockId = inv.GetBlockParentId(blockId)
 		out[i] = blockId
 	}
-	if out[depth-1] != untilId {
+	if inv.GetBlockParentId(blockId) != untilId {
 		panic("last ancestor should be given untilId")
 	}
 	return out
@@ -163,7 +166,7 @@ func (inv *Inv) GetBlockLCA(blockId, otherBlockId HashT) HashT {
 		blockId = inv.GetBlockParentId(blockId)
 	}
 	for inv.GetBlockHeight(otherBlockId) > inv.GetBlockHeight(blockId) {
-		blockId = inv.GetBlockParentId(otherBlockId)
+		otherBlockId = inv.GetBlockParentId(otherBlockId)
 	}
 	// Step both blocks until they're even
 	for blockId != otherBlockId {

@@ -261,8 +261,8 @@ func (m *Manager) handleNewBestChain(
 	newState := m.state.Copy()
 	newState.RewindUntil(lcaId)
 	newBlocks := m.inv.GetBlockAncestorsUntil(newHead, lcaId)
-	// Iterate backwards, ignoring the lca
-	for i := len(newBlocks) - 2; i >= 0; i-- {
+	// Advance through intermediate blocks, then the new head
+	for i := len(newBlocks) - 1; i >= 0; i-- {
 		if err := newState.Advance(newBlocks[i]); err != nil {
 			return fmt.Errorf("failed to advance to mined block: %s", err.Error())
 		}
