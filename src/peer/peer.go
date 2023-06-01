@@ -259,9 +259,24 @@ func (p *Peer) handleSync() error {
 		return p.conn.Err()
 	}
 	if theirWork == ourWork {
+		// Neither peer wants to sync
 		p.conn.TransmitStringLine("fin:sync")
 		p.conn.ConsumeExpected("fin:sync")
 		return p.conn.Err()
+	} else if db.HashLT(theirWork, ourWork) {
+		// Send a sync
+		p.conn.TransmitStringLine("sync-send")
+		p.conn.ConsumeExpected("sync-recv")
+		if p.conn.HasErr() {
+			return p.conn.Err()
+		}
+	} else {
+		// Receive a sync
+		p.conn.TransmitStringLine("sync-recv")
+		p.conn.ConsumeExpected("sync-send")
+		if p.conn.HasErr() {
+			return p.conn.Err()
+		}
 	}
 	return nil
 }
