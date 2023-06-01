@@ -10,29 +10,29 @@ import (
 // Handle a new block exchange, returning event for manager.
 func handleReceiveNewBlockExchange(
 	pc *PeerConn, inv db.InvReader,
-) (event events.CandidateLedgerUpgradeMainEvent, err error) {
+) (*events.InboundSyncMainEvent, error) {
 	var recId db.HashT
 	var ok bool
 	// Exchange init
 	topBlockIdStr := pc.RetryReadStringLine(7)
 	if pc.HasErr() {
-		return event, pc.Err()
+		return nil, pc.Err()
 	}
 	topBlockId, err := db.StringToHash(topBlockIdStr)
 	if err != nil {
-		return event, err
+		return nil, err
 	}
 	if inv.HasBlock(topBlockId) {
 		pc.TransmitStringLine("fin:new-block")
 		if pc.HasErr() {
-			return event, pc.Err()
+			return nil, pc.Err()
 		}
-		return event, fmt.Errorf("block id known")
+		return nil, fmt.Errorf("block id known")
 	}
 	// Exchange block ids
 	pc.TransmitStringLine("next-blocks")
 	if pc.HasErr() {
-		return event, pc.Err()
+		return nil, pc.Err()
 	}
 	neededBlockIds := []db.HashT{
 		topBlockId,
@@ -40,7 +40,7 @@ func handleReceiveNewBlockExchange(
 	for {
 		newBlockIds, err := ReceiveBlockIdsMessage(pc)
 		if err != nil {
-			return event, err
+			return nil, err
 		}
 		recId, ok = inv.HasAnyBlock(newBlockIds.BlockIds)
 		// Add to list of needed block ids, until we hit the one we recognize
@@ -55,7 +55,7 @@ func handleReceiveNewBlockExchange(
 			pc.TransmitStringLine("recognized")
 			pc.TransmitMessage(BlockIdsMessage{BlockIds: []db.HashT{recId}})
 			if pc.HasErr() {
-				return event, pc.Err()
+				return nil, pc.Err()
 			}
 			break
 		}
@@ -65,11 +65,11 @@ func handleReceiveNewBlockExchange(
 	for _, expectedBlockId := range neededBlockIds {
 		block, err := ReceiveBlockHeaderMessage(pc)
 		if err != nil {
-			return event, err
+			return nil, err
 		}
 		blockId := block.Block.Hash()
 		if blockId != expectedBlockId {
-			return event, fmt.Errorf(
+			return nil, fmt.Errorf(
 				"mismatched block %x != %x", blockId, expectedBlockId,
 			)
 		}
@@ -78,18 +78,18 @@ func handleReceiveNewBlockExchange(
 	// Verify valid chain and proof of work (contains some ddos attacks to peer thread)
 	for i := 0; i < len(neededBlockIds)-1; i++ {
 		if blocks[neededBlockIds[i]].PrevBlockId != neededBlockIds[i+1] {
-			return event, fmt.Errorf("new block parent mismatched")
+			return nil, fmt.Errorf("new block parent mismatched")
 		}
 	}
 	lastBlockId := neededBlockIds[len(neededBlockIds)-1]
 	if blocks[lastBlockId].PrevBlockId != recId {
-		return event, fmt.Errorf("last block does not attach to our chain")
+		return nil, fmt.Errorf("last block does not attach to our chain")
 	}
 	// TODO: Verify proof of work beats ours (requires we know head)
 	// Check if higher work than existing head (from branch point)
 	// If not, terminate exchange
 	// Exchange merkles and txs
-	return event, nil
+	return nil, nil
 }
 
 func handleTransmitNewBlockExchange(

@@ -10,8 +10,8 @@ type ShouldEndPeerEvent struct {
 	NotifyMainBus bool
 }
 
-// Inform this peer of a new head.
-type NewHeadPeerEvent struct {
+// Inform this peer of our head, sync if desired.
+type OutboundSyncPeerEvent struct {
 	Head db.HashT
 }
 

@@ -183,7 +183,7 @@ func (m *Manager) handleMainBusEvent(event any) {
 			}
 		}()
 
-	case events.CandidateLedgerUpgradeMainEvent:
+	case events.InboundSyncMainEvent:
 		// TODO: Verify synchronously
 		// if failed, blacklist head id
 		// if passed, loop StoreFullBlock from bottom of tree, then update head
@@ -227,7 +227,7 @@ func (m *Manager) handleMinedSolution(sol db.Block) error {
 	m.minerSet.SetTargets(target)
 	// Broadcast solution to peers
 	for _, p := range m.peers {
-		p.SetHead(solBlockId)
+		p.OutboundSync(solBlockId)
 	}
 	fmt.Printf("Mined block %x\n", solBlockId)
 	return nil

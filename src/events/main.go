@@ -25,7 +25,7 @@ type PeersReceivedMainEvent struct {
 }
 
 // A candidate (unverified) set of blocks to upgrade the ledger to, with needed data.
-type CandidateLedgerUpgradeMainEvent struct {
+type InboundSyncMainEvent struct {
 	Head    db.HashT
 	Blocks  map[db.HashT]db.Block
 	Merkles map[db.HashT]db.MerkleNode

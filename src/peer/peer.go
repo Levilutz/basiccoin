@@ -46,9 +46,9 @@ func NewPeer(
 	}
 }
 
-func (p *Peer) SetHead(head db.HashT) {
+func (p *Peer) OutboundSync(head db.HashT) {
 	go func() {
-		p.EventBus <- events.NewHeadPeerEvent{
+		p.EventBus <- events.OutboundSyncPeerEvent{
 			Head: head,
 		}
 	}()
@@ -99,9 +99,9 @@ func (p *Peer) handlePeerBusEvent(event any) (bool, error) {
 	case events.ShouldEndPeerEvent:
 		return true, p.handleClose(true, false)
 
-	case events.NewHeadPeerEvent:
+	case events.OutboundSyncPeerEvent:
 		p.head = msg.Head
-		// TODO: Inform the peer of our head block
+		return p.issuePeerCommand("sync", p.handleOutboundSync)
 
 	case events.PeersDataPeerEvent:
 		return p.issuePeerCommand("addrs", func() error {
@@ -141,6 +141,16 @@ func (p *Peer) handleReceivedLine(line []byte) (bool, error) {
 	}
 
 	if command == "ping" {
+		// ack above was sufficient
+
+	} else if command == "sync" {
+		msgP, err := p.handleInboundSync()
+		if err != nil {
+			return false, err
+		}
+		go func() {
+			p.mainBus <- *msgP
+		}()
 
 	} else if command == "addrs" {
 		msg, err := ReceiveAddrsMessage(p.conn)
@@ -239,4 +249,12 @@ func (p *Peer) handleClose(issuing bool, notifyMainBus bool) error {
 		return p.conn.Err()
 	}
 	return p.conn.Close()
+}
+
+func (p *Peer) handleOutboundSync() error {
+	return nil
+}
+
+func (p *Peer) handleInboundSync() (*events.InboundSyncMainEvent, error) {
+	return nil, nil
 }
