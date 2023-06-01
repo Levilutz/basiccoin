@@ -34,8 +34,9 @@ type InvReader interface {
 }
 
 type blockRecord struct {
-	block  Block
-	height uint64
+	block     Block
+	height    uint64
+	totalWork HashT
 }
 
 type merkleRecord struct {
@@ -64,8 +65,9 @@ func NewInv() *Inv {
 		txs:     util.NewSyncMap[HashT, txRecord](),
 	}
 	inv.blocks.Store(HashTZero, blockRecord{
-		block:  Block{},
-		height: 0,
+		block:     Block{},
+		height:    0,
+		totalWork: HashTZero,
 	})
 	return inv
 }
@@ -92,6 +94,11 @@ func (inv *Inv) GetBlock(blockId HashT) Block {
 // Get a block's height (0x0 is height 0, origin block is height 1).
 func (inv *Inv) GetBlockHeight(blockId HashT) uint64 {
 	return inv.blocks.Get(blockId).height
+}
+
+// Get total work along chain terminating with this block.
+func (inv *Inv) GetBlockTotalWork(blockId HashT) HashT {
+	return inv.blocks.Get(blockId).totalWork
 }
 
 func (inv *Inv) GetBlockParentId(blockId HashT) HashT {
@@ -227,9 +234,11 @@ func (inv *Inv) StoreBlock(block Block) error {
 	if err := verifyBlock(inv, block); err != nil {
 		return err
 	}
+	prevWork := inv.GetBlockTotalWork(block.PrevBlockId)
 	inv.blocks.Store(blockId, blockRecord{
-		block:  block,
-		height: inv.GetBlockHeight(block.PrevBlockId) + 1,
+		block:     block,
+		height:    inv.GetBlockHeight(block.PrevBlockId) + 1,
+		totalWork: AppendTotalWork(prevWork, block.Difficulty),
 	})
 	return nil
 }

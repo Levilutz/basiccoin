@@ -125,6 +125,7 @@ func BelowTarget(value HashT, target HashT) bool {
 	return false
 }
 
+// Compute total work from a set of targets.
 func TargetsToTotalWork(targets []HashT) *big.Int {
 	total := &big.Int{}
 	for _, target := range targets {
@@ -138,6 +139,22 @@ func TargetsToTotalWork(targets []HashT) *big.Int {
 		total.Add(total, targetInt)
 	}
 	return total
+}
+
+// Compute total work given the addition of a new target.
+// Returns prior + (2^32 / target).
+func AppendTotalWork(prior HashT, target HashT) HashT {
+	// Convert to big ints
+	priorInt := &big.Int{}
+	targetInt := &big.Int{}
+	priorInt.SetBytes(prior[:])
+	targetInt.SetBytes(target[:])
+	// Compute work from new target
+	targetInt.Div(util.BigInt2_256(), targetInt)
+	priorInt.Add(priorInt, targetInt)
+	// Convert back to HashT to return
+	priorInt.FillBytes(prior[:])
+	return prior
 }
 
 func StringToHash(data string) (HashT, error) {
