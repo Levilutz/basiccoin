@@ -19,9 +19,13 @@ func printComputedConstants() {
 
 func main() {
 	cli_args := util.ParseCLIArgs()
-	util.PrettyPrint(cli_args)
-	util.PrettyPrint(util.Constants)
-	printComputedConstants()
+	if util.Constants.Debug {
+		util.PrettyPrint(cli_args)
+		util.PrettyPrint(util.Constants)
+		printComputedConstants()
+	} else {
+		fmt.Printf("Starting with id %x\n", util.Constants.RuntimeID)
+	}
 
 	manager := manager.NewManager()
 

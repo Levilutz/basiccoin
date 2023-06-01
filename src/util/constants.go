@@ -8,7 +8,7 @@ import (
 // Types of the constants struct.
 type ConstantsType struct {
 	BlockReward          uint64        `json:"blockReward"`
-	DebugNetwork         bool          `json:"debugNetwork"`
+	Debug                bool          `json:"debug"`
 	LocalAddr            string        `json:"localAddr"`
 	Listen               bool          `json:"listen"`
 	Miners               int           `json:"miners"`
@@ -27,7 +27,7 @@ type ConstantsType struct {
 // Program-wide constants set by user.
 var Constants = ConstantsType{
 	BlockReward:          1028,
-	DebugNetwork:         false,
+	Debug:                false,
 	LocalAddr:            "localhost:21720",
 	MinPeers:             3,
 	MaxPeers:             8,

@@ -137,7 +137,7 @@ func (pc *PeerConn) TransmitLine(msg []byte) {
 	if pc.e != nil {
 		return
 	}
-	if util.Constants.DebugNetwork {
+	if util.Constants.Debug {
 		fmt.Println("NET_OUT", string(msg))
 	}
 	_, err := pc.w.Write(append(msg, byte('\n')))
@@ -286,7 +286,7 @@ func (pc *PeerConn) ReadLineTimeout(timeout time.Duration) []byte {
 		return nil
 	}
 	data = data[:len(data)-1] // len(data) will always be at least 1
-	if util.Constants.DebugNetwork {
+	if util.Constants.Debug {
 		fmt.Println("NET_IN", string(data))
 	}
 	return data
