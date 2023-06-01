@@ -227,6 +227,9 @@ func (inv *Inv) GetEntityVSize(entityId HashT) uint64 {
 // Verify and store a new block.
 // For efficiency, this won't verify that each tx's claimed utxos are available.
 // Thus the caller (usually a State) should verify to prevent double-spends.
+// This verification usually wouldn't be done at block-insertion time
+// (as utxos only exist in the context of a full chain),
+// but rather should be done when attempting to advance the chain head.
 func (inv *Inv) StoreBlock(block Block) error {
 	blockId := block.Hash()
 	if inv.HasBlock(blockId) {

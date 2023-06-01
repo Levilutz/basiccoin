@@ -83,7 +83,9 @@ func (m *Manager) Loop() {
 			m.printPeersUpdate()
 
 		case sol := <-m.minerSet.SolutionCh:
-			err := m.handleMinedSolution(sol)
+			err := m.handleNewBestChain(
+				sol.Hash(), []db.Block{sol}, []db.MerkleNode{}, []db.Tx{},
+			)
 			if err != nil {
 				fmt.Println("handleMinedSolution err:", err.Error())
 			}
@@ -206,7 +208,53 @@ func (m *Manager) IntroducePeerConn(pc *peer.PeerConn, weAreInitiator bool) {
 	}
 }
 
-func (m *Manager) handleMinedSolution(sol db.Block) error {
+// Upgrade our chain to the given new head, if it seems the best.
+// Provide any blocks, merkles, or txs we might not know about (in the order to insert).
+func (m *Manager) handleNewBestChain(
+	head db.HashT,
+	blocks []db.Block,
+	merkles []db.MerkleNode,
+	txs []db.Tx,
+) error {
+	// Insert each entity into the inventory, in order.
+	for _, tx := range txs {
+		if !m.inv.HasTx(tx.Hash()) {
+			err := m.inv.StoreTx(tx)
+			if err != nil {
+				return err
+			}
+		}
+	}
+	for _, merkle := range merkles {
+		if !m.inv.HasMerkle(merkle.Hash()) {
+			err := m.inv.StoreMerkle(merkle)
+			if err != nil {
+				return err
+			}
+		}
+	}
+	for _, block := range blocks {
+		if !m.inv.HasBlock(block.Hash()) {
+			err := m.inv.StoreBlock(block)
+			if err != nil {
+				return err
+			}
+		}
+	}
+	// Verify new total work is higher
+	if !m.inv.HasBlock(head) {
+		return fmt.Errorf("provided head not known and not provided")
+	}
+	newWork := m.inv.GetBlockTotalWork(head)
+	ourWork := m.inv.GetBlockTotalWork(m.state.GetHead())
+	if !db.HashLT(ourWork, newWork) {
+		return fmt.Errorf("new chain is not higher work than current head")
+	}
+	// Find common ancestor of our chain heads
+	return nil
+}
+
+func (m *Manager) HandleMinedSolution(sol db.Block) error {
 	// Verify solution
 	solBlockId := sol.Hash()
 	if sol.PrevBlockId != m.state.GetHead() {
