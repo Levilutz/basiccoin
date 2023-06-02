@@ -247,6 +247,10 @@ func (pc *PeerConn) RetryReadHashLine(attempts int) db.HashT {
 		pc.e = err
 		return db.HashTZero
 	}
+	if len(out) != 32 {
+		pc.e = fmt.Errorf("cannot decode hash - unexpected length %d", len(out))
+		return db.HashTZero
+	}
 	return db.HashT(out)
 }
 
