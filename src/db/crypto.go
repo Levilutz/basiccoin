@@ -142,7 +142,7 @@ func TargetsToTotalWork(targets []HashT) *big.Int {
 	return total
 }
 
-// Compute total work given the addition of a new target.
+// Compute new total work given the addition of a new target difficulty.
 // Returns prior + (2^32 / target).
 func AppendTotalWork(prior HashT, target HashT) HashT {
 	// Convert to big ints

@@ -19,16 +19,3 @@ services:
     command:
       - "/basiccoin"
       - "--seed=node1:21720"
-
-  node3:
-    image: basiccoin:latest
-    command:
-      - "/basiccoin"
-      - "--seed=node1:21720"
-
-  node4:
-    image: basiccoin:latest
-    command:
-      - "/basiccoin"
-      - "--seed=node3:21720"
-      - "--miners=1"

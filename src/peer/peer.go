@@ -365,33 +365,15 @@ func (p *Peer) handleReceiveSync() (*events.InboundSyncMainEvent, error) {
 		if p.conn.HasErr() {
 			return nil, p.conn.Err()
 		}
-		if blockMap[blockId].Hash() != blockId {
-			return nil, fmt.Errorf("received block does not match expected id")
-		}
 	}
-	// Verify the chain's continuity, attaching to ours, and work
-	for i := 0; i < len(neededBlockIds)-1; i++ {
-		if blockMap[neededBlockIds[i]].PrevBlockId != neededBlockIds[i+1] {
-			p.conn.TransmitStringLine("done")
-			if p.conn.HasErr() {
-				return nil, p.conn.Err()
-			}
-			return nil, fmt.Errorf("received chain not continuous")
-		}
-	}
-	if blockMap[neededBlockIds[len(neededBlockIds)-1]].PrevBlockId != lcaId {
+	// Do light verification (most importantly proof-of-work)
+	// Contains some ddos attempts to this loop and away from manager
+	if err := p.quickVerifyChain(newHead, lcaId, neededBlockIds, blockMap); err != nil {
 		p.conn.TransmitStringLine("done")
 		if p.conn.HasErr() {
 			return nil, p.conn.Err()
 		}
-		return nil, fmt.Errorf("received chain does not attach to ours as expected")
-	}
-	if false { // TODO: Verify work
-		p.conn.TransmitStringLine("done")
-		if p.conn.HasErr() {
-			return nil, p.conn.Err()
-		}
-		return nil, fmt.Errorf("received chain is not actually higher work than ours")
+		return nil, err
 	}
 	p.conn.TransmitStringLine("next")
 	if p.conn.HasErr() {
@@ -405,4 +387,48 @@ func (p *Peer) handleReceiveSync() (*events.InboundSyncMainEvent, error) {
 		Merkles: nil,
 		Txs:     nil,
 	}, nil
+}
+
+// Verify a new chain's continuity, expected endpoints, and proof-of-work.
+func (p *Peer) quickVerifyChain(
+	newHead db.HashT,
+	lcaId db.HashT,
+	neededBlockIds []db.HashT,
+	blockMap map[db.HashT]db.Block,
+) error {
+	// Verify each block has claimed id
+	for _, blockId := range neededBlockIds {
+		if blockMap[blockId].Hash() != blockId {
+			return fmt.Errorf("received block does not match expected id")
+		}
+	}
+	// Verify chain has expected head
+	if neededBlockIds[0] != newHead {
+		return fmt.Errorf("received chain does not have expected head")
+	}
+	// Verify chain continuous
+	for i := 0; i < len(neededBlockIds)-1; i++ {
+		if blockMap[neededBlockIds[i]].PrevBlockId != neededBlockIds[i+1] {
+			return fmt.Errorf("received chain not continuous")
+		}
+	}
+	// Verify chain attaches where expected
+	if blockMap[neededBlockIds[len(neededBlockIds)-1]].PrevBlockId != lcaId {
+		return fmt.Errorf("received chain does not attach to ours as expected")
+	}
+	// Verify claimed total work beats ours
+	newWork := p.inv.GetBlockTotalWork(lcaId)
+	for _, blockId := range neededBlockIds {
+		newWork = db.AppendTotalWork(newWork, blockMap[blockId].Difficulty)
+	}
+	if !db.HashLT(p.inv.GetBlockTotalWork(p.head), newWork) {
+		return fmt.Errorf("received chain is not actually higher work than ours")
+	}
+	// Verify each block actually beats claimed difficulty
+	for _, blockId := range neededBlockIds {
+		if !db.HashLT(blockId, blockMap[blockId].Difficulty) {
+			return fmt.Errorf("received block does not actually beat difficulty")
+		}
+	}
+	return nil
 }
