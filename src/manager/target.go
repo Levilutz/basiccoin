@@ -6,7 +6,15 @@ import (
 )
 
 // Create a new mining target block given where to send the reward.
+// If publicKeyHash is HashTZero, it's changed to a random hash (used for testing).
 func CreateMiningTarget(s *db.State, inv *db.Inv, publicKeyHash db.HashT) db.Block {
+	var err error
+	if publicKeyHash == db.HashTZero {
+		publicKeyHash, err = db.RandHash()
+		if err != nil {
+			panic(err)
+		}
+	}
 	difficulty, err := db.StringToHash(
 		"000000ffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
 	)
