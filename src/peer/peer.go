@@ -280,7 +280,7 @@ func (p *Peer) handleSync() error {
 			return err
 		}
 		go func() {
-			p.mainBus <- eventP
+			p.mainBus <- *eventP
 		}()
 		return nil
 	}

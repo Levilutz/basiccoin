@@ -193,12 +193,13 @@ func (m *Manager) handleMainBusEvent(event any) {
 		}()
 
 	case events.InboundSyncMainEvent:
-		// TODO: Verify synchronously
-		// if failed, blacklist head id
-		// if passed, loop StoreFullBlock from bottom of tree, then update head
+		err := m.handleNewBestChain(msg.Head, msg.Blocks, msg.Merkles, msg.Txs)
+		if err != nil {
+			fmt.Println("failed to verify new chain:", err)
+		}
 
 	default:
-		fmt.Printf("Unhandled main event %T\n", event)
+		fmt.Printf("unhandled main event %T\n", event)
 	}
 }
 
@@ -274,6 +275,7 @@ func (m *Manager) handleNewBestChain(
 		return fmt.Errorf("failed to advance to mined block: %s", err.Error())
 	}
 	// Shift to new head - this func shouldn't return err after this point
+	fmt.Printf("upgrading head to %x\n", newState.GetHead())
 	m.state = newState
 	// Set new miner targets
 	target := CreateMiningTarget(m.state, m.inv, db.HashTZero)
