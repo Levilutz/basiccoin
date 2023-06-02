@@ -94,6 +94,9 @@ func (m *Manager) Loop() {
 }
 
 func (m *Manager) addMetConn(metConn MetConn) {
+	if metConn.PeerConn.HasErr() {
+		fmt.Println("unhandled pre-insertion peer err", metConn.PeerConn.Err().Error())
+	}
 	upgradeable := metConn.HelloMsg.RuntimeID != util.Constants.RuntimeID &&
 		metConn.HelloMsg.Version == util.Constants.Version &&
 		!m.peerConnected(metConn.HelloMsg.RuntimeID) &&

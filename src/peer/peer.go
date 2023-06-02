@@ -72,7 +72,7 @@ func (p *Peer) Loop() {
 		case event := <-p.EventBus:
 			shouldClose, err = p.handlePeerBusEvent(event)
 			if err != nil {
-				fmt.Printf("error handling event '%v': %s\n", event, err.Error())
+				fmt.Printf("error handling event '%T': %s\n", event, err.Error())
 			}
 
 		case <-pingTicker.C:
@@ -85,8 +85,14 @@ func (p *Peer) Loop() {
 			}
 
 		default:
+			if p.conn.HasErr() {
+				fmt.Println("Unhandled peer error:", p.conn.Err().Error())
+				shouldClose = true
+				continue
+			}
 			line := p.conn.ReadLineTimeout(100 * time.Millisecond)
 			if p.conn.HasErr() {
+				p.conn.Err() // Drop it
 				continue
 			}
 			shouldClose, err = p.handleReceivedLine(line)
@@ -182,6 +188,9 @@ func (p *Peer) handleReceivedLine(line []byte) (bool, error) {
 // Handler is what to run after they ack. Returns whether we should close.
 // If us and peer simultaneously issued commands, the og handshake initiator goes last.
 func (p *Peer) issuePeerCommand(command string, handler func() error) (bool, error) {
+	if p.conn.HasErr() {
+		return true, fmt.Errorf("unhandled err before command: %s", p.conn.Err())
+	}
 	p.conn.TransmitStringLine("cmd:" + command)
 	// Expect to receive either "ack:our command" or "cmd:their command"
 	resp := p.conn.RetryReadLine(7)
