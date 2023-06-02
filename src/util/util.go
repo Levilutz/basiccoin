@@ -12,9 +12,13 @@ import (
 // Prepend into slice.
 func Prepend[K any](ls []K, items ...K) []K {
 	for _, item := range items {
-		ls = append(ls, item)
-		copy(ls[1:], ls[:len(ls)-1])
-		ls[0] = item
+		if len(ls) == 0 {
+			ls = []K{item}
+		} else {
+			ls = append(ls, item)
+			copy(ls[1:], ls)
+			ls[0] = item
+		}
 	}
 	return ls
 }

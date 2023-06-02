@@ -18,7 +18,11 @@ import (
 // Checks block vSize is within limit (covered by verifyMerkle, but just to be safe).
 func verifyBlock(inv InvReader, block Block) error {
 	if !HashLT(block.Hash(), block.Difficulty) {
-		return fmt.Errorf("new block failed to beat target difficulty")
+		return fmt.Errorf(
+			"new block failed to beat target difficulty: %x !< %x",
+			block.Hash(),
+			block.Difficulty,
+		)
 	} else if !inv.HasMerkle(block.MerkleRoot) {
 		return fmt.Errorf("failed to find new block merkle root")
 	} else if !inv.HasBlock(block.PrevBlockId) {

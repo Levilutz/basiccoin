@@ -84,7 +84,7 @@ func (m *Manager) Loop() {
 
 		case sol := <-m.minerSet.SolutionCh:
 			solId := sol.Hash()
-			fmt.Printf("mined potential solution: %x\n", solId)
+			fmt.Printf("<== MINED ==> potential next block: %x\n", solId)
 			err := m.handleNewBestChain(
 				solId, []db.Block{sol}, []db.MerkleNode{}, []db.Tx{},
 			)
@@ -195,6 +195,7 @@ func (m *Manager) handleMainBusEvent(event any) {
 		}()
 
 	case events.InboundSyncMainEvent:
+		fmt.Printf("received potential next block: %x\n", msg.Head)
 		err := m.handleNewBestChain(msg.Head, msg.Blocks, msg.Merkles, msg.Txs)
 		if err != nil {
 			fmt.Println("failed to verify new chain:", err)
