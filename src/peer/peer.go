@@ -397,16 +397,24 @@ func (p *Peer) handleReceiveSync() (*events.InboundSyncMainEvent, error) {
 	if p.conn.HasErr() {
 		return nil, p.conn.Err()
 	}
-	// Until our inv / local inv is complete, request entities, and add to table
+	// Until our inv / local inv is complete, request entities, and add to output
+	outBlocks := make([]db.Block, len(neededBlockIds))
+	outMerkles := make([]db.MerkleNode, 0)
+	outTxs := make([]db.Tx, 0)
 	entityQueue := util.NewQueue[db.HashT]()
-	for i := len(neededBlockIds) - 1; i >= 0; i-- {
-		merkle := blockMap[neededBlockIds[i]].MerkleRoot
+	newEntitySet := util.NewSet[db.HashT]()
+	for _, blockId := range neededBlockIds {
+		merkle := blockMap[blockId].MerkleRoot
 		if !p.inv.HasMerkle(merkle) {
 			entityQueue.Push(merkle)
 		}
+		outBlocks = util.Prepend(outBlocks, blockMap[blockId])
 	}
 	for entityQueue.Size() > 0 {
 		entityId, _ := entityQueue.Pop()
+		if p.inv.HasEntity(entityId) || newEntitySet.Includes(entityId) {
+			continue
+		}
 		p.conn.TransmitHashLine(entityId)
 		entityType := p.conn.RetryReadStringLine(7)
 		if p.conn.HasErr() {
@@ -414,23 +422,27 @@ func (p *Peer) handleReceiveSync() (*events.InboundSyncMainEvent, error) {
 		}
 		if entityType == "merkle" {
 			// Receive merkle
+			outMerkles = util.Prepend(outMerkles)
 		} else if entityType == "tx" {
 			// Receive tx
+			outTxs = util.Prepend(outTxs)
 		} else {
 			return nil, fmt.Errorf("unrecognized entity type: %s", entityType)
 		}
+		newEntitySet.Add(entityId)
 	}
 	p.conn.TransmitHashLine(db.HashTZero)
 	// Build the event to send to manager
 	return &events.InboundSyncMainEvent{
 		Head:    db.HashTZero,
-		Blocks:  nil,
-		Merkles: nil,
-		Txs:     nil,
+		Blocks:  outBlocks,
+		Merkles: outMerkles,
+		Txs:     outTxs,
 	}, nil
 }
 
 // Verify a new chain's continuity, expected endpoints, and proof-of-work.
+// Leaves heavier and state-based verification to manager, this just helps prevent ddos.
 func (p *Peer) quickVerifyChain(
 	newHead db.HashT,
 	lcaId db.HashT,

@@ -9,7 +9,17 @@ import (
 	"net"
 )
 
-// Aggregate channels
+// Prepend into slice.
+func Prepend[K any](ls []K, items ...K) []K {
+	for _, item := range items {
+		ls = append(ls, item)
+		copy(ls[1:], ls[:len(ls)-1])
+		ls[0] = item
+	}
+	return ls
+}
+
+// Aggregate channels.
 func Aggregate[K any](chans []chan K) <-chan K {
 	out := make(chan K)
 	for _, ch := range chans {
