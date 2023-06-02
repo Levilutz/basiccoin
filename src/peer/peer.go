@@ -323,17 +323,35 @@ func (p *Peer) handleSendSync() error {
 			return p.conn.Err()
 		}
 	}
+	// Check if peer verified the chain's work
 	resp = p.conn.RetryReadStringLine(7)
 	if p.conn.HasErr() {
 		return p.conn.Err()
 	}
-	if resp == "done" {
+	if resp == "reject" {
 		return fmt.Errorf("peer does not actually want sync")
 	} else if resp != "next" {
 		return fmt.Errorf("expected 'next', received %s", resp)
 	}
-	// Check if peer verified the chain's work
-	// Until peer says "inv-complete", receive what entities they want, and send them
+	// Receive entity peer wants and reply with it, until peer sends HashTZero
+	entityId := p.conn.RetryReadHashLine(7)
+	if p.conn.HasErr() {
+		return p.conn.Err()
+	}
+	for entityId != db.HashTZero {
+		if p.inv.HasMerkle(entityId) {
+			p.conn.TransmitStringLine("merkle")
+		} else if p.inv.HasTx(entityId) {
+			p.conn.TransmitStringLine("tx")
+		} else {
+			return fmt.Errorf("peer requested unknown entity %x", entityId)
+		}
+		// Receive next entity
+		entityId = p.conn.RetryReadHashLine(7)
+		if p.conn.HasErr() {
+			return p.conn.Err()
+		}
+	}
 	return nil
 }
 
@@ -369,7 +387,7 @@ func (p *Peer) handleReceiveSync() (*events.InboundSyncMainEvent, error) {
 	// Do light verification (most importantly proof-of-work)
 	// Contains some ddos attempts to this loop and away from manager
 	if err := p.quickVerifyChain(newHead, lcaId, neededBlockIds, blockMap); err != nil {
-		p.conn.TransmitStringLine("done")
+		p.conn.TransmitStringLine("reject")
 		if p.conn.HasErr() {
 			return nil, p.conn.Err()
 		}
@@ -380,6 +398,29 @@ func (p *Peer) handleReceiveSync() (*events.InboundSyncMainEvent, error) {
 		return nil, p.conn.Err()
 	}
 	// Until our inv / local inv is complete, request entities, and add to table
+	entityQueue := util.NewQueue[db.HashT]()
+	for i := len(neededBlockIds) - 1; i >= 0; i-- {
+		merkle := blockMap[neededBlockIds[i]].MerkleRoot
+		if !p.inv.HasMerkle(merkle) {
+			entityQueue.Push(merkle)
+		}
+	}
+	for entityQueue.Size() > 0 {
+		entityId, _ := entityQueue.Pop()
+		p.conn.TransmitHashLine(entityId)
+		entityType := p.conn.RetryReadStringLine(7)
+		if p.conn.HasErr() {
+			return nil, p.conn.Err()
+		}
+		if entityType == "merkle" {
+			// Receive merkle
+		} else if entityType == "tx" {
+			// Receive tx
+		} else {
+			return nil, fmt.Errorf("unrecognized entity type: %s", entityType)
+		}
+	}
+	p.conn.TransmitHashLine(db.HashTZero)
 	// Build the event to send to manager
 	return &events.InboundSyncMainEvent{
 		Head:    db.HashTZero,
