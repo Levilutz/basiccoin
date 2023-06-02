@@ -277,7 +277,7 @@ func (m *Manager) handleNewBestChain(
 		return fmt.Errorf("failed to advance to mined block: %s", err.Error())
 	}
 	// Shift to new head - this func shouldn't return err after this point
-	fmt.Printf("upgrading head to %x\n", newState.GetHead())
+	fmt.Printf("upgrading head to %x - proven work %x\n", newState.GetHead(), newWork)
 	m.state = newState
 	// Set new miner targets
 	target := CreateMiningTarget(m.state, m.inv, db.HashTZero)

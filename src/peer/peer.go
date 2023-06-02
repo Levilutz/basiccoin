@@ -309,9 +309,29 @@ func (p *Peer) handleSendSync() error {
 		return fmt.Errorf("expected 'recognized', received %s", resp)
 	}
 	if len(neededBlockIds) == 0 {
-		panic("ruh roh")
+		return fmt.Errorf("peer does not need upgrade, sync should not have run")
 	}
 	// Send blocks to peer
+	for _, blockId := range neededBlockIds {
+		block := p.inv.GetBlock(blockId)
+		p.conn.TransmitHashLine(block.PrevBlockId)
+		p.conn.TransmitHashLine(block.MerkleRoot)
+		p.conn.TransmitHashLine(block.Difficulty)
+		p.conn.TransmitHashLine(block.Noise)
+		p.conn.TransmitUint64Line(block.Nonce)
+		if p.conn.HasErr() {
+			return p.conn.Err()
+		}
+	}
+	resp = p.conn.RetryReadStringLine(7)
+	if p.conn.HasErr() {
+		return p.conn.Err()
+	}
+	if resp == "done" {
+		return fmt.Errorf("peer does not actually want sync")
+	} else if resp != "next" {
+		return fmt.Errorf("expected 'next', received %s", resp)
+	}
 	// Check if peer verified the chain's work
 	// Until peer says "inv-complete", receive what entities they want, and send them
 	return nil
@@ -320,15 +340,63 @@ func (p *Peer) handleSendSync() error {
 // Receive a chain sync.
 func (p *Peer) handleReceiveSync() (*events.InboundSyncMainEvent, error) {
 	// Find last common ancestor with peer
+	neededBlockIds := make([]db.HashT, 0)
 	newHead := p.conn.RetryReadHashLine(7)
 	lcaId := newHead
 	for !p.inv.HasBlock(lcaId) {
+		neededBlockIds = append(neededBlockIds, lcaId)
 		p.conn.TransmitStringLine("next")
 		lcaId = p.conn.RetryReadHashLine(7)
 	}
 	p.conn.TransmitStringLine("recognized")
+	if len(neededBlockIds) == 0 {
+		return nil, fmt.Errorf("we do not need upgrade, sync should not have run")
+	}
 	// Receive blocks from peer
+	blockMap := make(map[db.HashT]db.Block)
+	for _, blockId := range neededBlockIds {
+		blockMap[blockId] = db.Block{
+			PrevBlockId: p.conn.RetryReadHashLine(7),
+			MerkleRoot:  p.conn.RetryReadHashLine(7),
+			Difficulty:  p.conn.RetryReadHashLine(7),
+			Noise:       p.conn.RetryReadHashLine(7),
+			Nonce:       p.conn.RetryReadUint64Line(7),
+		}
+		if p.conn.HasErr() {
+			return nil, p.conn.Err()
+		}
+		if blockMap[blockId].Hash() != blockId {
+			return nil, fmt.Errorf("received block does not match expected id")
+		}
+	}
 	// Verify the chain's continuity, attaching to ours, and work
+	for i := 0; i < len(neededBlockIds)-1; i++ {
+		if blockMap[neededBlockIds[i]].PrevBlockId != neededBlockIds[i+1] {
+			p.conn.TransmitStringLine("done")
+			if p.conn.HasErr() {
+				return nil, p.conn.Err()
+			}
+			return nil, fmt.Errorf("received chain not continuous")
+		}
+	}
+	if blockMap[neededBlockIds[len(neededBlockIds)-1]].PrevBlockId != lcaId {
+		p.conn.TransmitStringLine("done")
+		if p.conn.HasErr() {
+			return nil, p.conn.Err()
+		}
+		return nil, fmt.Errorf("received chain does not attach to ours as expected")
+	}
+	if false { // TODO: Verify work
+		p.conn.TransmitStringLine("done")
+		if p.conn.HasErr() {
+			return nil, p.conn.Err()
+		}
+		return nil, fmt.Errorf("received chain is not actually higher work than ours")
+	}
+	p.conn.TransmitStringLine("next")
+	if p.conn.HasErr() {
+		return nil, p.conn.Err()
+	}
 	// Until our inv / local inv is complete, request entities, and add to table
 	// Build the event to send to manager
 	return &events.InboundSyncMainEvent{
