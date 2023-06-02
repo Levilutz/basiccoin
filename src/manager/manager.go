@@ -83,8 +83,10 @@ func (m *Manager) Loop() {
 			m.printPeersUpdate()
 
 		case sol := <-m.minerSet.SolutionCh:
+			solId := sol.Hash()
+			fmt.Printf("mined potential solution: %x\n", solId)
 			err := m.handleNewBestChain(
-				sol.Hash(), []db.Block{sol}, []db.MerkleNode{}, []db.Tx{},
+				solId, []db.Block{sol}, []db.MerkleNode{}, []db.Tx{},
 			)
 			if err != nil {
 				fmt.Println("handleMinedSolution err:", err.Error())
