@@ -1,5 +1,20 @@
 package db
 
+// Reference to unspent transaction output.
+// This is just a subset of the fields in a TxIn.
+type Utxo struct {
+	TxId HashT
+	Ind  uint64
+}
+
+func UtxoFromInput(txi TxIn) Utxo {
+	return Utxo{
+		TxId: txi.OriginTxId,
+		Ind:  txi.OriginTxOutInd,
+	}
+}
+
+// A transaction input.
 type TxIn struct {
 	OriginTxId     HashT
 	OriginTxOutInd uint64
@@ -31,6 +46,7 @@ func TxInPackHasher(txins []TxIn) []Hasher {
 	return out
 }
 
+// A transaction output.
 type TxOut struct {
 	Value         uint64
 	PublicKeyHash HashT
@@ -45,6 +61,7 @@ func (txo TxOut) VSize() uint64 {
 	return uint64(8 + 32)
 }
 
+// A transaction.
 type Tx struct {
 	MinBlock uint64
 	Inputs   []TxIn
@@ -102,6 +119,14 @@ func (tx Tx) SignaturesValid() bool {
 		}
 	}
 	return true
+}
+
+func (tx Tx) GetUtxos() []Utxo {
+	out := make([]Utxo, len(tx.Inputs))
+	for i := range out {
+		out[i] = UtxoFromInput(tx.Inputs[i])
+	}
+	return out
 }
 
 func TxHashPreSig(minBlock uint64, outputs []TxOut) HashT {

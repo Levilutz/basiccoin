@@ -7,19 +7,6 @@ import (
 	"github.com/levilutz/basiccoin/src/util"
 )
 
-// Unspent transaction output.
-type Utxo struct {
-	TxId HashT
-	Ind  uint64
-}
-
-func UtxoFromInput(txi TxIn) Utxo {
-	return Utxo{
-		TxId: txi.OriginTxId,
-		Ind:  txi.OriginTxOutInd,
-	}
-}
-
 // State at a blockchain node. Responsible for preventing double-spends.
 // Meant to only be accessed synchronously by a single thread.
 type State struct {
@@ -69,8 +56,8 @@ func (s *State) Rewind() error {
 		s.mempool.Add(txId)
 		s.mempoolRates[txId] = tx.Rate()
 		// Return the tx inputs
-		for _, txi := range tx.Inputs {
-			s.utxos.Add(UtxoFromInput(txi))
+		for _, utxo := range tx.GetUtxos() {
+			s.utxos.Add(utxo)
 		}
 		// Remove the tx outputs from the utxo set
 		for i := range tx.Outputs {
@@ -131,11 +118,9 @@ func (s *State) Advance(nextBlockId HashT) error {
 		}
 		delete(s.mempoolRates, txId)
 		// Consume the tx inputs
-		for _, txi := range tx.Inputs {
-			if !s.utxos.Remove(UtxoFromInput(txi)) {
-				return fmt.Errorf(
-					"tx input not available %x[%d]", txi.OriginTxId, txi.OriginTxOutInd,
-				)
+		for _, utxo := range tx.GetUtxos() {
+			if !s.utxos.Remove(utxo) {
+				return fmt.Errorf("tx input not available %x[%d]", utxo.TxId, utxo.Ind)
 			}
 		}
 		// Add the tx outputs
@@ -162,11 +147,9 @@ func (s *State) VerifyTxIncludable(txId HashT) error {
 	}
 	// Verify each tx input's claimed utxo is available
 	// This guards against double-spends
-	for _, txi := range tx.Inputs {
-		if !s.utxos.Includes(UtxoFromInput(txi)) {
-			return fmt.Errorf(
-				"tx input not available %x[%d]", txi.OriginTxId, txi.OriginTxOutInd,
-			)
+	for _, utxo := range tx.GetUtxos() {
+		if !s.utxos.Includes(utxo) {
+			return fmt.Errorf("tx input not available %x[%d]", utxo.TxId, utxo.Ind)
 		}
 	}
 	return nil

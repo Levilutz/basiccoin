@@ -22,8 +22,10 @@ func NewSetFromList[K comparable](list []K) *Set[K] {
 }
 
 // Add a key to the set.
-func (s *Set[K]) Add(key K) {
-	s.s[key] = struct{}{}
+func (s *Set[K]) Add(keys ...K) {
+	for _, key := range keys {
+		s.s[key] = struct{}{}
+	}
 }
 
 // Remove a key from the set, return whether it existed.
@@ -39,6 +41,16 @@ func (s *Set[K]) Remove(key K) bool {
 func (s *Set[K]) Includes(key K) bool {
 	_, ok := s.s[key]
 	return ok
+}
+
+// Check whether a set includes any of the given items.
+func (s *Set[K]) IncludesAny(keys ...K) bool {
+	for _, key := range keys {
+		if s.Includes(key) {
+			return true
+		}
+	}
+	return false
 }
 
 // Shallow copy the set.
