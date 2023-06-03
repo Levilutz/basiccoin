@@ -259,8 +259,8 @@ func (p *Peer) handleSync() error {
 	}
 	// Even if our work mismatches, we might have their head
 	// This could mean manager is currently including that head, or it failed to before.
-	if theirWork == ourWork || p.inv.HasBlock(theirHead) {
-		// Neither peer wants to sync
+	if theirWork == ourWork ||
+		(db.HashLT(ourWork, theirWork) && p.inv.HasBlock(theirHead)) {
 		p.conn.TransmitStringLine("fin:sync")
 		p.conn.RetryReadLine(7) // Just to consume their next | fin:sync
 		return p.conn.Err()
