@@ -8,17 +8,6 @@ type PeerMessage interface {
 	Transmit(pc *PeerConn) error
 }
 
-// Receive base64(json(message)) from a single line
-func receiveStandardMessage[R PeerMessage](pc *PeerConn) (R, error) {
-	// Cannot be method until golang allows type params on methods
-	var content R
-	data := pc.RetryReadLine(7)
-	if pc.HasErr() {
-		return content, pc.Err()
-	}
-	return util.UnJsonB64[R](data)
-}
-
 // HelloMessage
 
 type HelloMessage struct {
@@ -42,15 +31,17 @@ func NewHelloMessage() HelloMessage {
 
 // Receive a HelloMessage from the channel
 func ReceiveHelloMessage(pc *PeerConn) (HelloMessage, error) {
-	return receiveStandardMessage[HelloMessage](pc)
+	return HelloMessage{
+		RuntimeID: pc.RetryReadStringLine(7),
+		Version:   pc.RetryReadStringLine(7),
+		Addr:      pc.RetryReadStringLine(7),
+	}, pc.Err()
 }
 
 // Transmit a HelloMessage over the channel
 func (msg HelloMessage) Transmit(pc *PeerConn) error {
-	data, err := util.JsonB64(msg)
-	if err != nil {
-		return err
-	}
-	pc.TransmitLine(data)
+	pc.TransmitStringLine(msg.RuntimeID)
+	pc.TransmitStringLine(msg.Version)
+	pc.TransmitStringLine(msg.Addr)
 	return pc.Err()
 }
