@@ -30,6 +30,7 @@ type Peer struct {
 	weAreInitiator bool
 	inv            db.InvReader
 	head           db.HashT
+	shouldClose    bool
 }
 
 // Create a Peer.
@@ -95,53 +96,42 @@ func (p *Peer) Loop() {
 		fmt.Println("peer closed:", p.Info.RuntimeID)
 		p.mainHandler.HandlePeerClosing(p.Info.RuntimeID)
 	}()
-	var err error
 	pingTicker := time.NewTicker(util.Constants.PeerPingFreq)
 	for {
-		shouldClose := false
 		select {
 		case event := <-p.eventBus:
-			shouldClose, err = p.handlePeerBusEvent(event)
-			if err != nil {
+			if err := p.handlePeerBusEvent(event); err != nil {
 				fmt.Printf("error handling event '%T': %s\n", event, err.Error())
 			}
 
 		case <-pingTicker.C:
-			shouldClose, err = p.issuePeerCommand("ping", func() error {
-				return nil
-			})
-			if err != nil {
+			if err := p.issuePeerCommand("ping", func() error { return nil }); err != nil {
 				fmt.Println("peer lost:", p.Info.RuntimeID, err.Error())
 				return
 			}
 
 		default:
-			if p.conn.HasErr() {
-				fmt.Println("Unhandled peer error:", p.conn.Err().Error())
-				shouldClose = true
-				continue
-			}
 			line := p.conn.ReadLineTimeout(100 * time.Millisecond)
 			if p.conn.HasErr() {
 				p.conn.Err() // Drop it
 				continue
 			}
-			shouldClose, err = p.handleReceivedLine(line)
-			if err != nil {
+			if err := p.handleReceivedLine(line); err != nil {
 				fmt.Printf("error handling line '%s': %s\n", line, err.Error())
 			}
 		}
-		if shouldClose {
+		if p.shouldClose {
 			return
 		}
 	}
 }
 
 // Handle event from our message bus, return whether we should close.
-func (p *Peer) handlePeerBusEvent(event any) (bool, error) {
+func (p *Peer) handlePeerBusEvent(event any) error {
 	switch msg := event.(type) {
 	case shouldEndEvent:
-		return true, p.handleClose(true)
+		p.shouldClose = true
+		return p.handleClose(true)
 
 	case syncHeadEvent:
 		p.head = msg.head
@@ -165,22 +155,23 @@ func (p *Peer) handlePeerBusEvent(event any) (bool, error) {
 	default:
 		fmt.Printf("unhandled peer event %T\n", event)
 	}
-	return false, nil
+	return nil
 }
 
 // Handle command received from peer, returns whether we should close.
-func (p *Peer) handleReceivedLine(line []byte) (bool, error) {
+func (p *Peer) handleReceivedLine(line []byte) error {
 	if !bytes.HasPrefix(line, []byte("cmd:")) {
-		return false, fmt.Errorf("unrecognized line: %s", line)
+		return fmt.Errorf("unrecognized line: %s", line)
 	}
 	command := string(line)[4:]
 	if command == "close" {
-		return true, p.handleClose(false)
+		p.shouldClose = true
+		return p.handleClose(false)
 	}
 
 	p.conn.TransmitStringLine("ack:" + command)
 	if p.conn.HasErr() {
-		return false, p.conn.Err()
+		return p.conn.Err()
 	}
 
 	if command == "ping" {
@@ -189,76 +180,73 @@ func (p *Peer) handleReceivedLine(line []byte) (bool, error) {
 	} else if command == "sync" {
 		// handleSync sends to main bus if appropriate
 		if err := p.handleSync(); err != nil {
-			return false, err
+			return err
 		}
 
 	} else if command == "addrs" {
 		// handleReceiveAddrs sends to main bus
 		if err := p.handleReceiveAddrs(); err != nil {
-			return false, err
+			return err
 		}
 
 	} else if command == "peers-wanted" {
 		if err := p.handleReceivePeersWanted(); err != nil {
-			return false, err
+			return err
 		}
 
 	} else {
 		fmt.Println("unexpected peer message:", command)
 	}
 
-	return false, nil
+	return nil
 }
 
 // Issue an outbound interaction for the command (given without "cmd:").
 // Handler is what to run after they ack. Returns whether we should close.
 // If us and peer simultaneously issued commands, the og handshake initiator goes last.
-func (p *Peer) issuePeerCommand(command string, handler func() error) (bool, error) {
-	if p.conn.HasErr() {
-		return true, fmt.Errorf("unhandled err before command: %s", p.conn.Err())
-	}
+func (p *Peer) issuePeerCommand(command string, handler func() error) error {
 	p.conn.TransmitStringLine("cmd:" + command)
 	// Expect to receive either "ack:our command" or "cmd:their command"
 	resp := p.conn.RetryReadLine(7)
 	if p.conn.HasErr() {
-		return false, p.conn.Err()
+		return p.conn.Err()
 	}
 	// Happy path - they acknowledged us
 	if string(resp) == "ack:"+command {
-		return false, handler()
+		return handler()
 	}
 	// Sad path - we sent commands simultaneously
 	if bytes.HasPrefix(resp, []byte("cmd:")) {
 		if string(resp) == "cmd:close" {
 			// If their command was a close, handle it immediately
-			return true, p.handleClose(false)
+			p.shouldClose = true
+			return p.handleClose(false)
 
 		} else if p.weAreInitiator {
 			// If we initiated the og handshake, honor their cmd, then expect ours to be
-			shouldClose, err := p.handleReceivedLine(resp)
-			if shouldClose || err != nil {
-				return shouldClose, err
+			if err := p.handleReceivedLine(resp); p.shouldClose || err != nil {
+				return err
 			}
 			p.conn.ConsumeExpected("ack:" + command)
 			if p.conn.HasErr() {
-				return false, p.conn.Err()
+				return p.conn.Err()
 			}
-			return false, handler()
+			return handler()
 
 		} else {
 			// If we received the og handshake, expect to be honored, then honor theirs
 			p.conn.ConsumeExpected("ack:" + command)
 			if p.conn.HasErr() {
-				return false, p.conn.Err()
+				return p.conn.Err()
 			}
 			err := handler()
 			if err != nil {
-				return false, err
+				return err
 			}
 			return p.handleReceivedLine(resp)
 		}
 	}
-	return false, nil
+	return nil
 }
 
 func (p *Peer) handleClose(issuing bool) error {
