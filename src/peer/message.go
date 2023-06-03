@@ -1,7 +1,6 @@
 package peer
 
 import (
-	"github.com/levilutz/basiccoin/src/db"
 	"github.com/levilutz/basiccoin/src/util"
 )
 
@@ -88,81 +87,5 @@ func (msg AddrsMessage) Transmit(pc *PeerConn) error {
 		pc.TransmitStringLine(addr)
 	}
 	pc.TransmitStringLine("fin:addrs")
-	return pc.Err()
-}
-
-// BlockIdsMessage
-
-type BlockIdsMessage struct {
-	BlockIds []db.HashT
-}
-
-// Construct a BlockIdsMessage
-func ReceiveBlockIdsMessage(pc *PeerConn) (BlockIdsMessage, error) {
-	pc.ConsumeExpected("block-ids")
-	numBlockIds := pc.RetryReadIntLine(7)
-	line := pc.RetryReadStringLine(7)
-	if pc.HasErr() {
-		return BlockIdsMessage{}, pc.Err()
-	}
-	hashes, err := db.StringToHashes(line, numBlockIds)
-	if err != nil {
-		return BlockIdsMessage{}, err
-	}
-	pc.ConsumeExpected("fin:block-ids")
-	if pc.HasErr() {
-		return BlockIdsMessage{}, pc.Err()
-	}
-	return BlockIdsMessage{
-		BlockIds: hashes,
-	}, nil
-}
-
-// Transmit a BlockIdsMessage over the channel
-func (msg BlockIdsMessage) Transmit(pc *PeerConn) error {
-	pc.TransmitStringLine("block-ids")
-	pc.TransmitIntLine(len(msg.BlockIds))
-	pc.TransmitStringLine(db.HashesToString(msg.BlockIds))
-	pc.TransmitStringLine("fin:block-ids")
-	return pc.Err()
-}
-
-// BlockHeaderMessage
-
-type BlockHeaderMessage struct {
-	Block db.Block
-}
-
-// Construct a BlockHeaderMessage
-func ReceiveBlockHeaderMessage(pc *PeerConn) (BlockHeaderMessage, error) {
-	hashesLine := pc.RetryReadStringLine(7)
-	nonce := pc.RetryReadUint64Line(7)
-	if pc.HasErr() {
-		return BlockHeaderMessage{}, pc.Err()
-	}
-	hashes, err := db.StringToHashes(hashesLine, 4)
-	if err != nil {
-		return BlockHeaderMessage{}, err
-	}
-	return BlockHeaderMessage{
-		Block: db.Block{
-			PrevBlockId: hashes[0],
-			MerkleRoot:  hashes[1],
-			Difficulty:  hashes[2],
-			Noise:       hashes[3],
-			Nonce:       nonce,
-		},
-	}, nil
-}
-
-// Transmit a BlockHeaderMessage over the channel.
-func (msg BlockHeaderMessage) Transmit(pc *PeerConn) error {
-	pc.TransmitStringLine(db.HashesToString([]db.HashT{
-		msg.Block.PrevBlockId,
-		msg.Block.MerkleRoot,
-		msg.Block.Difficulty,
-		msg.Block.Noise,
-	}))
-	pc.TransmitUint64Line(msg.Block.Nonce)
 	return pc.Err()
 }

@@ -160,22 +160,15 @@ func (p *Peer) handleReceivedLine(line []byte) (bool, error) {
 		}
 
 	} else if command == "addrs" {
-		msg, err := ReceiveAddrsMessage(p.conn)
-		if err != nil {
+		// handleReceiveAddrs sends to main bus
+		if err := p.handleReceiveAddrs(); err != nil {
 			return false, err
 		}
-		go func() {
-			p.mainBus <- events.PeersReceivedMainEvent{
-				PeerAddrs: msg.PeerAddrs,
-			}
-		}()
 
 	} else if command == "peers-wanted" {
-		go func() {
-			p.mainBus <- events.PeersWantedMainEvent{
-				PeerRuntimeID: p.HelloMsg.RuntimeID,
-			}
-		}()
+		if err := p.handleReceivePeersWanted(); err != nil {
+			return false, err
+		}
 
 	} else {
 		fmt.Println("unexpected peer message:", command)
@@ -584,5 +577,29 @@ func (p *Peer) quickVerifyChain(
 			return fmt.Errorf("received block does not actually beat difficulty")
 		}
 	}
+	return nil
+}
+
+// Handle the receipt of new addresses from the peer.
+func (p *Peer) handleReceiveAddrs() error {
+	msg, err := ReceiveAddrsMessage(p.conn)
+	if err != nil {
+		return err
+	}
+	go func() {
+		p.mainBus <- events.PeersReceivedMainEvent{
+			PeerAddrs: msg.PeerAddrs,
+		}
+	}()
+	return nil
+}
+
+// Handle the receipt of a peers wanted message.
+func (p *Peer) handleReceivePeersWanted() error {
+	go func() {
+		p.mainBus <- events.PeersWantedMainEvent{
+			PeerRuntimeID: p.HelloMsg.RuntimeID,
+		}
+	}()
 	return nil
 }
