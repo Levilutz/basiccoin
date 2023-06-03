@@ -136,10 +136,8 @@ func (m *Manager) seekNewPeers() {
 	}
 	peerInd := rand.Intn(len(m.peers))
 	peerId := m.getPeerIDsList()[peerInd]
-	go func() {
-		// TODO: this segfaults if peer lost before this lands, need to make PeerSet
-		m.peers[peerId].EventBus <- events.PeersWantedPeerEvent{}
-	}()
+	// TODO: this segfaults if peer lost before this lands, need to make PeerSet
+	m.peers[peerId].PeersWanted()
 }
 
 func (m *Manager) getPeerIDsList() []string {
@@ -192,9 +190,7 @@ func (m *Manager) handleMainBusEvent(event any) {
 			return
 		}
 		go func() {
-			m.peers[msg.PeerRuntimeID].EventBus <- events.PeersDataPeerEvent{
-				PeerAddrs: addrs,
-			}
+			m.peers[msg.PeerRuntimeID].SendPeersData(addrs)
 		}()
 
 	case events.InboundSyncMainEvent:

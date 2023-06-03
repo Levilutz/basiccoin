@@ -13,7 +13,7 @@ import (
 // Encapsulate a high-level connection to a peer.
 type Peer struct {
 	Info           *PeerInfo
-	EventBus       chan any // TODO: Make event bus private
+	eventBus       chan any
 	conn           *PeerConn
 	mainBus        chan<- any
 	weAreInitiator bool
@@ -37,7 +37,7 @@ func NewPeer(
 ) *Peer {
 	return &Peer{
 		Info:           info,
-		EventBus:       make(chan any),
+		eventBus:       make(chan any),
 		conn:           pc,
 		mainBus:        mainBus,
 		weAreInitiator: weAreInitiator,
@@ -46,11 +46,35 @@ func NewPeer(
 	}
 }
 
+// Tell the peer it should terminate the connection.
+func (p *Peer) ShouldEnd() {
+	go func() {
+		p.eventBus <- shouldEndEvent{}
+	}()
+}
+
+// Inform this peer of a new chain head.
 func (p *Peer) SyncHead(head db.HashT) {
 	go func() {
-		p.EventBus <- events.SyncHeadPeerEvent{
-			Head: head,
+		p.eventBus <- syncHeadEvent{
+			head: head,
 		}
+	}()
+}
+
+// Inform the peer of other peers.
+func (p *Peer) SendPeersData(addrs []string) {
+	go func() {
+		p.eventBus <- peersDataEvent{
+			addrs: addrs,
+		}
+	}()
+}
+
+// Request that the peer send back other addrs.
+func (p *Peer) PeersWanted() {
+	go func() {
+		p.eventBus <- peersWantedEvent{}
 	}()
 }
 
@@ -69,7 +93,7 @@ func (p *Peer) Loop() {
 	for {
 		shouldClose := false
 		select {
-		case event := <-p.EventBus:
+		case event := <-p.eventBus:
 			shouldClose, err = p.handlePeerBusEvent(event)
 			if err != nil {
 				fmt.Printf("error handling event '%T': %s\n", event, err.Error())
@@ -109,24 +133,24 @@ func (p *Peer) Loop() {
 // Handle event from our message bus, return whether we should close.
 func (p *Peer) handlePeerBusEvent(event any) (bool, error) {
 	switch msg := event.(type) {
-	case events.ShouldEndPeerEvent:
+	case shouldEndEvent:
 		return true, p.handleClose(true)
 
-	case events.SyncHeadPeerEvent:
-		p.head = msg.Head
+	case syncHeadEvent:
+		p.head = msg.head
 		return p.issuePeerCommand("sync", p.handleSync)
 
-	case events.PeersDataPeerEvent:
+	case peersDataEvent:
 		return p.issuePeerCommand("addrs", func() error {
-			p.conn.TransmitIntLine(len(msg.PeerAddrs))
-			for _, addr := range msg.PeerAddrs {
+			p.conn.TransmitIntLine(len(msg.addrs))
+			for _, addr := range msg.addrs {
 				p.conn.TransmitStringLine(addr)
 			}
 			p.conn.TransmitStringLine("fin:addrs")
 			return p.conn.Err()
 		})
 
-	case events.PeersWantedPeerEvent:
+	case peersWantedEvent:
 		return p.issuePeerCommand("peers-wanted", func() error {
 			return nil
 		})
