@@ -96,12 +96,14 @@ func (m *Manager) Loop() {
 	}
 }
 
+func (m *Manager) queueEvent(event any) {
+	go func() { m.mainBus <- event }()
+}
+
 func (m *Manager) HandlePeerClosing(runtimeId string) {
-	go func() {
-		m.mainBus <- peerClosingEvent{
-			RuntimeID: runtimeId,
-		}
-	}()
+	m.queueEvent(peerClosingEvent{
+		runtimeID: runtimeId,
+	})
 }
 
 func (m *Manager) HandleInboundSync(
@@ -110,30 +112,30 @@ func (m *Manager) HandleInboundSync(
 	merkles []db.MerkleNode,
 	txs []db.Tx,
 ) {
-	go func() {
-		m.mainBus <- inboundSyncEvent{
-			Head:    head,
-			Blocks:  blocks,
-			Merkles: merkles,
-			Txs:     txs,
-		}
-	}()
+	m.queueEvent(inboundSyncEvent{
+		head:    head,
+		blocks:  blocks,
+		merkles: merkles,
+		txs:     txs,
+	})
 }
 
 func (m *Manager) HandlePeersReceived(addrs []string) {
-	go func() {
-		m.mainBus <- peersReceivedEvent{
-			PeerAddrs: addrs,
-		}
-	}()
+	m.queueEvent(peersReceivedEvent{
+		peerAddrs: addrs,
+	})
 }
 
 func (m *Manager) HandlePeersWanted(runtimeId string) {
-	go func() {
-		m.mainBus <- peersWantedEvent{
-			PeerRuntimeID: runtimeId,
-		}
-	}()
+	m.queueEvent(peersWantedEvent{
+		peerRuntimeID: runtimeId,
+	})
+}
+
+func (m *Manager) HandleNewTx(tx db.Tx) {
+	m.queueEvent(newTxEvent{
+		tx: tx,
+	})
 }
 
 func (m *Manager) addMetConn(metConn MetConn) {
@@ -207,13 +209,13 @@ func (m *Manager) peerConnected(runtimeID string) bool {
 func (m *Manager) handleMainBusEvent(event any) {
 	switch msg := event.(type) {
 	case peerClosingEvent:
-		delete(m.peers, msg.RuntimeID)
+		delete(m.peers, msg.runtimeID)
 
 	case peersReceivedEvent:
 		if len(m.peers) >= util.Constants.MaxPeers {
 			return
 		}
-		for _, addr := range msg.PeerAddrs {
+		for _, addr := range msg.peerAddrs {
 			addr := addr
 			go func() {
 				pc, err := peer.ResolvePeerConn(addr)
@@ -229,16 +231,22 @@ func (m *Manager) handleMainBusEvent(event any) {
 			return
 		}
 		go func() {
-			m.peers[msg.PeerRuntimeID].SendPeersData(addrs)
+			m.peers[msg.peerRuntimeID].SendPeersData(addrs)
 		}()
 
 	case inboundSyncEvent:
 		if util.Constants.DebugLevel >= 1 {
-			fmt.Printf("received potential next block: %x\n", msg.Head)
+			fmt.Printf("received potential next block: %x\n", msg.head)
 		}
-		err := m.handleNewBestChain(msg.Head, msg.Blocks, msg.Merkles, msg.Txs)
+		err := m.handleNewBestChain(msg.head, msg.blocks, msg.merkles, msg.txs)
 		if err != nil {
-			fmt.Println("failed to verify new chain:", err)
+			fmt.Println("failed to verify new chain:", err.Error())
+		}
+
+	case newTxEvent:
+		err := m.handleNewTx(msg.tx)
+		if err != nil {
+			fmt.Println("failed to insert new tx:", err.Error())
 		}
 
 	default:
@@ -281,6 +289,7 @@ func (m *Manager) handleNewBestChain(
 				return err
 			}
 			m.state.AddMempoolTx(txId)
+			// Don't re-broadcast tx directly, it's implicitly rebroadcasted with block
 		}
 	}
 	for _, merkle := range merkles {
@@ -337,6 +346,23 @@ func (m *Manager) handleNewBestChain(
 	// Broadcast solution to peers
 	for _, p := range m.peers {
 		p.SyncHead(newHead)
+	}
+	return nil
+}
+
+// Handle a new tx.
+func (m *Manager) handleNewTx(tx db.Tx) error {
+	txId := tx.Hash()
+	if m.inv.HasTx(txId) {
+		return nil
+	}
+	if err := m.inv.StoreTx(tx); err != nil {
+		return err
+	}
+	m.state.AddMempoolTx(txId)
+	// Broadcast new tx to peers
+	for _, p := range m.peers {
+		p.SendTx(txId)
 	}
 	return nil
 }

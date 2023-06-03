@@ -19,6 +19,7 @@ type MainEventHandler interface {
 	)
 	HandlePeersReceived(addrs []string)
 	HandlePeersWanted(runtimeId string)
+	HandleNewTx(tx db.Tx)
 }
 
 // Encapsulate a high-level connection to a peer.
@@ -58,36 +59,38 @@ func NewPeer(
 	}
 }
 
+func (p *Peer) queueEvent(event any) {
+	go func() { p.eventBus <- event }()
+}
+
 // Tell the peer it should terminate the connection.
 func (p *Peer) ShouldEnd() {
-	go func() {
-		p.eventBus <- shouldEndEvent{}
-	}()
+	p.queueEvent(shouldEndEvent{})
 }
 
 // Inform this peer of a new chain head.
 func (p *Peer) SyncHead(head db.HashT) {
-	go func() {
-		p.eventBus <- syncHeadEvent{
-			head: head,
-		}
-	}()
+	p.queueEvent(syncHeadEvent{
+		head: head,
+	})
 }
 
 // Inform the peer of other peers.
 func (p *Peer) SendPeersData(addrs []string) {
-	go func() {
-		p.eventBus <- peersDataEvent{
-			addrs: addrs,
-		}
-	}()
+	p.queueEvent(peersDataEvent{
+		addrs: addrs,
+	})
 }
 
 // Request that the peer send back other addrs.
 func (p *Peer) PeersWanted() {
-	go func() {
-		p.eventBus <- peersWantedEvent{}
-	}()
+	p.queueEvent(peersWantedEvent{})
+}
+
+func (p *Peer) SendTx(txId db.HashT) {
+	p.queueEvent(sendTxEvent{
+		txId: txId,
+	})
 }
 
 // Loop handling events from our message bus and the peer.
@@ -152,6 +155,16 @@ func (p *Peer) handlePeerBusEvent(event any) error {
 			return nil
 		})
 
+	case sendTxEvent:
+		return p.issuePeerCommand("tx", func() error {
+			p.conn.TransmitHashLine(msg.txId)
+			resp := p.conn.RetryReadStringLine(7)
+			if resp == "next" {
+				p.conn.TransmitTx(p.inv.GetTx(msg.txId))
+			}
+			return p.conn.Err()
+		})
+
 	default:
 		fmt.Printf("unhandled peer event %T\n", event)
 	}
@@ -176,30 +189,23 @@ func (p *Peer) handleReceivedLine(line []byte) error {
 
 	// TODO: Abstract all these into a dispatch? or attach handlers http library style?
 	if command == "ping" {
-		// ack above was sufficient
+		return nil
 
 	} else if command == "sync" {
-		// handleSync sends to main bus if appropriate
-		if err := p.handleSync(); err != nil {
-			return err
-		}
+		return p.handleSync()
 
 	} else if command == "addrs" {
-		// handleReceiveAddrs sends to main bus
-		if err := p.handleReceiveAddrs(); err != nil {
-			return err
-		}
+		return p.handleReceiveAddrs()
 
 	} else if command == "peers-wanted" {
-		if err := p.handleReceivePeersWanted(); err != nil {
-			return err
-		}
+		return p.handleReceivePeersWanted()
+
+	} else if command == "tx" {
+		return p.handleReceiveTx()
 
 	} else {
-		fmt.Println("unexpected peer message:", command)
+		return fmt.Errorf("unexpected peer message: %s", command)
 	}
-
-	return nil
 }
 
 // Issue an outbound interaction for the command (given without "cmd:").
@@ -522,5 +528,21 @@ func (p *Peer) handleReceiveAddrs() error {
 // Handle the receipt of a peers wanted message.
 func (p *Peer) handleReceivePeersWanted() error {
 	p.mainHandler.HandlePeersWanted(p.Info.RuntimeID)
+	return nil
+}
+
+// Handle the receipt of a new tx.
+func (p *Peer) handleReceiveTx() error {
+	txId := p.conn.RetryReadHashLine(7)
+	if p.inv.HasTx(txId) {
+		p.conn.TransmitStringLine("fin:tx")
+		return p.conn.Err()
+	}
+	p.conn.TransmitStringLine("next")
+	tx := p.conn.RetryReadTx(7, txId)
+	if p.conn.HasErr() {
+		return p.conn.Err()
+	}
+	p.mainHandler.HandleNewTx(tx)
 	return nil
 }

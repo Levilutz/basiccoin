@@ -17,3 +17,8 @@ type peersDataEvent struct {
 
 // Retrieve other peers from the peer.
 type peersWantedEvent struct{}
+
+// Inform the peer of a new tx.
+type sendTxEvent struct {
+	txId db.HashT
+}
