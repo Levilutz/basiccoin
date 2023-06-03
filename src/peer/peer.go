@@ -6,16 +6,27 @@ import (
 	"time"
 
 	"github.com/levilutz/basiccoin/src/db"
-	"github.com/levilutz/basiccoin/src/events"
 	"github.com/levilutz/basiccoin/src/util"
 )
+
+type MainEventHandler interface {
+	HandlePeerClosing(runtimeId string)
+	HandleInboundSync(
+		head db.HashT,
+		blocks []db.Block,
+		merkles []db.MerkleNode,
+		txs []db.Tx,
+	)
+	HandlePeersReceived(addrs []string)
+	HandlePeersWanted(runtimeId string)
+}
 
 // Encapsulate a high-level connection to a peer.
 type Peer struct {
 	Info           *PeerInfo
 	eventBus       chan any
 	conn           *PeerConn
-	mainBus        chan<- any
+	mainHandler    MainEventHandler
 	weAreInitiator bool
 	inv            db.InvReader
 	head           db.HashT
@@ -30,7 +41,7 @@ type Peer struct {
 func NewPeer(
 	info *PeerInfo,
 	pc *PeerConn,
-	mainBus chan any,
+	mainHandler MainEventHandler,
 	weAreInitiator bool,
 	inv db.InvReader,
 	head db.HashT,
@@ -39,7 +50,7 @@ func NewPeer(
 		Info:           info,
 		eventBus:       make(chan any),
 		conn:           pc,
-		mainBus:        mainBus,
+		mainHandler:    mainHandler,
 		weAreInitiator: weAreInitiator,
 		inv:            inv,
 		head:           head,
@@ -81,12 +92,8 @@ func (p *Peer) PeersWanted() {
 // Loop handling events from our message bus and the peer.
 func (p *Peer) Loop() {
 	defer func() {
-		go func() {
-			fmt.Println("peer closed:", p.Info.RuntimeID)
-			p.mainBus <- events.PeerClosingMainEvent{
-				RuntimeID: p.Info.RuntimeID,
-			}
-		}()
+		fmt.Println("peer closed:", p.Info.RuntimeID)
+		p.mainHandler.HandlePeerClosing(p.Info.RuntimeID)
 	}()
 	var err error
 	pingTicker := time.NewTicker(util.Constants.PeerPingFreq)
@@ -302,11 +309,7 @@ func (p *Peer) handleSync() error {
 		if p.conn.HasErr() {
 			return p.conn.Err()
 		}
-		err := p.handleSendSync()
-		if err != nil && util.Constants.DebugLevel >= 1 {
-			fmt.Printf("their: %x, our: %x\n", theirWork, ourWork)
-		}
-		return err
+		return p.handleSendSync()
 	} else {
 		// Receive a sync
 		p.conn.TransmitStringLine("sync-recv")
@@ -314,17 +317,7 @@ func (p *Peer) handleSync() error {
 		if p.conn.HasErr() {
 			return p.conn.Err()
 		}
-		eventP, err := p.handleReceiveSync()
-		if err != nil && util.Constants.DebugLevel >= 1 {
-			fmt.Printf("their: %x, our: %x\n", theirWork, ourWork)
-		}
-		if err != nil {
-			return err
-		}
-		go func() {
-			p.mainBus <- *eventP
-		}()
-		return nil
+		return p.handleReceiveSync()
 	}
 }
 
@@ -420,7 +413,7 @@ func (p *Peer) handleSendSync() error {
 }
 
 // Receive a chain sync.
-func (p *Peer) handleReceiveSync() (*events.InboundSyncMainEvent, error) {
+func (p *Peer) handleReceiveSync() error {
 	// Find last common ancestor with peer
 	neededBlockIds := make([]db.HashT, 0)
 	newHead := p.conn.RetryReadHashLine(7)
@@ -432,7 +425,7 @@ func (p *Peer) handleReceiveSync() (*events.InboundSyncMainEvent, error) {
 	}
 	p.conn.TransmitStringLine("recognized")
 	if len(neededBlockIds) == 0 {
-		return nil, fmt.Errorf("we do not need upgrade, sync should not have run")
+		return fmt.Errorf("we do not need upgrade, sync should not have run")
 	}
 	// Receive blocks from peer
 	blockMap := make(map[db.HashT]db.Block)
@@ -445,7 +438,7 @@ func (p *Peer) handleReceiveSync() (*events.InboundSyncMainEvent, error) {
 			Nonce:       p.conn.RetryReadUint64Line(7),
 		}
 		if p.conn.HasErr() {
-			return nil, p.conn.Err()
+			return p.conn.Err()
 		}
 	}
 	// Do light verification (most importantly proof-of-work)
@@ -453,13 +446,13 @@ func (p *Peer) handleReceiveSync() (*events.InboundSyncMainEvent, error) {
 	if err := p.quickVerifyChain(newHead, lcaId, neededBlockIds, blockMap); err != nil {
 		p.conn.TransmitStringLine("reject")
 		if p.conn.HasErr() {
-			return nil, p.conn.Err()
+			return p.conn.Err()
 		}
-		return nil, err
+		return err
 	}
 	p.conn.TransmitStringLine("next")
 	if p.conn.HasErr() {
-		return nil, p.conn.Err()
+		return p.conn.Err()
 	}
 	// Until our inv / local inv is complete, request entities, and add to output
 	newBlocks := make([]db.Block, 0)
@@ -482,7 +475,7 @@ func (p *Peer) handleReceiveSync() (*events.InboundSyncMainEvent, error) {
 		p.conn.TransmitHashLine(entityId)
 		entityType := p.conn.RetryReadStringLine(7)
 		if p.conn.HasErr() {
-			return nil, p.conn.Err()
+			return p.conn.Err()
 		}
 		if entityType == "merkle" {
 			// Receive merkle
@@ -491,10 +484,10 @@ func (p *Peer) handleReceiveSync() (*events.InboundSyncMainEvent, error) {
 				RChild: p.conn.RetryReadHashLine(7),
 			}
 			if p.conn.HasErr() {
-				return nil, p.conn.Err()
+				return p.conn.Err()
 			}
 			if merkle.Hash() != entityId {
-				return nil, fmt.Errorf(
+				return fmt.Errorf(
 					"provided merkle does not match hash: %x != %x",
 					merkle.Hash(),
 					entityId,
@@ -508,7 +501,7 @@ func (p *Peer) handleReceiveSync() (*events.InboundSyncMainEvent, error) {
 			numTxIns := p.conn.RetryReadUint64Line(7)
 			numTxOuts := p.conn.RetryReadUint64Line(7)
 			if p.conn.HasErr() {
-				return nil, p.conn.Err()
+				return p.conn.Err()
 			}
 			// Receive tx inputs
 			txIns := make([]db.TxIn, numTxIns)
@@ -530,7 +523,7 @@ func (p *Peer) handleReceiveSync() (*events.InboundSyncMainEvent, error) {
 				}
 			}
 			if p.conn.HasErr() {
-				return nil, p.conn.Err()
+				return p.conn.Err()
 			}
 			tx := db.Tx{
 				MinBlock: minBlock,
@@ -538,27 +531,23 @@ func (p *Peer) handleReceiveSync() (*events.InboundSyncMainEvent, error) {
 				Outputs:  txOuts,
 			}
 			if tx.Hash() != entityId {
-				return nil, fmt.Errorf(
+				return fmt.Errorf(
 					"provided tx does not match hash: %x != %x", tx.Hash(), entityId,
 				)
 			}
 			newTxs = util.Prepend(newTxs, tx)
 		} else {
-			return nil, fmt.Errorf("unrecognized entity type: %s", entityType)
+			return fmt.Errorf("unrecognized entity type: %s", entityType)
 		}
 		if p.conn.HasErr() {
-			return nil, p.conn.Err()
+			return p.conn.Err()
 		}
 		newEntitySet.Add(entityId)
 	}
 	p.conn.TransmitHashLine(db.HashTZero)
-	// Build the event to send to manager
-	return &events.InboundSyncMainEvent{
-		Head:    newHead,
-		Blocks:  newBlocks,
-		Merkles: newMerkles,
-		Txs:     newTxs,
-	}, nil
+	// Send the event to the manager
+	p.mainHandler.HandleInboundSync(newHead, newBlocks, newMerkles, newTxs)
+	return nil
 }
 
 // Verify a new chain's continuity, expected endpoints, and proof-of-work.
@@ -620,20 +609,12 @@ func (p *Peer) handleReceiveAddrs() error {
 	if p.conn.HasErr() {
 		return p.conn.Err()
 	}
-	go func() {
-		p.mainBus <- events.PeersReceivedMainEvent{
-			PeerAddrs: addrs,
-		}
-	}()
+	p.mainHandler.HandlePeersReceived(addrs)
 	return nil
 }
 
 // Handle the receipt of a peers wanted message.
 func (p *Peer) handleReceivePeersWanted() error {
-	go func() {
-		p.mainBus <- events.PeersWantedMainEvent{
-			PeerRuntimeID: p.Info.RuntimeID,
-		}
-	}()
+	p.mainHandler.HandlePeersWanted(p.Info.RuntimeID)
 	return nil
 }

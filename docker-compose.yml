@@ -19,7 +19,6 @@ services:
     command:
       - "/basiccoin"
       - "--seed=node1:21720"
-      - "--miners=1"
 
   node3:
     image: basiccoin:latest
@@ -33,4 +32,3 @@ services:
     command:
       - "/basiccoin"
       - "--seed=node3:21720"
-      - "--miners=1"

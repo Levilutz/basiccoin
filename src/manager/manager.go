@@ -97,6 +97,46 @@ func (m *Manager) Loop() {
 	}
 }
 
+func (m *Manager) HandlePeerClosing(runtimeId string) {
+	go func() {
+		m.mainBus <- events.PeerClosingMainEvent{
+			RuntimeID: runtimeId,
+		}
+	}()
+}
+
+func (m *Manager) HandleInboundSync(
+	head db.HashT,
+	blocks []db.Block,
+	merkles []db.MerkleNode,
+	txs []db.Tx,
+) {
+	go func() {
+		m.mainBus <- events.InboundSyncMainEvent{
+			Head:    head,
+			Blocks:  blocks,
+			Merkles: merkles,
+			Txs:     txs,
+		}
+	}()
+}
+
+func (m *Manager) HandlePeersReceived(addrs []string) {
+	go func() {
+		m.mainBus <- events.PeersReceivedMainEvent{
+			PeerAddrs: addrs,
+		}
+	}()
+}
+
+func (m *Manager) HandlePeersWanted(runtimeId string) {
+	go func() {
+		m.mainBus <- events.PeersWantedMainEvent{
+			PeerRuntimeID: runtimeId,
+		}
+	}()
+}
+
 func (m *Manager) addMetConn(metConn MetConn) {
 	if metConn.PeerConn.HasErr() {
 		fmt.Println("unhandled pre-insertion peer err", metConn.PeerConn.Err().Error())
@@ -111,7 +151,7 @@ func (m *Manager) addMetConn(metConn MetConn) {
 		peer := peer.NewPeer(
 			metConn.Info,
 			metConn.PeerConn,
-			m.mainBus,
+			m,
 			metConn.WeAreInitiator,
 			m.inv,
 			m.state.GetHead(),
