@@ -12,7 +12,7 @@ import (
 
 // Encapsulate a high-level connection to a peer.
 type Peer struct {
-	HelloMsg       *HelloMessage
+	Info           *PeerInfo
 	EventBus       chan any // TODO: Make event bus private
 	conn           *PeerConn
 	mainBus        chan<- any
@@ -28,7 +28,7 @@ type Peer struct {
 // "weAreInitiator" is whether we are the peer that initiated the connection.
 // "inv" is a InvReader.
 func NewPeer(
-	msg *HelloMessage,
+	info *PeerInfo,
 	pc *PeerConn,
 	mainBus chan any,
 	weAreInitiator bool,
@@ -36,7 +36,7 @@ func NewPeer(
 	head db.HashT,
 ) *Peer {
 	return &Peer{
-		HelloMsg:       msg,
+		Info:           info,
 		EventBus:       make(chan any),
 		conn:           pc,
 		mainBus:        mainBus,
@@ -58,9 +58,9 @@ func (p *Peer) SyncHead(head db.HashT) {
 func (p *Peer) Loop() {
 	defer func() {
 		go func() {
-			fmt.Println("peer closed:", p.HelloMsg.RuntimeID)
+			fmt.Println("peer closed:", p.Info.RuntimeID)
 			p.mainBus <- events.PeerClosingMainEvent{
-				RuntimeID: p.HelloMsg.RuntimeID,
+				RuntimeID: p.Info.RuntimeID,
 			}
 		}()
 	}()
@@ -80,7 +80,7 @@ func (p *Peer) Loop() {
 				return nil
 			})
 			if err != nil {
-				fmt.Println("peer lost:", p.HelloMsg.RuntimeID, err.Error())
+				fmt.Println("peer lost:", p.Info.RuntimeID, err.Error())
 				return
 			}
 
@@ -608,7 +608,7 @@ func (p *Peer) handleReceiveAddrs() error {
 func (p *Peer) handleReceivePeersWanted() error {
 	go func() {
 		p.mainBus <- events.PeersWantedMainEvent{
-			PeerRuntimeID: p.HelloMsg.RuntimeID,
+			PeerRuntimeID: p.Info.RuntimeID,
 		}
 	}()
 	return nil

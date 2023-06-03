@@ -16,6 +16,13 @@ import (
 	"github.com/levilutz/basiccoin/src/util"
 )
 
+// Basic peer data exchanged in a handshake.
+type PeerInfo struct {
+	RuntimeID string
+	Version   string
+	Addr      string
+}
+
 // Encapsulate a low-level connection to peer.
 type PeerConn struct {
 	c *net.TCPConn
@@ -52,13 +59,14 @@ func (pc *PeerConn) LocalAddr() *net.TCPAddr {
 	return pc.c.LocalAddr().(*net.TCPAddr)
 }
 
-func (pc *PeerConn) Handshake() *HelloMessage {
+// Exchange basic information about each other
+func (pc *PeerConn) Handshake() *PeerInfo {
 	if pc.e != nil {
 		return nil
 	}
 	pc.TransmitStringLine("basiccoin")
 	pc.ConsumeExpected("basiccoin")
-	// Transmit hello
+	// Transmit basic info
 	pc.TransmitStringLine(util.Constants.RuntimeID)
 	pc.TransmitStringLine(util.Constants.Version)
 	if util.Constants.Listen {
@@ -66,8 +74,8 @@ func (pc *PeerConn) Handshake() *HelloMessage {
 	} else {
 		pc.TransmitStringLine("")
 	}
-	// Receive hello
-	msg := HelloMessage{
+	// Receive basic info
+	info := PeerInfo{
 		RuntimeID: pc.RetryReadStringLine(7),
 		Version:   pc.RetryReadStringLine(7),
 		Addr:      pc.RetryReadStringLine(7),
@@ -75,18 +83,18 @@ func (pc *PeerConn) Handshake() *HelloMessage {
 	if pc.e != nil {
 		return nil
 	}
-	return &msg
+	return &info
 }
 
 // Transmit continue|close, and receive their continue|close. Return nil if both peers
 // want to connect, or a reason not to otherwise.
-func (pc *PeerConn) VerifyConnWanted(msg HelloMessage) {
+func (pc *PeerConn) VerifyConnWanted(info PeerInfo) {
 	if pc.e != nil {
 		return
 	}
 	// Close if we don't want connection
-	if msg.RuntimeID == util.Constants.RuntimeID ||
-		msg.Version != util.Constants.Version {
+	if info.RuntimeID == util.Constants.RuntimeID ||
+		info.Version != util.Constants.Version {
 		pc.TransmitStringLine("cmd:close")
 		if pc.e != nil {
 			return

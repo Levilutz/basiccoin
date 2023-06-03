@@ -15,7 +15,7 @@ import (
 
 type MetConn struct {
 	PeerConn       *peer.PeerConn
-	HelloMsg       *peer.HelloMessage
+	Info           *peer.PeerInfo
 	WeAreInitiator bool
 }
 
@@ -58,10 +58,10 @@ func (m *Manager) Listen() {
 			continue
 		}
 		pc := peer.NewPeerConn(conn)
-		helloMsg := pc.Handshake()
+		info := pc.Handshake()
 		m.metConnChannel <- MetConn{
 			PeerConn:       pc,
-			HelloMsg:       helloMsg,
+			Info:           info,
 			WeAreInitiator: false,
 		}
 	}
@@ -101,15 +101,15 @@ func (m *Manager) addMetConn(metConn MetConn) {
 	if metConn.PeerConn.HasErr() {
 		fmt.Println("unhandled pre-insertion peer err", metConn.PeerConn.Err().Error())
 	}
-	upgradeable := metConn.HelloMsg.RuntimeID != util.Constants.RuntimeID &&
-		metConn.HelloMsg.Version == util.Constants.Version &&
-		!m.peerConnected(metConn.HelloMsg.RuntimeID) &&
+	upgradeable := metConn.Info.RuntimeID != util.Constants.RuntimeID &&
+		metConn.Info.Version == util.Constants.Version &&
+		!m.peerConnected(metConn.Info.RuntimeID) &&
 		len(m.peers) < util.Constants.MaxPeers
 
 	if upgradeable {
-		fmt.Printf("adding new peer: %s\n", metConn.HelloMsg.RuntimeID)
+		fmt.Printf("adding new peer: %s\n", metConn.Info.RuntimeID)
 		peer := peer.NewPeer(
-			metConn.HelloMsg,
+			metConn.Info,
 			metConn.PeerConn,
 			m.mainBus,
 			metConn.WeAreInitiator,
@@ -117,11 +117,11 @@ func (m *Manager) addMetConn(metConn MetConn) {
 			m.state.GetHead(),
 		)
 		go peer.Loop()
-		m.peers[metConn.HelloMsg.RuntimeID] = peer
+		m.peers[metConn.Info.RuntimeID] = peer
 
 	} else {
 		if util.Constants.DebugLevel >= 1 {
-			fmt.Printf("cancelling new peer: %s\n", metConn.HelloMsg.RuntimeID)
+			fmt.Printf("cancelling new peer: %s\n", metConn.Info.RuntimeID)
 		}
 		go func() {
 			metConn.PeerConn.TransmitStringLine("cmd:close")
@@ -155,8 +155,8 @@ func (m *Manager) getPeerIDsList() []string {
 func (m *Manager) getPeerAddrsList() []string {
 	addrs := make([]string, 0)
 	for _, peer := range m.peers {
-		if peer.HelloMsg.Addr != "" {
-			addrs = append(addrs, peer.HelloMsg.Addr)
+		if peer.Info.Addr != "" {
+			addrs = append(addrs, peer.Info.Addr)
 		}
 	}
 	return addrs
@@ -220,10 +220,10 @@ func (m *Manager) printPeersUpdate() {
 }
 
 func (m *Manager) IntroducePeerConn(pc *peer.PeerConn, weAreInitiator bool) {
-	helloMsg := pc.Handshake()
+	info := pc.Handshake()
 	m.metConnChannel <- MetConn{
 		PeerConn:       pc,
-		HelloMsg:       helloMsg,
+		Info:           info,
 		WeAreInitiator: weAreInitiator,
 	}
 }
