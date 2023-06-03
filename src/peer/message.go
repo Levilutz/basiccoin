@@ -54,22 +54,3 @@ func (msg HelloMessage) Transmit(pc *PeerConn) error {
 	pc.TransmitLine(data)
 	return pc.Err()
 }
-
-// AddrsMessage
-
-type AddrsMessage struct {
-	PeerAddrs []string `json:"peerAddrs"`
-}
-
-// Transmit an AddrsMessage over the channel
-func (msg AddrsMessage) Transmit(pc *PeerConn) error {
-	pc.TransmitIntLine(len(msg.PeerAddrs))
-	for _, addr := range msg.PeerAddrs {
-		if addr == "fin:addrs" {
-			continue
-		}
-		pc.TransmitStringLine(addr)
-	}
-	pc.TransmitStringLine("fin:addrs")
-	return pc.Err()
-}

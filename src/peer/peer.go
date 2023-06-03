@@ -118,9 +118,11 @@ func (p *Peer) handlePeerBusEvent(event any) (bool, error) {
 
 	case events.PeersDataPeerEvent:
 		return p.issuePeerCommand("addrs", func() error {
-			p.conn.TransmitMessage(AddrsMessage{
-				PeerAddrs: msg.PeerAddrs,
-			})
+			p.conn.TransmitIntLine(len(msg.PeerAddrs))
+			for _, addr := range msg.PeerAddrs {
+				p.conn.TransmitStringLine(addr)
+			}
+			p.conn.TransmitStringLine("fin:addrs")
 			return p.conn.Err()
 		})
 
