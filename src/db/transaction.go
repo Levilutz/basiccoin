@@ -89,6 +89,10 @@ func (tx Tx) Rate() float64 {
 	return float64(tx.InputsValue()-tx.OutputsValue()) / float64(tx.VSize())
 }
 
+func (tx Tx) HasSurplus() bool {
+	return tx.InputsValue() > tx.OutputsValue()
+}
+
 func (tx Tx) SignaturesValid() bool {
 	preSigHash := TxHashPreSig(tx.MinBlock, tx.Outputs)
 	for _, txi := range tx.Inputs {

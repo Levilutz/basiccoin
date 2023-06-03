@@ -32,8 +32,10 @@ func NewManager() *Manager {
 	inv := db.NewInv()
 	state := db.NewState(inv)
 	minerSet := miner.StartMinerSet(util.Constants.Miners)
-	initialTarget := CreateMiningTarget(state, inv, db.HashTZero)
-	minerSet.SetTargets(initialTarget)
+	if util.Constants.Miners > 0 {
+		initialTarget := CreateMiningTarget(state, inv, db.HashTZero)
+		minerSet.SetTargets(initialTarget)
+	}
 	return &Manager{
 		metConnChannel: make(chan MetConn),
 		mainBus:        make(chan any),
@@ -135,6 +137,7 @@ func (m *Manager) seekNewPeers() {
 	peerInd := rand.Intn(len(m.peers))
 	peerId := m.getPeerIDsList()[peerInd]
 	go func() {
+		// TODO: this segfaults if peer lost before this lands, need to make PeerSet
 		m.peers[peerId].EventBus <- events.PeersWantedPeerEvent{}
 	}()
 }
@@ -207,7 +210,11 @@ func (m *Manager) handleMainBusEvent(event any) {
 }
 
 func (m *Manager) printPeersUpdate() {
-	fmt.Println("peers:", len(m.peers), m.getPeerAddrsList())
+	if util.Constants.Debug {
+		fmt.Println("peers:", len(m.peers), m.getPeerAddrsList())
+	} else {
+		fmt.Println("peers:", len(m.peers))
+	}
 }
 
 func (m *Manager) IntroducePeerConn(pc *peer.PeerConn, weAreInitiator bool) {
@@ -230,11 +237,13 @@ func (m *Manager) handleNewBestChain(
 	oldHead := m.state.GetHead()
 	// Insert each entity into the inventory, in order.
 	for _, tx := range txs {
-		if !m.inv.HasTx(tx.Hash()) {
+		txId := tx.Hash()
+		if !m.inv.HasTx(txId) {
 			err := m.inv.StoreTx(tx)
 			if err != nil {
 				return err
 			}
+			m.state.AddMempoolTx(txId)
 		}
 	}
 	for _, merkle := range merkles {
@@ -278,11 +287,16 @@ func (m *Manager) handleNewBestChain(
 		return fmt.Errorf("failed to advance to mined block: %s", err.Error())
 	}
 	// Shift to new head - this func shouldn't return err after this point
-	fmt.Printf("upgrading head to %x - proven work %x\n", newState.GetHead(), newWork)
+	fmt.Printf("upgrading head to %x\n", newState.GetHead())
+	if util.Constants.Debug {
+		fmt.Printf("proven work %x\n", newWork)
+	}
 	m.state = newState
 	// Set new miner targets
-	target := CreateMiningTarget(m.state, m.inv, db.HashTZero)
-	m.minerSet.SetTargets(target)
+	if util.Constants.Miners > 0 {
+		target := CreateMiningTarget(m.state, m.inv, db.HashTZero)
+		m.minerSet.SetTargets(target)
+	}
 	// Broadcast solution to peers
 	for _, p := range m.peers {
 		p.SyncHead(newHead)

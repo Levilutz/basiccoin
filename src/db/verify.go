@@ -40,21 +40,19 @@ func verifyBlock(inv InvReader, block Block) error {
 	totalInputs := uint64(util.Constants.BlockReward)
 	totalOutputs := uint64(0)
 	for i, tx := range txs {
-		inputValue := tx.InputsValue()
-		outputValue := tx.OutputsValue()
 		if i == 0 {
-			if len(tx.Inputs) != 0 || inputValue != 0 {
+			if len(tx.Inputs) != 0 {
 				return fmt.Errorf("coinbase tx must have no inputs")
-			} else if len(tx.Outputs) != 1 || outputValue < util.Constants.BlockReward {
+			} else if len(tx.Outputs) != 1 || tx.OutputsValue() < util.Constants.BlockReward {
 				return fmt.Errorf("coinbase tx must have outputs > block reward")
 			}
 		} else {
-			if len(tx.Inputs) == 0 || inputValue <= outputValue {
-				return fmt.Errorf("non-coinbase tx must have inputs > outputs")
+			if len(tx.Inputs) == 0 || !tx.HasSurplus() {
+				return fmt.Errorf("non-coinbase tx must have surplus")
 			}
 		}
-		totalInputs += inputValue
-		totalOutputs += outputValue
+		totalInputs += tx.InputsValue()
+		totalOutputs += tx.OutputsValue()
 	}
 	if totalInputs != totalOutputs {
 		return fmt.Errorf("total inputs and outputs do not match")
@@ -122,7 +120,10 @@ func verifyTx(inv InvReader, tx Tx) error {
 		if len(tx.Outputs) != 1 {
 			return fmt.Errorf("coinbase must have 1 output")
 		} else if tx.OutputsValue() < uint64(util.Constants.BlockReward) {
-			return fmt.Errorf("coinbase has insufficient block reward")
+			fmt.Printf("%x %d %d %d\n", tx.Hash(), tx.InputsValue(), tx.OutputsValue(), len(tx.Outputs))
+			return fmt.Errorf(
+				"coinbase has insufficient block reward: %d", tx.OutputsValue(),
+			)
 		}
 	}
 	// Verify given public key and value match those on origin utxo

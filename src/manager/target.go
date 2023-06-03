@@ -16,7 +16,7 @@ func CreateMiningTarget(s *db.State, inv *db.Inv, publicKeyHash db.HashT) db.Blo
 		}
 	}
 	difficulty, err := db.StringToHash(
-		"000000ffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+		"00000fffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
 	)
 	if err != nil {
 		panic(err)

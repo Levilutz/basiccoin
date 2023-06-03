@@ -340,13 +340,31 @@ func (p *Peer) handleSendSync() error {
 	}
 	for entityId != db.HashTZero {
 		if p.inv.HasMerkle(entityId) {
+			// Send merkle
 			merkle := p.inv.GetMerkle(entityId)
 			p.conn.TransmitStringLine("merkle")
 			p.conn.TransmitHashLine(merkle.LChild)
 			p.conn.TransmitHashLine(merkle.RChild)
 		} else if p.inv.HasTx(entityId) {
-			// tx := p.inv.GetTx(entityId)
+			tx := p.inv.GetTx(entityId)
 			p.conn.TransmitStringLine("tx")
+			// Send tx base
+			p.conn.TransmitUint64Line(tx.MinBlock)
+			p.conn.TransmitUint64Line(uint64(len(tx.Inputs)))
+			p.conn.TransmitUint64Line(uint64(len(tx.Outputs)))
+			// Send tx inputs
+			for _, txi := range tx.Inputs {
+				p.conn.TransmitHashLine(txi.OriginTxId)
+				p.conn.TransmitUint64Line(txi.OriginTxOutInd)
+				p.conn.TransmitBytesHexLine(txi.PublicKey)
+				p.conn.TransmitBytesHexLine(txi.Signature)
+				p.conn.TransmitUint64Line(txi.Value)
+			}
+			// Send tx outputs
+			for _, txo := range tx.Outputs {
+				p.conn.TransmitUint64Line(txo.Value)
+				p.conn.TransmitHashLine(txo.PublicKeyHash)
+			}
 		} else {
 			return fmt.Errorf("peer requested unknown entity %x", entityId)
 		}
@@ -402,9 +420,9 @@ func (p *Peer) handleReceiveSync() (*events.InboundSyncMainEvent, error) {
 		return nil, p.conn.Err()
 	}
 	// Until our inv / local inv is complete, request entities, and add to output
-	outBlocks := make([]db.Block, 0)
-	outMerkles := make([]db.MerkleNode, 0)
-	outTxs := make([]db.Tx, 0)
+	newBlocks := make([]db.Block, 0)
+	newMerkles := make([]db.MerkleNode, 0)
+	newTxs := make([]db.Tx, 0)
 	entityQueue := util.NewQueue[db.HashT]()
 	newEntitySet := util.NewSet[db.HashT]()
 	for _, blockId := range neededBlockIds {
@@ -412,7 +430,7 @@ func (p *Peer) handleReceiveSync() (*events.InboundSyncMainEvent, error) {
 		if !p.inv.HasMerkle(merkle) {
 			entityQueue.Push(merkle)
 		}
-		outBlocks = util.Prepend(outBlocks, blockMap[blockId])
+		newBlocks = util.Prepend(newBlocks, blockMap[blockId])
 	}
 	for entityQueue.Size() > 0 {
 		entityId, _ := entityQueue.Pop()
@@ -426,13 +444,63 @@ func (p *Peer) handleReceiveSync() (*events.InboundSyncMainEvent, error) {
 		}
 		if entityType == "merkle" {
 			// Receive merkle
-			outMerkles = util.Prepend(outMerkles, db.MerkleNode{
+			merkle := db.MerkleNode{
 				LChild: p.conn.RetryReadHashLine(7),
 				RChild: p.conn.RetryReadHashLine(7),
-			})
+			}
+			if p.conn.HasErr() {
+				return nil, p.conn.Err()
+			}
+			if merkle.Hash() != entityId {
+				return nil, fmt.Errorf(
+					"provided merkle does not match hash: %x != %x",
+					merkle.Hash(),
+					entityId,
+				)
+			}
+			newMerkles = util.Prepend(newMerkles, merkle)
+			entityQueue.Push(merkle.LChild, merkle.RChild)
 		} else if entityType == "tx" {
-			// Receive tx
-			outTxs = util.Prepend(outTxs)
+			// Receive tx base
+			minBlock := p.conn.RetryReadUint64Line(7)
+			numTxIns := p.conn.RetryReadUint64Line(7)
+			numTxOuts := p.conn.RetryReadUint64Line(7)
+			if p.conn.HasErr() {
+				return nil, p.conn.Err()
+			}
+			// Receive tx inputs
+			txIns := make([]db.TxIn, numTxIns)
+			for i := uint64(0); i < numTxIns; i++ {
+				txIns[i] = db.TxIn{
+					OriginTxId:     p.conn.RetryReadHashLine(7),
+					OriginTxOutInd: p.conn.RetryReadUint64Line(7),
+					PublicKey:      p.conn.RetryReadBytesHexLine(7),
+					Signature:      p.conn.RetryReadBytesHexLine(7),
+					Value:          p.conn.RetryReadUint64Line(7),
+				}
+			}
+			// Receive tx outputs
+			txOuts := make([]db.TxOut, numTxOuts)
+			for i := uint64(0); i < numTxOuts; i++ {
+				txOuts[i] = db.TxOut{
+					Value:         p.conn.RetryReadUint64Line(7),
+					PublicKeyHash: p.conn.RetryReadHashLine(7),
+				}
+			}
+			if p.conn.HasErr() {
+				return nil, p.conn.Err()
+			}
+			tx := db.Tx{
+				MinBlock: minBlock,
+				Inputs:   txIns,
+				Outputs:  txOuts,
+			}
+			if tx.Hash() != entityId {
+				return nil, fmt.Errorf(
+					"provided tx does not match hash: %x != %x", tx.Hash(), entityId,
+				)
+			}
+			newTxs = util.Prepend(newTxs, tx)
 		} else {
 			return nil, fmt.Errorf("unrecognized entity type: %s", entityType)
 		}
@@ -445,9 +513,9 @@ func (p *Peer) handleReceiveSync() (*events.InboundSyncMainEvent, error) {
 	// Build the event to send to manager
 	return &events.InboundSyncMainEvent{
 		Head:    newHead,
-		Blocks:  outBlocks,
-		Merkles: outMerkles,
-		Txs:     outTxs,
+		Blocks:  newBlocks,
+		Merkles: newMerkles,
+		Txs:     newTxs,
 	}, nil
 }
 

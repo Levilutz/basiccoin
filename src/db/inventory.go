@@ -152,6 +152,7 @@ func (inv *Inv) GetBlockAncestorDepth(blockId, ancestorId HashT) (uint64, bool) 
 	depth := uint64(0)
 	for blockId != ancestorId && blockId != HashTZero {
 		blockId = inv.GetBlockParentId(blockId)
+		depth += 1
 	}
 	if blockId != ancestorId {
 		return 0, false

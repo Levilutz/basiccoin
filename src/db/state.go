@@ -59,7 +59,7 @@ func (s *State) GetHead() HashT {
 // If this fails state will be corrupted, so copy before if necessary.
 func (s *State) Rewind() error {
 	if s.head == HashTZero {
-		return fmt.Errorf("cannot rewind - at origin")
+		return fmt.Errorf("cannot rewind - at root")
 	}
 	rBlock := s.inv.GetBlock(s.head)
 	rTxs := s.inv.GetMerkleTxs(rBlock.MerkleRoot)
@@ -91,6 +91,7 @@ func (s *State) RewindUntil(blockId HashT) {
 		panic(fmt.Sprintf("head does not have ancestor %x", blockId))
 	}
 	for i := uint64(0); i < depth; i++ {
+		fmt.Println("!!! rewinding!")
 		if err := s.Rewind(); err != nil {
 			panic(err)
 		}
@@ -109,7 +110,9 @@ func (s *State) Advance(nextBlockId HashT) error {
 	nBlock := s.inv.GetBlock(nextBlockId)
 	nTxs := s.inv.GetMerkleTxs(nBlock.MerkleRoot)
 	if nBlock.PrevBlockId != s.head {
-		return fmt.Errorf("block not based on this parent")
+		return fmt.Errorf(
+			"block not based on this parent: %x != %x", nBlock.PrevBlockId, s.head,
+		)
 	}
 	for _, tx := range nTxs {
 		txId := tx.Hash()
@@ -144,17 +147,6 @@ func (s *State) Advance(nextBlockId HashT) error {
 	return nil
 }
 
-// Advance the state through the given next blocks.
-// If this fails state will be corrupted, so copy before if necessary.
-func (s *State) AdvanceMany(nextBlockIds []HashT) error {
-	for _, nextBlockId := range nextBlockIds {
-		if err := s.Advance(nextBlockId); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
 // Check whether a tx can be included in a new block based on this head.
 func (s *State) VerifyTxIncludable(txId HashT) error {
 	if !s.inv.HasTx(txId) {
@@ -183,8 +175,8 @@ func (s *State) VerifyTxIncludable(txId HashT) error {
 // Get includable mempool txs sorted be fee rate, descending.
 func (s *State) GetSortedIncludableMempool() []HashT {
 	mem := s.mempool.Copy()
-	mem.Filter(func(key HashT) bool {
-		return s.VerifyTxIncludable(key) == nil
+	mem.Filter(func(txId HashT) bool {
+		return s.VerifyTxIncludable(txId) == nil && s.inv.GetTx(txId).HasSurplus()
 	})
 	memL := mem.ToList()
 	sort.Slice(memL, func(i, j int) bool {

@@ -183,6 +183,14 @@ func (pc *PeerConn) TransmitHashLine(msg db.HashT) {
 	pc.TransmitStringLine(fmt.Sprintf("%x", msg))
 }
 
+// Transmit bytes as a hex line.
+func (pc *PeerConn) TransmitBytesHexLine(msg []byte) {
+	if pc.e != nil {
+		return
+	}
+	pc.TransmitStringLine(fmt.Sprintf("%x", msg))
+}
+
 // Retry reading a string line, exponential wait.
 // See RetryReadLine for more info.
 func (pc *PeerConn) RetryReadStringLine(attempts int) string {
@@ -252,6 +260,24 @@ func (pc *PeerConn) RetryReadHashLine(attempts int) db.HashT {
 		return db.HashTZero
 	}
 	return db.HashT(out)
+}
+
+// Retry reading a bytes line as hex, exponential wait.
+// See RetryReadLine for more info.
+func (pc *PeerConn) RetryReadBytesHexLine(attempts int) []byte {
+	if pc.e != nil {
+		return nil
+	}
+	raw := pc.RetryReadLine(attempts)
+	if pc.e != nil {
+		return nil
+	}
+	out, err := hex.DecodeString(string(raw))
+	if err != nil {
+		pc.e = err
+		return nil
+	}
+	return out
 }
 
 // Retry reading a line, exponential wait.

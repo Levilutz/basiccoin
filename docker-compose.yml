@@ -19,3 +19,4 @@ services:
     command:
       - "/basiccoin"
       - "--seed=node1:21720"
+      - "--miners=1"
