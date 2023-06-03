@@ -1,9 +1,5 @@
 package peer
 
-type PeerMessage interface {
-	Transmit(pc *PeerConn) error
-}
-
 // HelloMessage
 
 type HelloMessage struct {

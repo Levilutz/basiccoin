@@ -134,14 +134,6 @@ func (pc *PeerConn) ConsumeExpected(msg string) {
 	}
 }
 
-// Transmit a Message.
-func (pc *PeerConn) TransmitMessage(msg PeerMessage) {
-	if pc.e != nil {
-		return
-	}
-	pc.e = msg.Transmit(pc)
-}
-
 // Transmit bytes as a line.
 // Do not include \n in msg.
 func (pc *PeerConn) TransmitLine(msg []byte) {
