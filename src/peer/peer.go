@@ -251,23 +251,43 @@ func (p *Peer) handleClose(issuing bool) error {
 func (p *Peer) handleSync() error {
 	ourWork := p.inv.GetBlockTotalWork(p.head)
 	p.conn.TransmitHashLine(ourWork)
+	p.conn.TransmitHashLine(p.head)
 	theirWork := p.conn.RetryReadHashLine(7)
+	theirHead := p.conn.RetryReadHashLine(7)
 	if p.conn.HasErr() {
 		return p.conn.Err()
 	}
-	if theirWork == ourWork {
+	// Even if our work mismatches, we might have their head
+	// This could mean manager is currently including that head, or it failed to before.
+	if theirWork == ourWork || p.inv.HasBlock(theirHead) {
 		// Neither peer wants to sync
 		p.conn.TransmitStringLine("fin:sync")
-		p.conn.ConsumeExpected("fin:sync")
+		p.conn.RetryReadLine(7) // Just to consume their next | fin:sync
 		return p.conn.Err()
-	} else if db.HashLT(theirWork, ourWork) {
+	} else {
+		p.conn.TransmitStringLine("next")
+		resp := p.conn.RetryReadStringLine(7)
+		if p.conn.HasErr() {
+			return p.conn.Err()
+		}
+		if resp == "fin:sync" {
+			return nil
+		} else if resp != "next" {
+			return fmt.Errorf("expected 'next' | 'fin:sync', received %s", resp)
+		}
+	}
+	if db.HashLT(theirWork, ourWork) {
 		// Send a sync
 		p.conn.TransmitStringLine("sync-send")
 		p.conn.ConsumeExpected("sync-recv")
 		if p.conn.HasErr() {
 			return p.conn.Err()
 		}
-		return p.handleSendSync()
+		err := p.handleSendSync()
+		if err != nil && util.Constants.DebugLevel >= 1 {
+			fmt.Printf("their: %x, our: %x\n", theirWork, ourWork)
+		}
+		return err
 	} else {
 		// Receive a sync
 		p.conn.TransmitStringLine("sync-recv")
@@ -276,6 +296,9 @@ func (p *Peer) handleSync() error {
 			return p.conn.Err()
 		}
 		eventP, err := p.handleReceiveSync()
+		if err != nil && util.Constants.DebugLevel >= 1 {
+			fmt.Printf("their: %x, our: %x\n", theirWork, ourWork)
+		}
 		if err != nil {
 			return err
 		}

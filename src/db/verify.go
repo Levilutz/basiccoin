@@ -120,7 +120,6 @@ func verifyTx(inv InvReader, tx Tx) error {
 		if len(tx.Outputs) != 1 {
 			return fmt.Errorf("coinbase must have 1 output")
 		} else if tx.OutputsValue() < uint64(util.Constants.BlockReward) {
-			fmt.Printf("%x %d %d %d\n", tx.Hash(), tx.InputsValue(), tx.OutputsValue(), len(tx.Outputs))
 			return fmt.Errorf(
 				"coinbase has insufficient block reward: %d", tx.OutputsValue(),
 			)

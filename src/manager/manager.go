@@ -120,7 +120,7 @@ func (m *Manager) addMetConn(metConn MetConn) {
 		m.peers[metConn.HelloMsg.RuntimeID] = peer
 
 	} else {
-		if util.Constants.Debug {
+		if util.Constants.DebugLevel >= 1 {
 			fmt.Printf("cancelling new peer: %s\n", metConn.HelloMsg.RuntimeID)
 		}
 		go func() {
@@ -198,7 +198,9 @@ func (m *Manager) handleMainBusEvent(event any) {
 		}()
 
 	case events.InboundSyncMainEvent:
-		fmt.Printf("received potential next block: %x\n", msg.Head)
+		if util.Constants.DebugLevel >= 1 {
+			fmt.Printf("received potential next block: %x\n", msg.Head)
+		}
 		err := m.handleNewBestChain(msg.Head, msg.Blocks, msg.Merkles, msg.Txs)
 		if err != nil {
 			fmt.Println("failed to verify new chain:", err)
@@ -210,7 +212,7 @@ func (m *Manager) handleMainBusEvent(event any) {
 }
 
 func (m *Manager) printPeersUpdate() {
-	if util.Constants.Debug {
+	if util.Constants.DebugLevel >= 1 {
 		fmt.Println("peers:", len(m.peers), m.getPeerAddrsList())
 	} else {
 		fmt.Println("peers:", len(m.peers))
@@ -288,7 +290,7 @@ func (m *Manager) handleNewBestChain(
 	}
 	// Shift to new head - this func shouldn't return err after this point
 	fmt.Printf("upgrading head to %x\n", newState.GetHead())
-	if util.Constants.Debug {
+	if util.Constants.DebugLevel >= 1 {
 		fmt.Printf("proven work %x\n", newWork)
 	}
 	m.state = newState
