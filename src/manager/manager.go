@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/levilutz/basiccoin/src/db"
-	"github.com/levilutz/basiccoin/src/events"
 	"github.com/levilutz/basiccoin/src/miner"
 	"github.com/levilutz/basiccoin/src/peer"
 	"github.com/levilutz/basiccoin/src/util"
@@ -99,7 +98,7 @@ func (m *Manager) Loop() {
 
 func (m *Manager) HandlePeerClosing(runtimeId string) {
 	go func() {
-		m.mainBus <- events.PeerClosingMainEvent{
+		m.mainBus <- peerClosingEvent{
 			RuntimeID: runtimeId,
 		}
 	}()
@@ -112,7 +111,7 @@ func (m *Manager) HandleInboundSync(
 	txs []db.Tx,
 ) {
 	go func() {
-		m.mainBus <- events.InboundSyncMainEvent{
+		m.mainBus <- inboundSyncEvent{
 			Head:    head,
 			Blocks:  blocks,
 			Merkles: merkles,
@@ -123,7 +122,7 @@ func (m *Manager) HandleInboundSync(
 
 func (m *Manager) HandlePeersReceived(addrs []string) {
 	go func() {
-		m.mainBus <- events.PeersReceivedMainEvent{
+		m.mainBus <- peersReceivedEvent{
 			PeerAddrs: addrs,
 		}
 	}()
@@ -131,7 +130,7 @@ func (m *Manager) HandlePeersReceived(addrs []string) {
 
 func (m *Manager) HandlePeersWanted(runtimeId string) {
 	go func() {
-		m.mainBus <- events.PeersWantedMainEvent{
+		m.mainBus <- peersWantedEvent{
 			PeerRuntimeID: runtimeId,
 		}
 	}()
@@ -207,10 +206,10 @@ func (m *Manager) peerConnected(runtimeID string) bool {
 
 func (m *Manager) handleMainBusEvent(event any) {
 	switch msg := event.(type) {
-	case events.PeerClosingMainEvent:
+	case peerClosingEvent:
 		delete(m.peers, msg.RuntimeID)
 
-	case events.PeersReceivedMainEvent:
+	case peersReceivedEvent:
 		if len(m.peers) >= util.Constants.MaxPeers {
 			return
 		}
@@ -224,7 +223,7 @@ func (m *Manager) handleMainBusEvent(event any) {
 			}()
 		}
 
-	case events.PeersWantedMainEvent:
+	case peersWantedEvent:
 		addrs := m.getPeerAddrsList()
 		if len(addrs) == 0 {
 			return
@@ -233,7 +232,7 @@ func (m *Manager) handleMainBusEvent(event any) {
 			m.peers[msg.PeerRuntimeID].SendPeersData(addrs)
 		}()
 
-	case events.InboundSyncMainEvent:
+	case inboundSyncEvent:
 		if util.Constants.DebugLevel >= 1 {
 			fmt.Printf("received potential next block: %x\n", msg.Head)
 		}
