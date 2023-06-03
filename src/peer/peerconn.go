@@ -58,13 +58,24 @@ func (pc *PeerConn) Handshake() *HelloMessage {
 	}
 	pc.TransmitStringLine("basiccoin")
 	pc.ConsumeExpected("basiccoin")
-	pc.TransmitMessage(NewHelloMessage())
-	helloMsg, err := ReceiveHelloMessage(pc)
-	if err != nil {
-		pc.e = err
+	// Transmit hello
+	pc.TransmitStringLine(util.Constants.RuntimeID)
+	pc.TransmitStringLine(util.Constants.Version)
+	if util.Constants.Listen {
+		pc.TransmitStringLine(util.Constants.LocalAddr)
+	} else {
+		pc.TransmitStringLine("")
+	}
+	// Receive hello
+	msg := HelloMessage{
+		RuntimeID: pc.RetryReadStringLine(7),
+		Version:   pc.RetryReadStringLine(7),
+		Addr:      pc.RetryReadStringLine(7),
+	}
+	if pc.e != nil {
 		return nil
 	}
-	return &helloMsg
+	return &msg
 }
 
 // Transmit continue|close, and receive their continue|close. Return nil if both peers
