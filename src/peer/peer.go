@@ -582,13 +582,21 @@ func (p *Peer) quickVerifyChain(
 
 // Handle the receipt of new addresses from the peer.
 func (p *Peer) handleReceiveAddrs() error {
-	msg, err := ReceiveAddrsMessage(p.conn)
-	if err != nil {
-		return err
+	numAddrs := p.conn.RetryReadIntLine(7)
+	if p.conn.HasErr() {
+		return p.conn.Err()
+	}
+	addrs := make([]string, numAddrs)
+	for i := range addrs {
+		addrs[i] = p.conn.RetryReadStringLine(7)
+	}
+	p.conn.ConsumeExpected("fin:addrs")
+	if p.conn.HasErr() {
+		return p.conn.Err()
 	}
 	go func() {
 		p.mainBus <- events.PeersReceivedMainEvent{
-			PeerAddrs: msg.PeerAddrs,
+			PeerAddrs: addrs,
 		}
 	}()
 	return nil

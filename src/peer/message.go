@@ -61,22 +61,6 @@ type AddrsMessage struct {
 	PeerAddrs []string `json:"peerAddrs"`
 }
 
-// Construct an AddrsMessage
-func ReceiveAddrsMessage(pc *PeerConn) (AddrsMessage, error) {
-	numAddrs := pc.RetryReadIntLine(7)
-	if pc.HasErr() {
-		return AddrsMessage{}, pc.Err()
-	}
-	addrs := make([]string, numAddrs)
-	for i := 0; i < numAddrs; i++ {
-		addrs[i] = pc.RetryReadStringLine(7)
-	}
-	pc.ConsumeExpected("fin:addrs")
-	return AddrsMessage{
-		PeerAddrs: addrs,
-	}, pc.Err()
-}
-
 // Transmit an AddrsMessage over the channel
 func (msg AddrsMessage) Transmit(pc *PeerConn) error {
 	pc.TransmitIntLine(len(msg.PeerAddrs))
