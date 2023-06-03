@@ -202,6 +202,51 @@ func (pc *PeerConn) TransmitBytesHexLine(msg []byte) {
 	pc.TransmitStringLine(fmt.Sprintf("%x", msg))
 }
 
+// Transmit a block header.
+func (pc *PeerConn) TransmitBlockHeader(block db.Block) {
+	if pc.e != nil {
+		return
+	}
+	pc.TransmitHashLine(block.PrevBlockId)
+	pc.TransmitHashLine(block.MerkleRoot)
+	pc.TransmitHashLine(block.Difficulty)
+	pc.TransmitHashLine(block.Noise)
+	pc.TransmitUint64Line(block.Nonce)
+}
+
+// Transmit a merkle node.
+func (pc *PeerConn) TransmitMerkle(merkle db.MerkleNode) {
+	if pc.e != nil {
+		return
+	}
+	pc.TransmitHashLine(merkle.LChild)
+	pc.TransmitHashLine(merkle.RChild)
+}
+
+// Transmit a transaction.
+func (pc *PeerConn) TransmitTx(tx db.Tx) {
+	if pc.e != nil {
+		return
+	}
+	// Send tx base
+	pc.TransmitUint64Line(tx.MinBlock)
+	pc.TransmitUint64Line(uint64(len(tx.Inputs)))
+	pc.TransmitUint64Line(uint64(len(tx.Outputs)))
+	// Send tx inputs
+	for _, txi := range tx.Inputs {
+		pc.TransmitHashLine(txi.OriginTxId)
+		pc.TransmitUint64Line(txi.OriginTxOutInd)
+		pc.TransmitBytesHexLine(txi.PublicKey)
+		pc.TransmitBytesHexLine(txi.Signature)
+		pc.TransmitUint64Line(txi.Value)
+	}
+	// Send tx outputs
+	for _, txo := range tx.Outputs {
+		pc.TransmitUint64Line(txo.Value)
+		pc.TransmitHashLine(txo.PublicKeyHash)
+	}
+}
+
 // Retry reading a string line, exponential wait.
 // See RetryReadLine for more info.
 func (pc *PeerConn) RetryReadStringLine(attempts int) string {
@@ -289,6 +334,90 @@ func (pc *PeerConn) RetryReadBytesHexLine(attempts int) []byte {
 		return nil
 	}
 	return out
+}
+
+// Retry reading a block header, each line has exponential wait.
+// If expectId is not HashTZero, verifies block hash is expected.
+func (pc *PeerConn) RetryReadBlockHeader(attemptsPer int, expectId db.HashT) db.Block {
+	if pc.e != nil {
+		return db.Block{}
+	}
+	block := db.Block{
+		PrevBlockId: pc.RetryReadHashLine(attemptsPer),
+		MerkleRoot:  pc.RetryReadHashLine(attemptsPer),
+		Difficulty:  pc.RetryReadHashLine(attemptsPer),
+		Noise:       pc.RetryReadHashLine(attemptsPer),
+		Nonce:       pc.RetryReadUint64Line(attemptsPer),
+	}
+	if expectId != db.HashTZero && block.Hash() != expectId {
+		pc.e = errors.New("block has unexpected hash")
+		return db.Block{}
+	}
+	return block
+}
+
+// Retry reading a merkle node, each line has exponential wait.
+// If expectId is not HashTZero, verifies merkle hash is expected.
+func (pc *PeerConn) RetryReadMerkle(attemptsPer int, expectId db.HashT) db.MerkleNode {
+	if pc.e != nil {
+		return db.MerkleNode{}
+	}
+	merkle := db.MerkleNode{
+		LChild: pc.RetryReadHashLine(attemptsPer),
+		RChild: pc.RetryReadHashLine(attemptsPer),
+	}
+	if expectId != db.HashTZero && merkle.Hash() != expectId {
+		pc.e = errors.New("merkle has unexpected hash")
+		return db.MerkleNode{}
+	}
+	return merkle
+}
+
+// Retry reading a tx, each line has exponential wait.
+// If expectId is not HashTZero, verifies tx hash is expected.
+func (pc *PeerConn) RetryReadTx(attemptsPer int, expectId db.HashT) db.Tx {
+	if pc.e != nil {
+		return db.Tx{}
+	}
+	// Receive tx base
+	minBlock := pc.RetryReadUint64Line(attemptsPer)
+	numTxIns := pc.RetryReadUint64Line(attemptsPer)
+	numTxOuts := pc.RetryReadUint64Line(attemptsPer)
+	if pc.e != nil {
+		return db.Tx{}
+	}
+	// Receive tx inputs
+	txIns := make([]db.TxIn, numTxIns)
+	for i := uint64(0); i < numTxIns; i++ {
+		txIns[i] = db.TxIn{
+			OriginTxId:     pc.RetryReadHashLine(attemptsPer),
+			OriginTxOutInd: pc.RetryReadUint64Line(attemptsPer),
+			PublicKey:      pc.RetryReadBytesHexLine(attemptsPer),
+			Signature:      pc.RetryReadBytesHexLine(attemptsPer),
+			Value:          pc.RetryReadUint64Line(attemptsPer),
+		}
+	}
+	// Receive tx outputs
+	txOuts := make([]db.TxOut, numTxOuts)
+	for i := uint64(0); i < numTxOuts; i++ {
+		txOuts[i] = db.TxOut{
+			Value:         pc.RetryReadUint64Line(attemptsPer),
+			PublicKeyHash: pc.RetryReadHashLine(attemptsPer),
+		}
+	}
+	if pc.e != nil {
+		return db.Tx{}
+	}
+	tx := db.Tx{
+		MinBlock: minBlock,
+		Inputs:   txIns,
+		Outputs:  txOuts,
+	}
+	if expectId != db.HashTZero && tx.Hash() != expectId {
+		pc.e = errors.New("tx has unexpected hash")
+		return db.Tx{}
+	}
+	return tx
 }
 
 // Retry reading a line, exponential wait.

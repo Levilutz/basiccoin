@@ -174,6 +174,7 @@ func (p *Peer) handleReceivedLine(line []byte) error {
 		return p.conn.Err()
 	}
 
+	// TODO: Abstract all these into a dispatch? or attach handlers http library style?
 	if command == "ping" {
 		// ack above was sufficient
 
@@ -336,12 +337,7 @@ func (p *Peer) handleSendSync() error {
 	}
 	// Send blocks to peer
 	for _, blockId := range neededBlockIds {
-		block := p.inv.GetBlock(blockId)
-		p.conn.TransmitHashLine(block.PrevBlockId)
-		p.conn.TransmitHashLine(block.MerkleRoot)
-		p.conn.TransmitHashLine(block.Difficulty)
-		p.conn.TransmitHashLine(block.Noise)
-		p.conn.TransmitUint64Line(block.Nonce)
+		p.conn.TransmitBlockHeader(p.inv.GetBlock(blockId))
 		if p.conn.HasErr() {
 			return p.conn.Err()
 		}
@@ -363,31 +359,11 @@ func (p *Peer) handleSendSync() error {
 	}
 	for entityId != db.HashTZero {
 		if p.inv.HasMerkle(entityId) {
-			// Send merkle
-			merkle := p.inv.GetMerkle(entityId)
 			p.conn.TransmitStringLine("merkle")
-			p.conn.TransmitHashLine(merkle.LChild)
-			p.conn.TransmitHashLine(merkle.RChild)
+			p.conn.TransmitMerkle(p.inv.GetMerkle(entityId))
 		} else if p.inv.HasTx(entityId) {
-			tx := p.inv.GetTx(entityId)
 			p.conn.TransmitStringLine("tx")
-			// Send tx base
-			p.conn.TransmitUint64Line(tx.MinBlock)
-			p.conn.TransmitUint64Line(uint64(len(tx.Inputs)))
-			p.conn.TransmitUint64Line(uint64(len(tx.Outputs)))
-			// Send tx inputs
-			for _, txi := range tx.Inputs {
-				p.conn.TransmitHashLine(txi.OriginTxId)
-				p.conn.TransmitUint64Line(txi.OriginTxOutInd)
-				p.conn.TransmitBytesHexLine(txi.PublicKey)
-				p.conn.TransmitBytesHexLine(txi.Signature)
-				p.conn.TransmitUint64Line(txi.Value)
-			}
-			// Send tx outputs
-			for _, txo := range tx.Outputs {
-				p.conn.TransmitUint64Line(txo.Value)
-				p.conn.TransmitHashLine(txo.PublicKeyHash)
-			}
+			p.conn.TransmitTx(p.inv.GetTx(entityId))
 		} else {
 			return fmt.Errorf("peer requested unknown entity %x", entityId)
 		}
@@ -418,13 +394,7 @@ func (p *Peer) handleReceiveSync() error {
 	// Receive blocks from peer
 	blockMap := make(map[db.HashT]db.Block)
 	for _, blockId := range neededBlockIds {
-		blockMap[blockId] = db.Block{
-			PrevBlockId: p.conn.RetryReadHashLine(7),
-			MerkleRoot:  p.conn.RetryReadHashLine(7),
-			Difficulty:  p.conn.RetryReadHashLine(7),
-			Noise:       p.conn.RetryReadHashLine(7),
-			Nonce:       p.conn.RetryReadUint64Line(7),
-		}
+		blockMap[blockId] = p.conn.RetryReadBlockHeader(7, blockId)
 		if p.conn.HasErr() {
 			return p.conn.Err()
 		}
@@ -466,62 +436,16 @@ func (p *Peer) handleReceiveSync() error {
 			return p.conn.Err()
 		}
 		if entityType == "merkle" {
-			// Receive merkle
-			merkle := db.MerkleNode{
-				LChild: p.conn.RetryReadHashLine(7),
-				RChild: p.conn.RetryReadHashLine(7),
-			}
+			merkle := p.conn.RetryReadMerkle(7, entityId)
 			if p.conn.HasErr() {
 				return p.conn.Err()
-			}
-			if merkle.Hash() != entityId {
-				return fmt.Errorf(
-					"provided merkle does not match hash: %x != %x",
-					merkle.Hash(),
-					entityId,
-				)
 			}
 			newMerkles = util.Prepend(newMerkles, merkle)
 			entityQueue.Push(merkle.LChild, merkle.RChild)
 		} else if entityType == "tx" {
-			// Receive tx base
-			minBlock := p.conn.RetryReadUint64Line(7)
-			numTxIns := p.conn.RetryReadUint64Line(7)
-			numTxOuts := p.conn.RetryReadUint64Line(7)
+			tx := p.conn.RetryReadTx(7, entityId)
 			if p.conn.HasErr() {
 				return p.conn.Err()
-			}
-			// Receive tx inputs
-			txIns := make([]db.TxIn, numTxIns)
-			for i := uint64(0); i < numTxIns; i++ {
-				txIns[i] = db.TxIn{
-					OriginTxId:     p.conn.RetryReadHashLine(7),
-					OriginTxOutInd: p.conn.RetryReadUint64Line(7),
-					PublicKey:      p.conn.RetryReadBytesHexLine(7),
-					Signature:      p.conn.RetryReadBytesHexLine(7),
-					Value:          p.conn.RetryReadUint64Line(7),
-				}
-			}
-			// Receive tx outputs
-			txOuts := make([]db.TxOut, numTxOuts)
-			for i := uint64(0); i < numTxOuts; i++ {
-				txOuts[i] = db.TxOut{
-					Value:         p.conn.RetryReadUint64Line(7),
-					PublicKeyHash: p.conn.RetryReadHashLine(7),
-				}
-			}
-			if p.conn.HasErr() {
-				return p.conn.Err()
-			}
-			tx := db.Tx{
-				MinBlock: minBlock,
-				Inputs:   txIns,
-				Outputs:  txOuts,
-			}
-			if tx.Hash() != entityId {
-				return fmt.Errorf(
-					"provided tx does not match hash: %x != %x", tx.Hash(), entityId,
-				)
 			}
 			newTxs = util.Prepend(newTxs, tx)
 		} else {
@@ -546,12 +470,6 @@ func (p *Peer) quickVerifyChain(
 	neededBlockIds []db.HashT,
 	blockMap map[db.HashT]db.Block,
 ) error {
-	// Verify each block has claimed id
-	for _, blockId := range neededBlockIds {
-		if blockMap[blockId].Hash() != blockId {
-			return fmt.Errorf("received block does not match expected id")
-		}
-	}
 	// Verify chain has expected head
 	if neededBlockIds[0] != newHead {
 		return fmt.Errorf("received chain does not have expected head")
