@@ -11,8 +11,8 @@ import (
 )
 
 type MainQueryHandler interface {
-	HandleBalanceQuery(rCh chan<- uint64, publicKeyHash db.HashT)
-	HandleNewTxQuery(rCh chan<- error, tx db.Tx)
+	SyncGetBalance(publicKeyHash db.HashT) uint64
+	SyncNewTx(tx db.Tx) error
 }
 
 type Handler struct {
@@ -42,10 +42,8 @@ func (h *Handler) handleGetBalance(w http.ResponseWriter, r *http.Request) {
 		write400(w, r, err)
 		return
 	}
-	rCh := make(chan uint64)
-	h.m.HandleBalanceQuery(rCh, pkh)
-	resp := <-rCh
-	io.WriteString(w, strconv.FormatUint(resp, 10))
+	balance := h.m.SyncGetBalance(pkh)
+	io.WriteString(w, strconv.FormatUint(balance, 10))
 }
 
 func (h *Handler) handleTx(w http.ResponseWriter, r *http.Request) {
@@ -71,10 +69,7 @@ func (h *Handler) handlePostTx(w http.ResponseWriter, r *http.Request) {
 		write400(w, r, fmt.Errorf("tx without surplus would never be included"))
 		return
 	}
-	rCh := make(chan error)
-	h.m.HandleNewTxQuery(rCh, tx)
-	err = <-rCh
-	if err != nil {
+	if err = h.m.SyncNewTx(tx); err != nil {
 		write400(w, r, err)
 	}
 }

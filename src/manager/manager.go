@@ -145,12 +145,16 @@ func (m *Manager) HandleNewTx(tx db.Tx) {
 	})
 }
 
-func (m *Manager) HandleBalanceQuery(rCh chan<- uint64, publicKeyHash db.HashT) {
+func (m *Manager) SyncGetBalance(publicKeyHash db.HashT) uint64 {
+	rCh := make(chan uint64)
 	m.queueEvent(balanceQuery{rCh, publicKeyHash})
+	return <-rCh
 }
 
-func (m *Manager) HandleNewTxQuery(rCh chan<- error, tx db.Tx) {
+func (m *Manager) SyncNewTx(tx db.Tx) error {
+	rCh := make(chan error)
 	m.queueEvent(newTxQuery{rCh, tx})
+	return <-rCh
 }
 
 func (m *Manager) addMetConn(metConn MetConn) {
