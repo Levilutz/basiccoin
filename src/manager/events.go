@@ -35,3 +35,9 @@ type balanceQuery struct {
 	rCh           chan<- uint64
 	publicKeyHash db.HashT
 }
+
+// Store a new tx, respond with success.
+type newTxQuery struct {
+	rCh chan<- error
+	tx  db.Tx
+}

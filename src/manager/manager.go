@@ -149,6 +149,10 @@ func (m *Manager) HandleBalanceQuery(rCh chan<- uint64, publicKeyHash db.HashT) 
 	m.queueEvent(balanceQuery{rCh, publicKeyHash})
 }
 
+func (m *Manager) HandleNewTxQuery(rCh chan<- error, tx db.Tx) {
+	m.queueEvent(newTxQuery{rCh, tx})
+}
+
 func (m *Manager) addMetConn(metConn MetConn) {
 	if metConn.PeerConn.HasErr() {
 		fmt.Println("unhandled pre-insertion peer err", metConn.PeerConn.Err().Error())
@@ -262,6 +266,11 @@ func (m *Manager) handleMainBusEvent(event any) {
 
 	case balanceQuery:
 		msg.rCh <- m.state.GetTotalBalance(msg.publicKeyHash)
+		close(msg.rCh)
+
+	case newTxQuery:
+		err := m.handleNewTx(m
+		msg.rCh <- err
 		close(msg.rCh)
 
 	default:

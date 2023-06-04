@@ -4,13 +4,8 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/levilutz/basiccoin/src/db"
 	"github.com/levilutz/basiccoin/src/util"
 )
-
-type MainQueryHandler interface {
-	HandleBalanceQuery(rCh chan<- uint64, publicKeyHash db.HashT)
-}
 
 func Start(m MainQueryHandler) {
 	handler := Handler{m: m}

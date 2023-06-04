@@ -10,6 +10,11 @@ import (
 	"github.com/levilutz/basiccoin/src/db"
 )
 
+type MainQueryHandler interface {
+	HandleBalanceQuery(rCh chan<- uint64, publicKeyHash db.HashT)
+	HandleNewTxQuery(rCh chan<- error, tx db.Tx)
+}
+
 type Handler struct {
 	m MainQueryHandler
 }
@@ -65,6 +70,12 @@ func (h *Handler) handlePostTx(w http.ResponseWriter, r *http.Request) {
 	if !tx.HasSurplus() {
 		write400(w, r, fmt.Errorf("tx without surplus would never be included"))
 		return
+	}
+	rCh := make(chan error)
+	h.m.HandleNewTxQuery(rCh, tx)
+	err = <-rCh
+	if err != nil {
+		write400(w, r, err)
 	}
 }
 
