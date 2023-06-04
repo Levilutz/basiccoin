@@ -1,9 +1,12 @@
 package db_test
 
 import (
+	"bytes"
 	"crypto/ecdsa"
+	"encoding/json"
 	"testing"
 
+	"github.com/levilutz/basiccoin/src/db"
 	. "github.com/levilutz/basiccoin/src/db"
 	"github.com/levilutz/basiccoin/src/util"
 )
@@ -70,4 +73,26 @@ func TestTransactionHash(t *testing.T) {
 	}
 	txHash := tx.Hash()
 	t.Log("txhash", len(txHash), HashHex(txHash), string(EncodeB64(txHash[:])))
+}
+
+// Test that a tx and components can be json serialized and deserialized.
+func TestTxJson(t *testing.T) {
+	originId, err := RandHash()
+	util.AssertNoErr(t, err)
+	v := db.TxIn{
+		OriginTxId:     originId,
+		OriginTxOutInd: 2,
+		PublicKey:      []byte("abc123"),
+		Signature:      []byte("def456"),
+		Value:          5223,
+	}
+	vJs, err := json.Marshal(v)
+	util.AssertNoErr(t, err)
+	vR := db.TxIn{}
+	err = json.Unmarshal(vJs, &vR)
+	util.AssertNoErr(t, err)
+	vRJs, err := json.Marshal(vR)
+	util.AssertNoErr(t, err)
+	util.Assert(t, bytes.Equal(vJs, vRJs), "serialization not preserved")
+	t.Log(string(vJs))
 }

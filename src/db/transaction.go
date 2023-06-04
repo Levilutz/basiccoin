@@ -1,5 +1,10 @@
 package db
 
+import (
+	"encoding/json"
+	"fmt"
+)
+
 // Reference to unspent transaction output.
 // This is just a subset of the fields in a TxIn.
 type Utxo struct {
@@ -23,6 +28,14 @@ type TxIn struct {
 	Value          uint64
 }
 
+type TxInJSON struct {
+	OriginTxId     string `json:"originTxId"`
+	OriginTxOutInd uint64 `json:"originTxOutInd"`
+	PublicKey      []byte `json:"publicKey"`
+	Signature      []byte `json:"signature"`
+	Value          uint64 `json:"value"`
+}
+
 func (txi TxIn) Hash() HashT {
 	return DHashItems(
 		txi.OriginTxId[:],
@@ -31,6 +44,39 @@ func (txi TxIn) Hash() HashT {
 		txi.Signature,
 		txi.Value,
 	)
+}
+
+func (txi TxIn) MarshalJSON() ([]byte, error) {
+	return json.Marshal(TxInJSON{
+		OriginTxId:     fmt.Sprintf("%x", txi.OriginTxId),
+		OriginTxOutInd: txi.OriginTxOutInd,
+		PublicKey:      txi.PublicKey,
+		Signature:      txi.Signature,
+		Value:          txi.Value,
+	})
+}
+
+func (txi *TxIn) UnmarshalJSON(data []byte) error {
+	v := struct {
+		OriginTxId     string `json:"originTxId"`
+		OriginTxOutInd uint64 `json:"originTxOutInd"`
+		PublicKey      []byte `json:"publicKey"`
+		Signature      []byte `json:"signature"`
+		Value          uint64 `json:"value"`
+	}{}
+	if err := json.Unmarshal(data, &v); err != nil {
+		return err
+	}
+	origin, err := StringToHash(v.OriginTxId)
+	if err != nil {
+		return err
+	}
+	txi.OriginTxId = origin
+	txi.OriginTxOutInd = v.OriginTxOutInd
+	txi.PublicKey = v.PublicKey
+	txi.Signature = v.Signature
+	txi.Value = v.Value
+	return nil
 }
 
 func (txi TxIn) VSize() uint64 {
