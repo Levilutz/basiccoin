@@ -30,7 +30,9 @@ type Manager struct {
 
 func NewManager() *Manager {
 	inv := db.NewInv()
-	state := db.NewState(inv)
+	// Create state tracker (only track balances if we're serving http)
+	state := db.NewState(inv, util.Constants.HttpPort != -1)
+	// TODO: don't actually start the miner set if we don't need, check before calls
 	minerSet := miner.StartMinerSet(util.Constants.Miners)
 	if util.Constants.Miners > 0 {
 		initialTarget := CreateMiningTarget(state, inv, db.HashTZero)

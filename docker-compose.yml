@@ -13,6 +13,9 @@ services:
       - "/basiccoin"
       - "--addr=node1:21720"
       - "--miners=1"
+      - "--httpPort=8080"
+    ports:
+      - 8080:8080
 
   node2:
     image: basiccoin:latest

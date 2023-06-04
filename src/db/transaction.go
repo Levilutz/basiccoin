@@ -121,7 +121,7 @@ func (tx Tx) SignaturesValid() bool {
 	return true
 }
 
-func (tx Tx) GetUtxos() []Utxo {
+func (tx Tx) GetConsumedUtxos() []Utxo {
 	out := make([]Utxo, len(tx.Inputs))
 	for i := range out {
 		out[i] = UtxoFromInput(tx.Inputs[i])

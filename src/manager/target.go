@@ -32,14 +32,14 @@ func CreateMiningTarget(s *db.State, inv *db.Inv, publicKeyHash db.HashT) db.Blo
 		tx := inv.GetTx(txId)
 		// Check if tx is too big to fit in space left
 		vSize := tx.VSize()
-		if vSize > sizeLeft || consumedUtxos.IncludesAny(tx.GetUtxos()...) {
+		if vSize > sizeLeft || consumedUtxos.IncludesAny(tx.GetConsumedUtxos()...) {
 			continue
 		}
 		// Include tx in out set
 		outTxs = append(outTxs, tx)
 		sizeLeft -= vSize
 		totalFees += tx.InputsValue() - tx.OutputsValue()
-		consumedUtxos.Add(tx.GetUtxos()...)
+		consumedUtxos.Add(tx.GetConsumedUtxos()...)
 		// If we're out of space, break
 		if sizeLeft < db.MinNonCoinbaseVSize() {
 			break
