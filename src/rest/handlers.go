@@ -13,6 +13,7 @@ import (
 type MainQueryHandler interface {
 	SyncGetBalance(publicKeyHash db.HashT) uint64
 	SyncNewTx(tx db.Tx) error
+	SyncGetConfirms(txId db.HashT) (uint64, bool)
 }
 
 type Handler struct {
@@ -33,8 +34,8 @@ func (h *Handler) handleBalance(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) handleGetBalance(w http.ResponseWriter, r *http.Request) {
 	publicKeyHashes, ok := r.URL.Query()["publicKeyHash"]
-	if !ok || len(publicKeyHashes) < 1 {
-		write400(w, r, fmt.Errorf("must provide public key hash"))
+	if !ok || len(publicKeyHashes) != 1 {
+		write400(w, r, fmt.Errorf("must provide 1 public key hash"))
 		return
 	}
 	pkh, err := db.StringToHash(publicKeyHashes[0])
@@ -71,6 +72,34 @@ func (h *Handler) handlePostTx(w http.ResponseWriter, r *http.Request) {
 	}
 	if err = h.m.SyncNewTx(tx); err != nil {
 		write400(w, r, err)
+	}
+}
+
+func (h *Handler) handleTxConfirms(w http.ResponseWriter, r *http.Request) {
+	if r.Method == "GET" {
+		h.handleGetTxConfirms(w, r)
+	} else {
+		write405(w, r)
+	}
+}
+
+func (h *Handler) handleGetTxConfirms(w http.ResponseWriter, r *http.Request) {
+	txIds, ok := r.URL.Query()["txId"]
+	if !ok || len(txIds) != 1 {
+		write400(w, r, fmt.Errorf("must provide one transaction id"))
+		return
+	}
+	txId, err := db.StringToHash(txIds[0])
+	if err != nil {
+		write400(w, r, err)
+		return
+	}
+	confirms, ok := h.m.SyncGetConfirms(txId)
+	if !ok {
+		write400(w, r, fmt.Errorf("transaction not known"))
+		return
+	} else {
+		io.WriteString(w, strconv.FormatUint(confirms, 10))
 	}
 }
 

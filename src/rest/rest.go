@@ -13,6 +13,7 @@ func Start(m MainQueryHandler) {
 	http.HandleFunc("/ping", handler.handleGetPing)
 	http.HandleFunc("/balance", handler.handleBalance)
 	http.HandleFunc("/tx", handler.handleTx)
+	http.HandleFunc("/txConfirms", handler.handleTxConfirms)
 
 	portStr := fmt.Sprintf(":%d", util.Constants.HttpPort)
 	http.ListenAndServe(portStr, nil)

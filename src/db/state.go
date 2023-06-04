@@ -17,22 +17,24 @@ type BalanceRecord struct {
 // State at a blockchain node. Responsible for preventing double-spends.
 // Meant to only be accessed synchronously by a single thread.
 type State struct {
-	head         HashT
-	mempool      *util.Set[HashT]
-	utxos        *util.Set[Utxo]
-	inv          InvReader
-	mempoolRates map[HashT]float64
-	balances     map[HashT][]BalanceRecord
+	head             HashT
+	mempool          *util.Set[HashT]
+	utxos            *util.Set[Utxo]
+	inv              InvReader
+	mempoolRates     map[HashT]float64
+	balances         map[HashT][]BalanceRecord
+	includedTxBlocks map[HashT]HashT
 }
 
 func NewState(inv InvReader, trackBalances bool) *State {
 	s := &State{
-		head:         HashTZero,
-		mempool:      util.NewSet[HashT](),
-		utxos:        util.NewSet[Utxo](),
-		inv:          inv,
-		mempoolRates: make(map[HashT]float64),
-		balances:     nil,
+		head:             HashTZero,
+		mempool:          util.NewSet[HashT](),
+		utxos:            util.NewSet[Utxo](),
+		inv:              inv,
+		mempoolRates:     make(map[HashT]float64),
+		balances:         nil,
+		includedTxBlocks: make(map[HashT]HashT),
 	}
 	if trackBalances {
 		s.balances = make(map[HashT][]BalanceRecord)
@@ -43,12 +45,13 @@ func NewState(inv InvReader, trackBalances bool) *State {
 // Copy a state.
 func (s *State) Copy() *State {
 	return &State{
-		head:         s.head,
-		mempool:      s.mempool.Copy(),
-		utxos:        s.utxos.Copy(),
-		inv:          s.inv,
-		mempoolRates: util.CopyMap(s.mempoolRates),
-		balances:     util.CopyMap(s.balances),
+		head:             s.head,
+		mempool:          s.mempool.Copy(),
+		utxos:            s.utxos.Copy(),
+		inv:              s.inv,
+		mempoolRates:     util.CopyMap(s.mempoolRates),
+		balances:         util.CopyMap(s.balances),
+		includedTxBlocks: util.CopyMap(s.includedTxBlocks),
 	}
 }
 
@@ -94,6 +97,12 @@ func (s *State) Rewind() error {
 				})
 			}
 		}
+		// Remove the tx included block (and continue to verify it existed)
+		existingBlockId, ok := s.GetIncludedTxBlock(txId)
+		if !ok || existingBlockId != s.head {
+			panic(fmt.Sprintf("state corrupt - missing/wrong tx block %x", txId))
+		}
+		delete(s.includedTxBlocks, txId)
 	}
 	s.head = rBlock.PrevBlockId
 	return nil
@@ -171,6 +180,12 @@ func (s *State) Advance(nextBlockId HashT) error {
 				})
 			}
 		}
+		// Add the tx included block (and continue to verify tx isn't already included)
+		existingBlockId, ok := s.GetIncludedTxBlock(txId)
+		if ok {
+			return fmt.Errorf("tx already included in block %x", existingBlockId)
+		}
+		s.includedTxBlocks[txId] = nextBlockId
 	}
 	s.head = nextBlockId
 	return nil
@@ -279,4 +294,9 @@ func (s *State) GetTotalBalance(publicKeyHash HashT) uint64 {
 		total += balance.Value
 	}
 	return total
+}
+
+func (s *State) GetIncludedTxBlock(txId HashT) (HashT, bool) {
+	blockId, ok := s.includedTxBlocks[txId]
+	return blockId, ok
 }

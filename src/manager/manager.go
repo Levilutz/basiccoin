@@ -157,6 +157,18 @@ func (m *Manager) SyncNewTx(tx db.Tx) error {
 	return <-rCh
 }
 
+func (m *Manager) SyncGetConfirms(txId db.HashT) (uint64, bool) {
+	if !m.inv.HasTx(txId) {
+		return 0, false
+	}
+	blockId, ok := m.state.GetIncludedTxBlock(txId)
+	if !ok {
+		return 0, true
+	}
+	depth := m.inv.GetBlockHeight(m.state.GetHead()) - m.inv.GetBlockHeight(blockId)
+	return depth + 1, true
+}
+
 func (m *Manager) addMetConn(metConn MetConn) {
 	if metConn.PeerConn.HasErr() {
 		fmt.Println("unhandled pre-insertion peer err", metConn.PeerConn.Err().Error())
