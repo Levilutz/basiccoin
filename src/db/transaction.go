@@ -57,13 +57,7 @@ func (txi TxIn) MarshalJSON() ([]byte, error) {
 }
 
 func (txi *TxIn) UnmarshalJSON(data []byte) error {
-	v := struct {
-		OriginTxId     string `json:"originTxId"`
-		OriginTxOutInd uint64 `json:"originTxOutInd"`
-		PublicKey      []byte `json:"publicKey"`
-		Signature      []byte `json:"signature"`
-		Value          uint64 `json:"value"`
-	}{}
+	v := TxInJSON{}
 	if err := json.Unmarshal(data, &v); err != nil {
 		return err
 	}
@@ -98,8 +92,34 @@ type TxOut struct {
 	PublicKeyHash HashT
 }
 
+type TxOutJSON struct {
+	Value         uint64 `json:"value"`
+	PublicKeyHash string `json:"publicKeyHash"`
+}
+
 func (txo TxOut) Hash() HashT {
 	return DHashItems(txo.Value, txo.PublicKeyHash)
+}
+
+func (txo TxOut) MarshalJSON() ([]byte, error) {
+	return json.Marshal(TxOutJSON{
+		Value:         txo.Value,
+		PublicKeyHash: fmt.Sprintf("%x", txo.PublicKeyHash),
+	})
+}
+
+func (txo *TxOut) UnmarshalJSON(data []byte) error {
+	v := TxOutJSON{}
+	if err := json.Unmarshal(data, &v); err != nil {
+		return err
+	}
+	pkh, err := StringToHash(v.PublicKeyHash)
+	if err != nil {
+		return err
+	}
+	txo.Value = v.Value
+	txo.PublicKeyHash = pkh
+	return nil
 }
 
 func (txo TxOut) VSize() uint64 {

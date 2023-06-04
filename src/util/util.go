@@ -74,12 +74,12 @@ func AssertUUID() string {
 }
 
 // Pretty print json-able content
-func PrettyPrint(content any) {
+func PrettyPrint(content any) string {
 	b, err := json.MarshalIndent(content, "", "    ")
 	if err != nil {
 		panic(err)
 	}
-	fmt.Println(string(b))
+	return string(b)
 }
 
 func PanicErr(err error) {

@@ -20,8 +20,8 @@ func printComputedConstants() {
 func main() {
 	cli_args := util.ParseCLIArgs()
 	if util.Constants.DebugLevel >= 1 {
-		util.PrettyPrint(cli_args)
-		util.PrettyPrint(util.Constants)
+		fmt.Println(util.PrettyPrint(cli_args))
+		fmt.Println(util.PrettyPrint(util.Constants))
 		printComputedConstants()
 	}
 	fmt.Printf("starting with id %s\n", util.Constants.RuntimeID)

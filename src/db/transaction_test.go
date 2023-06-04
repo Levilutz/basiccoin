@@ -79,20 +79,46 @@ func TestTransactionHash(t *testing.T) {
 func TestTxJson(t *testing.T) {
 	originId, err := RandHash()
 	util.AssertNoErr(t, err)
-	v := db.TxIn{
-		OriginTxId:     originId,
-		OriginTxOutInd: 2,
-		PublicKey:      []byte("abc123"),
-		Signature:      []byte("def456"),
-		Value:          5223,
+	outPkh1, err := RandHash()
+	util.AssertNoErr(t, err)
+	outPkh2, err := RandHash()
+	util.AssertNoErr(t, err)
+	tx := Tx{
+		MinBlock: 443,
+		Inputs: []TxIn{
+			{
+				OriginTxId:     originId,
+				OriginTxOutInd: 2,
+				PublicKey:      []byte("abc123"),
+				Signature:      []byte("def456"),
+				Value:          5223,
+			},
+			{
+				OriginTxId:     originId,
+				OriginTxOutInd: 3,
+				PublicKey:      []byte("ghi789"),
+				Signature:      []byte("jkl012"),
+				Value:          3322,
+			},
+		},
+		Outputs: []TxOut{
+			{
+				Value:         3500,
+				PublicKeyHash: outPkh1,
+			},
+			{
+				Value:         4500,
+				PublicKeyHash: outPkh2,
+			},
+		},
 	}
-	vJs, err := json.Marshal(v)
+	txJs, err := json.Marshal(tx)
 	util.AssertNoErr(t, err)
-	vR := db.TxIn{}
-	err = json.Unmarshal(vJs, &vR)
+	txR := db.Tx{}
+	err = json.Unmarshal(txJs, &txR)
 	util.AssertNoErr(t, err)
-	vRJs, err := json.Marshal(vR)
+	txRJs, err := json.Marshal(txR)
 	util.AssertNoErr(t, err)
-	util.Assert(t, bytes.Equal(vJs, vRJs), "serialization not preserved")
-	t.Log(string(vJs))
+	util.Assert(t, bytes.Equal(txJs, txRJs), "serialization not preserved")
+	t.Log(string(txJs))
 }
