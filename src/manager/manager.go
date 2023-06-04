@@ -269,7 +269,7 @@ func (m *Manager) handleMainBusEvent(event any) {
 		close(msg.rCh)
 
 	case newTxQuery:
-		err := m.handleNewTx(m
+		err := m.handleNewTx(msg.tx)
 		msg.rCh <- err
 		close(msg.rCh)
 
