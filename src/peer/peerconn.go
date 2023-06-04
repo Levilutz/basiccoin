@@ -9,7 +9,6 @@ import (
 	"io"
 	"net"
 	"os"
-	"strconv"
 	"time"
 
 	"github.com/levilutz/basiccoin/src/db"
@@ -168,14 +167,6 @@ func (pc *PeerConn) TransmitStringLine(msg string) {
 	pc.TransmitLine([]byte(msg))
 }
 
-// Transmit an int as a line.
-func (pc *PeerConn) TransmitIntLine(msg int) {
-	if pc.e != nil {
-		return
-	}
-	pc.TransmitLine([]byte(strconv.Itoa(msg)))
-}
-
 // Transmit a uint64 as a line.
 func (pc *PeerConn) TransmitUint64Line(msg uint64) {
 	if pc.e != nil {
@@ -258,24 +249,6 @@ func (pc *PeerConn) RetryReadStringLine(attempts int) string {
 		return ""
 	}
 	return string(raw)
-}
-
-// Retry reading an int line, exponential wait.
-// See RetryReadLine for more info.
-func (pc *PeerConn) RetryReadIntLine(attempts int) int {
-	if pc.e != nil {
-		return 0
-	}
-	raw := pc.RetryReadLine(attempts)
-	if pc.e != nil {
-		return 0
-	}
-	num, err := strconv.Atoi(string(raw))
-	if err != nil {
-		pc.e = err
-		return 0
-	}
-	return num
 }
 
 // Retry reading a uint64 line, exponential wait.

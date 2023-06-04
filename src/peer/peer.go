@@ -142,7 +142,7 @@ func (p *Peer) handlePeerBusEvent(event any) error {
 
 	case peersDataEvent:
 		return p.issuePeerCommand("addrs", func() error {
-			p.conn.TransmitIntLine(len(msg.addrs))
+			p.conn.TransmitUint64Line(uint64(len(msg.addrs)))
 			for _, addr := range msg.addrs {
 				p.conn.TransmitStringLine(addr)
 			}
@@ -509,7 +509,7 @@ func (p *Peer) quickVerifyChain(
 
 // Handle the receipt of new addresses from the peer.
 func (p *Peer) handleReceiveAddrs() error {
-	numAddrs := p.conn.RetryReadIntLine(7)
+	numAddrs := p.conn.RetryReadUint64Line(7)
 	if p.conn.HasErr() {
 		return p.conn.Err()
 	}
