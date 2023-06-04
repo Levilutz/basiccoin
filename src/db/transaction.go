@@ -169,7 +169,8 @@ func (tx Tx) VSize() uint64 {
 }
 
 func (tx Tx) Rate() float64 {
-	return float64(tx.InputsValue()-tx.OutputsValue()) / float64(tx.VSize())
+	// Float inputs and outputs separately so we don't uint underflow
+	return (float64(tx.InputsValue()) - float64(tx.OutputsValue())) / float64(tx.VSize())
 }
 
 func (tx Tx) HasSurplus() bool {

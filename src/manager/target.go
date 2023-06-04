@@ -38,6 +38,7 @@ func CreateMiningTarget(s *db.State, inv *db.Inv, publicKeyHash db.HashT) db.Blo
 		// Include tx in out set
 		outTxs = append(outTxs, tx)
 		sizeLeft -= vSize
+		// GetSortedIncludableMempool only includes txs with surplus, so this is safe
 		totalFees += tx.InputsValue() - tx.OutputsValue()
 		consumedUtxos.Add(tx.GetConsumedUtxos()...)
 		// If we're out of space, break
