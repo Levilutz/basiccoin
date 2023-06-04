@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/levilutz/basiccoin/src/db"
-	"github.com/levilutz/basiccoin/src/manager"
 	"github.com/levilutz/basiccoin/src/peer"
 	"github.com/levilutz/basiccoin/src/util"
 )
@@ -26,7 +25,7 @@ func main() {
 	}
 	fmt.Printf("starting with id %s\n", util.Constants.RuntimeID)
 
-	manager := manager.NewManager()
+	manager := NewManager()
 
 	if cli_args.SeedAddr != "" {
 		var pc *peer.PeerConn

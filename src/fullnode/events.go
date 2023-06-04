@@ -1,4 +1,4 @@
-package manager
+package main
 
 import "github.com/levilutz/basiccoin/src/db"
 

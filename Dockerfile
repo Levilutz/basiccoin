@@ -3,7 +3,7 @@ FROM golang:1.20.4-alpine3.17 AS builder
 WORKDIR /app
 COPY src ./
 
-RUN CGO_ENABLED=0 GOOS=linux go build -o /basiccoin .
+RUN CGO_ENABLED=0 GOOS=linux go build -o /basiccoin ./fullnode
 
 FROM alpine:3.18.0 AS main
 
