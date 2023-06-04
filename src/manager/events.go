@@ -34,3 +34,9 @@ type newTxEvent struct {
 type pingQuery struct {
 	rCh chan<- string
 }
+
+// Get the balance of a public key hash.
+type balanceQuery struct {
+	rCh           chan<- uint64
+	publicKeyHash db.HashT
+}

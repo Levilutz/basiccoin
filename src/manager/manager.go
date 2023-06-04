@@ -149,6 +149,10 @@ func (m *Manager) HandlePingQuery(rCh chan<- string) {
 	m.queueEvent(pingQuery{rCh})
 }
 
+func (m *Manager) HandleBalanceQuery(rCh chan<- uint64, publicKeyHash db.HashT) {
+	m.queueEvent(balanceQuery{rCh, publicKeyHash})
+}
+
 func (m *Manager) addMetConn(metConn MetConn) {
 	if metConn.PeerConn.HasErr() {
 		fmt.Println("unhandled pre-insertion peer err", metConn.PeerConn.Err().Error())
@@ -262,6 +266,10 @@ func (m *Manager) handleMainBusEvent(event any) {
 
 	case pingQuery:
 		msg.rCh <- "pong"
+		close(msg.rCh)
+
+	case balanceQuery:
+		msg.rCh <- m.state.GetTotalBalance(msg.publicKeyHash)
 		close(msg.rCh)
 
 	default:
