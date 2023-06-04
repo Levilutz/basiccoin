@@ -2,7 +2,6 @@ package util
 
 import (
 	"crypto/rand"
-	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -72,29 +71,6 @@ func AssertUUID() string {
 		panic(err)
 	}
 	return uuid
-}
-
-// Generates base64(json(content))
-func JsonB64(content any) ([]byte, error) {
-	bodyJson, err := json.Marshal(content)
-	if err != nil {
-		return []byte{}, err
-	}
-	body := make([]byte, base64.StdEncoding.EncodedLen(len(bodyJson)))
-	base64.StdEncoding.Encode(body, bodyJson)
-	return body, nil
-}
-
-// Recovers unjson(unb64(body))
-func UnJsonB64[R any](body []byte) (R, error) {
-	var content R
-	bodyJson := make([]byte, base64.StdEncoding.DecodedLen(len(body)))
-	n, err := base64.StdEncoding.Decode(bodyJson, body)
-	if err != nil {
-		return content, err
-	}
-	err = json.Unmarshal(bodyJson[:n], &content)
-	return content, err
 }
 
 // Pretty print json-able content
