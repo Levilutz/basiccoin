@@ -6,10 +6,10 @@ import (
 	"net"
 	"time"
 
-	"github.com/levilutz/basiccoin/src/client"
 	"github.com/levilutz/basiccoin/src/db"
 	"github.com/levilutz/basiccoin/src/miner"
 	"github.com/levilutz/basiccoin/src/peer"
+	"github.com/levilutz/basiccoin/src/rest"
 	"github.com/levilutz/basiccoin/src/util"
 )
 
@@ -47,7 +47,7 @@ func NewManager() *Manager {
 		minerSet:       minerSet,
 	}
 	if util.Constants.HttpPort != -1 {
-		go client.Start(m)
+		go rest.Start(m)
 	}
 	return m
 }
