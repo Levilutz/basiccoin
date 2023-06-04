@@ -1,6 +1,10 @@
-package util
+package main
 
-import "flag"
+import (
+	"flag"
+
+	"github.com/levilutz/basiccoin/src/util"
+)
 
 type CLIArgs struct {
 	HttpPort  int    `json:"httpPort"`
@@ -30,21 +34,21 @@ func ParseCLIArgs() CLIArgs {
 	}
 
 	// Insert into Constants
-	Constants.HttpPort = *httpPort
-	Constants.Listen = *listen
-	Constants.Miners = *miners
+	util.Constants.HttpPort = *httpPort
+	util.Constants.Listen = *listen
+	util.Constants.Miners = *miners
 	if *localAddr != "" {
-		Constants.LocalAddr = *localAddr
+		util.Constants.LocalAddr = *localAddr
 	}
 	if *seedAddr != "" {
-		Constants.SeedAddr = *seedAddr
+		util.Constants.SeedAddr = *seedAddr
 	}
 	if *verbose2 {
-		Constants.DebugLevel = 2
+		util.Constants.DebugLevel = 2
 	} else if *verbose1 {
-		Constants.DebugLevel = 1
+		util.Constants.DebugLevel = 1
 	} else {
-		Constants.DebugLevel = 0
+		util.Constants.DebugLevel = 0
 	}
 
 	// Return all (even those in constants)
@@ -53,6 +57,6 @@ func ParseCLIArgs() CLIArgs {
 		Miners:    *miners,
 		LocalAddr: *localAddr,
 		SeedAddr:  *seedAddr,
-		Verbosity: Constants.DebugLevel,
+		Verbosity: util.Constants.DebugLevel,
 	}
 }

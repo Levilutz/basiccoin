@@ -17,7 +17,7 @@ func printComputedConstants() {
 }
 
 func main() {
-	cli_args := util.ParseCLIArgs()
+	cli_args := ParseCLIArgs()
 	if util.Constants.DebugLevel >= 1 {
 		fmt.Println(util.PrettyPrint(cli_args))
 		fmt.Println(util.PrettyPrint(util.Constants))
