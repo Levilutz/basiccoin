@@ -30,11 +30,6 @@ type newTxEvent struct {
 	tx db.Tx
 }
 
-// Get a ping response.
-type pingQuery struct {
-	rCh chan<- string
-}
-
 // Get the balance of a public key hash.
 type balanceQuery struct {
 	rCh           chan<- uint64

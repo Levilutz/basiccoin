@@ -11,23 +11,19 @@ import (
 )
 
 type MainQueryHandler interface {
-	HandlePingQuery(rCh chan<- string)
 	HandleBalanceQuery(rCh chan<- uint64, publicKeyHash db.HashT)
 }
 
 func Start(m MainQueryHandler) {
 	http.HandleFunc("/ping", func(w http.ResponseWriter, r *http.Request) {
-		rCh := make(chan string)
-		m.HandlePingQuery(rCh)
-		resp := <-rCh
-		io.WriteString(w, resp)
+		io.WriteString(w, "pong")
 	})
 
 	http.HandleFunc("/balance", func(w http.ResponseWriter, r *http.Request) {
 		publicKeyHashes, ok := r.URL.Query()["publicKeyHash"]
 		if !ok || len(publicKeyHashes) < 1 {
-			w.WriteHeader(404)
-			io.WriteString(w, "not found")
+			w.WriteHeader(400)
+			io.WriteString(w, "must provide public key hash")
 			return
 		}
 		pkh, err := db.StringToHash(publicKeyHashes[0])

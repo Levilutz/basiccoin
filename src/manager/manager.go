@@ -145,10 +145,6 @@ func (m *Manager) HandleNewTx(tx db.Tx) {
 	})
 }
 
-func (m *Manager) HandlePingQuery(rCh chan<- string) {
-	m.queueEvent(pingQuery{rCh})
-}
-
 func (m *Manager) HandleBalanceQuery(rCh chan<- uint64, publicKeyHash db.HashT) {
 	m.queueEvent(balanceQuery{rCh, publicKeyHash})
 }
@@ -263,10 +259,6 @@ func (m *Manager) handleMainBusEvent(event any) {
 		if err != nil {
 			fmt.Println("failed to insert new tx:", err.Error())
 		}
-
-	case pingQuery:
-		msg.rCh <- "pong"
-		close(msg.rCh)
 
 	case balanceQuery:
 		msg.rCh <- m.state.GetTotalBalance(msg.publicKeyHash)
