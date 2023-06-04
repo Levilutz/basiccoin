@@ -29,3 +29,8 @@ type peersWantedEvent struct {
 type newTxEvent struct {
 	tx db.Tx
 }
+
+// Get a ping response.
+type pingQuery struct {
+	rCh chan<- string
+}

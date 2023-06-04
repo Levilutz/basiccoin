@@ -3,6 +3,7 @@ package util
 import "flag"
 
 type CLIArgs struct {
+	HttpPort  int    `json:"httpPort"`
 	Listen    bool   `json:"listen"`
 	LocalAddr string `json:"localAddr"`
 	Miners    int    `json:"miners"`
@@ -12,6 +13,7 @@ type CLIArgs struct {
 
 func ParseCLIArgs() CLIArgs {
 	// Define args
+	httpPort := flag.Int("httpPort", -1, "Port to listen for http requests on (-1 to not listen)")
 	listen := flag.Bool("listen", true, "Whether to listen for inbound connections")
 	localAddr := flag.String("addr", "", "Address to host from")
 	miners := flag.Int("miners", 0, "How many miner instances (defaults to 0)")
@@ -28,6 +30,7 @@ func ParseCLIArgs() CLIArgs {
 	}
 
 	// Insert into Constants
+	Constants.HttpPort = *httpPort
 	Constants.Listen = *listen
 	Constants.Miners = *miners
 	if *localAddr != "" {

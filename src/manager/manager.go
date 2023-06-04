@@ -6,6 +6,7 @@ import (
 	"net"
 	"time"
 
+	"github.com/levilutz/basiccoin/src/client"
 	"github.com/levilutz/basiccoin/src/db"
 	"github.com/levilutz/basiccoin/src/miner"
 	"github.com/levilutz/basiccoin/src/peer"
@@ -35,7 +36,7 @@ func NewManager() *Manager {
 		initialTarget := CreateMiningTarget(state, inv, db.HashTZero)
 		minerSet.SetTargets(initialTarget)
 	}
-	return &Manager{
+	m := &Manager{
 		metConnChannel: make(chan MetConn),
 		mainBus:        make(chan any),
 		peers:          make(map[string]*peer.Peer),
@@ -43,6 +44,10 @@ func NewManager() *Manager {
 		state:          state,
 		minerSet:       minerSet,
 	}
+	if util.Constants.HttpPort != -1 {
+		go client.Start(m)
+	}
+	return m
 }
 
 func (m *Manager) Listen() {
@@ -136,6 +141,10 @@ func (m *Manager) HandleNewTx(tx db.Tx) {
 	m.queueEvent(newTxEvent{
 		tx: tx,
 	})
+}
+
+func (m *Manager) HandlePingQuery(rCh chan<- string) {
+	m.queueEvent(pingQuery{rCh})
 }
 
 func (m *Manager) addMetConn(metConn MetConn) {
@@ -248,6 +257,10 @@ func (m *Manager) handleMainBusEvent(event any) {
 		if err != nil {
 			fmt.Println("failed to insert new tx:", err.Error())
 		}
+
+	case pingQuery:
+		msg.rCh <- "pong"
+		close(msg.rCh)
 
 	default:
 		fmt.Printf("unhandled main event %T\n", event)

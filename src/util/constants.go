@@ -9,6 +9,7 @@ import (
 type ConstantsType struct {
 	BlockReward          uint64        `json:"blockReward"`
 	DebugLevel           int           `json:"debug"`
+	HttpPort             int           `json:"httpPort"`
 	LocalAddr            string        `json:"localAddr"`
 	Listen               bool          `json:"listen"`
 	Miners               int           `json:"miners"`
@@ -27,7 +28,6 @@ type ConstantsType struct {
 // Program-wide constants set by user.
 var Constants = ConstantsType{
 	BlockReward:          1028,
-	DebugLevel:           0,
 	LocalAddr:            "localhost:21720",
 	MinPeers:             3,
 	MaxPeers:             8,
@@ -36,7 +36,6 @@ var Constants = ConstantsType{
 	PeerPingFreq:         time.Second * 5,
 	PrintPeersUpdateFreq: time.Second * 5,
 	RuntimeID:            AssertUUID(),
-	SeedAddr:             "",
 	SeekNewPeersFreq:     time.Second * 10,
 	Version:              "0.1.0",
 }
