@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/levilutz/basiccoin/src/db"
 	. "github.com/levilutz/basiccoin/src/db"
 	"github.com/levilutz/basiccoin/src/util"
 )
@@ -114,7 +113,7 @@ func TestTxJson(t *testing.T) {
 	}
 	txJs, err := json.Marshal(tx)
 	util.AssertNoErr(t, err)
-	txR := db.Tx{}
+	txR := Tx{}
 	err = json.Unmarshal(txJs, &txR)
 	util.AssertNoErr(t, err)
 	txRJs, err := json.Marshal(txR)
