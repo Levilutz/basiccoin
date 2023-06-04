@@ -6,10 +6,11 @@ In the style of early bitcoin, with some simplifications.
 ## Building
 
 ```bash
-go build -o basiccoin ./src
+go build -o basiccoin ./src/fullnode
+go build -o cli ./src/cli
 ```
 
-## Running
+## Running a full node
 
 To start a new chain
 ```bash
@@ -24,4 +25,11 @@ To connect to an existing chain
 For more info
 ```bash
 ./basiccoin --help
+```
+
+## Using the cli with an existing full node
+
+Connect to a full node
+```bash
+./basiccoin-cli
 ```
