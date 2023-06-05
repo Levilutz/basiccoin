@@ -53,7 +53,7 @@ func main() {
 		}
 
 	} else if command == "export" {
-		if len(cmdArgs) < 2 || helpWanted {
+		if len(cmdArgs) < 1 || helpWanted {
 			fmt.Println("Export the current wallet to a given file.")
 			fmt.Println("usage: basiccoin-cli export [path]")
 			return
@@ -61,7 +61,7 @@ func main() {
 		fmt.Println(greenStr("success"))
 
 	} else if command == "import" {
-		if len(cmdArgs) < 2 || helpWanted {
+		if len(cmdArgs) < 1 || helpWanted {
 			fmt.Println("Import the given file into the current wallet.")
 			fmt.Println("usage: basiccoin-cli import [path]")
 		}

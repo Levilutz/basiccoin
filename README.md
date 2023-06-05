@@ -3,14 +3,12 @@ Basic blockchain-based cryptocurrency (WIP)
 
 In the style of early bitcoin, with some simplifications.
 
-## Building
+## Running a full node
 
+Build
 ```bash
 go build -o basiccoin ./src/fullnode
-go build -o cli ./src/cli
 ```
-
-## Running a full node
 
 To start a new chain
 ```bash
@@ -29,7 +27,17 @@ For more info
 
 ## Using the cli with an existing full node
 
-Connect to a full node
+Build
 ```bash
-./basiccoin-cli
+go build -o basiccoin-cli ./src/cli
+```
+
+Set up a new local wallet
+```bash
+./basiccoin-cli setup
+```
+
+Import an existing local wallet
+```bash
+./basiccoin-cli import [path]
 ```
