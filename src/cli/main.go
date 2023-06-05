@@ -3,16 +3,30 @@ package main
 import (
 	"fmt"
 	"os"
+	"os/user"
+	"path"
 )
 
+func getConfigDir() string {
+	user, err := user.Current()
+	if err != nil {
+		panic("failed to get current user: " + err.Error())
+	}
+	return path.Join(user.HomeDir, ".config/basiccoin/cli")
+}
+
 func main() {
+	fmt.Println(getConfigDir())
 	if len(os.Args) < 2 {
 		fmt.Println(redStr("must provide command"))
 		return
 	}
 	command := os.Args[1]
 	cmdArgs := os.Args[2:]
-	helpWanted := len(os.Args) >= 1 && cmdArgs[0] == "help"
+	helpWanted := false
+	if len(cmdArgs) >= 1 && cmdArgs[0] == "help" {
+		helpWanted = true
+	}
 
 	if command == "help" {
 		fmt.Println("Query a basiccoin node and manage a wallet.")

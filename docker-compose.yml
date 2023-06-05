@@ -1,7 +1,9 @@
 version: "3.9"
 services:
   img:
-    build: .
+    build:
+      context: .
+      target: main
     image: basiccoin:latest
     command:
       - "echo"
