@@ -8,6 +8,7 @@ import (
 	"strconv"
 
 	"github.com/levilutz/basiccoin/src/db"
+	"github.com/levilutz/basiccoin/src/util"
 )
 
 type MainQueryHandler interface {
@@ -20,8 +21,16 @@ type Handler struct {
 	m MainQueryHandler
 }
 
-func (h *Handler) handleGetPing(w http.ResponseWriter, r *http.Request) {
-	io.WriteString(w, "pong")
+func (h *Handler) handleVersion(w http.ResponseWriter, r *http.Request) {
+	if r.Method == "GET" {
+		h.handleGetVersion(w, r)
+	} else {
+		write405(w, r)
+	}
+}
+
+func (h *Handler) handleGetVersion(w http.ResponseWriter, r *http.Request) {
+	io.WriteString(w, util.Constants.Version)
 }
 
 func (h *Handler) handleBalance(w http.ResponseWriter, r *http.Request) {

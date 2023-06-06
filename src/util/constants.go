@@ -37,7 +37,7 @@ var Constants = ConstantsType{
 	PrintPeersUpdateFreq: time.Second * 5,
 	RuntimeID:            AssertUUID(),
 	SeekNewPeersFreq:     time.Second * 10,
-	Version:              "0.1.0",
+	Version:              "basiccoin:0.1.0",
 }
 
 // Compute 2^256 as a big.Int.

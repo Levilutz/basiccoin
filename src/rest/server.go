@@ -10,7 +10,7 @@ import (
 func Start(m MainQueryHandler) {
 	handler := Handler{m: m}
 
-	http.HandleFunc("/ping", handler.handleGetPing)
+	http.HandleFunc("/version", handler.handleVersion)
 	http.HandleFunc("/balance", handler.handleBalance)
 	http.HandleFunc("/tx", handler.handleTx)
 	http.HandleFunc("/txConfirms", handler.handleTxConfirms)
