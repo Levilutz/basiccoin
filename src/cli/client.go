@@ -101,27 +101,6 @@ func (c *Client) SendTx(tx db.Tx) (db.HashT, error) {
 	return db.HashTZero, nil
 }
 
-// Create a tx given our current addresses.
-func (c *Client) CreateOutboundTx(outputValues map[db.HashT]uint64) (db.Tx, error) {
-	if len(outputValues) == 0 {
-		return db.Tx{}, fmt.Errorf("no provided outputs")
-	}
-	// Get our current balances
-	balanceData, err := c.GetBalances(c.config.GetPublicKeyHashes())
-	if err != nil {
-		return db.Tx{}, err
-	}
-	// Get total outputs
-	totalOut := uint64(0)
-	for _, val := range outputValues {
-		totalOut += val
-	}
-	if totalOut > balanceData.Total {
-		return db.Tx{}, fmt.Errorf("insufficient balance")
-	}
-	return db.Tx{}, nil
-}
-
 func (c *Client) GetHistory(publicKeyHashes ...db.HashT) []db.Tx {
 	return []db.Tx{}
 }

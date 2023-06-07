@@ -27,7 +27,7 @@ type ConstantsType struct {
 
 // Program-wide constants set by user.
 var Constants = ConstantsType{
-	BlockReward:          1028,
+	BlockReward:          1000000,
 	LocalAddr:            "localhost:21720",
 	MinPeers:             3,
 	MaxPeers:             8,
