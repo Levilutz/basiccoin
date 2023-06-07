@@ -12,18 +12,21 @@ import (
 
 type Client struct {
 	baseUrl string
+	config  *Config
 }
 
 // Create a new client from the given base url.
-func NewClient(baseUrl string) (*Client, error) {
-	if len(baseUrl) == 0 {
+func NewClient(config *Config) (*Client, error) {
+	if len(config.NodeAddr) == 0 {
 		return nil, fmt.Errorf("must provide client address")
 	}
-	if baseUrl[len(baseUrl)-1:] != "/" {
+	baseUrl := config.NodeAddr
+	if config.NodeAddr[len(config.NodeAddr)-1:] != "/" {
 		baseUrl += "/"
 	}
 	c := &Client{
 		baseUrl: baseUrl,
+		config:  config,
 	}
 	if err := c.Check(); err != nil {
 		return nil, fmt.Errorf("client failed: %s", err.Error())
@@ -76,8 +79,9 @@ func (c *Client) GetBalances(pkhs []db.HashT) (map[db.HashT]uint64, uint64, erro
 	return out, total, nil
 }
 
-func (c *Client) SendTx(tx db.Tx) error {
-	return nil
+// Send a tx to the node, return TxId
+func (c *Client) SendTx(tx db.Tx) (db.HashT, error) {
+	return db.HashTZero, nil
 }
 
 func (c *Client) GetHistory(publicKeyHashes ...db.HashT) []db.Tx {

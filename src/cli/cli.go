@@ -42,7 +42,7 @@ func Execute(commands []Command) {
 	// Try to make client from the config
 	var client *Client = nil
 	if cfg.NodeAddr != "" {
-		tryClient, err := NewClient(cfg.NodeAddr)
+		tryClient, err := NewClient(cfg)
 		if err != nil {
 			fmt.Println(yellowStr("failed to connect to configured node: " + err.Error()))
 		} else {

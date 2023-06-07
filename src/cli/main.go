@@ -28,7 +28,7 @@ var commands = []Command{
 		RequiresClient: false,
 		Handler: func(ctx HandlerContext) error {
 			addr := ctx.Args[0]
-			_, err := NewClient(addr)
+			_, err := NewClient(&Config{NodeAddr: addr})
 			if err != nil {
 				return fmt.Errorf("failed to connect to client: " + err.Error())
 			}
@@ -71,21 +71,20 @@ var commands = []Command{
 		RequiredArgs:   0,
 		RequiresClient: true,
 		Handler: func(ctx HandlerContext) error {
-			pkhs := make([]db.HashT, 0)
+			var pkhs []db.HashT
 			if len(ctx.Args) > 0 {
 				// Get balance of given addresses
-				for _, arg := range ctx.Args {
+				pkhs = make([]db.HashT, len(ctx.Args))
+				for i, arg := range ctx.Args {
 					pkh, err := db.StringToHash(arg)
 					if err != nil {
 						return err
 					}
-					pkhs = append(pkhs, pkh)
+					pkhs[i] = pkh
 				}
 			} else {
 				// Get balance of controlled addresses
-				for _, kc := range ctx.Config.Keys {
-					pkhs = append(pkhs, kc.PublicKeyHash)
-				}
+				pkhs = ctx.Config.GetPublicKeyHashes()
 			}
 			balances, total, err := ctx.Client.GetBalances(pkhs)
 			if err != nil {

@@ -93,6 +93,14 @@ func (cfg *Config) VerifyKeys() {
 	}
 }
 
+func (cfg *Config) GetPublicKeyHashes() []db.HashT {
+	out := make([]db.HashT, len(cfg.Keys))
+	for i, kc := range cfg.Keys {
+		out[i] = kc.PublicKeyHash
+	}
+	return out
+}
+
 func (cfg *Config) HasPublicKeyHash(pkh db.HashT) bool {
 	for _, kc := range cfg.Keys {
 		if kc.PublicKeyHash == pkh {
