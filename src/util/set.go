@@ -73,13 +73,7 @@ func (s *Set[K]) Filter(filter func(key K) bool) {
 
 // Create a list from the set.
 func (s *Set[K]) ToList() []K {
-	out := make([]K, len(s.s))
-	i := 0
-	for k := range s.s {
-		out[i] = k
-		i++
-	}
-	return out
+	return MapKeys(s.s)
 }
 
 // Check whether this set intersects another.

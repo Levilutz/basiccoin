@@ -86,14 +86,14 @@ var commands = []Command{
 				// Get balance of controlled addresses
 				pkhs = ctx.Config.GetPublicKeyHashes()
 			}
-			balances, total, err := ctx.Client.GetBalances(pkhs)
+			balanceData, err := ctx.Client.GetBalances(pkhs)
 			if err != nil {
 				return err
 			}
-			for pkh, balance := range balances {
+			for pkh, balance := range balanceData.Balances {
 				fmt.Printf("%x\t%d\n", pkh, balance)
 			}
-			fmt.Printf("total\t%d\n", total)
+			fmt.Printf("total\t%d\n", balanceData.Total)
 			return nil
 		},
 	},

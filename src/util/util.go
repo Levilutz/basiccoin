@@ -8,6 +8,17 @@ import (
 	"net"
 )
 
+// Get keys from map.
+func MapKeys[K comparable, V any](in map[K]V) []K {
+	out := make([]K, len(in))
+	i := 0
+	for k := range in {
+		out[i] = k
+		i++
+	}
+	return out
+}
+
 // Prepend into slice.
 func Prepend[K any](ls []K, items ...K) []K {
 	for _, item := range items {

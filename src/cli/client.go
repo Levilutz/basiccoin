@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"sort"
 	"strconv"
 
 	"github.com/levilutz/basiccoin/src/db"
@@ -13,6 +14,13 @@ import (
 type Client struct {
 	baseUrl string
 	config  *Config
+}
+
+// Data on the balances of several addressses.
+type BalanceData struct {
+	Balances    map[db.HashT]uint64
+	Total       uint64
+	SortedAddrs []db.HashT // Descending
 }
 
 // Create a new client from the given base url.
@@ -65,23 +73,53 @@ func (c *Client) GetBalance(publicKeyHash db.HashT) (uint64, error) {
 }
 
 // Get balances per provided address and the total balance.
-func (c *Client) GetBalances(pkhs []db.HashT) (map[db.HashT]uint64, uint64, error) {
+func (c *Client) GetBalances(pkhs []db.HashT) (*BalanceData, error) {
 	out := make(map[db.HashT]uint64, len(pkhs))
 	total := uint64(0)
 	for _, pkh := range pkhs {
 		bal, err := c.GetBalance(pkh)
 		if err != nil {
-			return nil, 0, err
+			return nil, err
 		}
 		out[pkh] = bal
 		total += bal
 	}
-	return out, total, nil
+	addrs := util.MapKeys(out)
+	sort.Slice(addrs, func(i, j int) bool {
+		// > instead of < because we want descending
+		return out[addrs[i]] > out[addrs[j]]
+	})
+	return &BalanceData{
+		Balances:    out,
+		Total:       total,
+		SortedAddrs: addrs,
+	}, nil
 }
 
-// Send a tx to the node, return TxId
+// Send a tx to the node, return TxId.
 func (c *Client) SendTx(tx db.Tx) (db.HashT, error) {
 	return db.HashTZero, nil
+}
+
+// Create a tx given our current addresses.
+func (c *Client) CreateOutboundTx(outputValues map[db.HashT]uint64) (db.Tx, error) {
+	if len(outputValues) == 0 {
+		return db.Tx{}, fmt.Errorf("no provided outputs")
+	}
+	// Get our current balances
+	balanceData, err := c.GetBalances(c.config.GetPublicKeyHashes())
+	if err != nil {
+		return db.Tx{}, err
+	}
+	// Get total outputs
+	totalOut := uint64(0)
+	for _, val := range outputValues {
+		totalOut += val
+	}
+	if totalOut > balanceData.Total {
+		return db.Tx{}, fmt.Errorf("insufficient balance")
+	}
+	return db.Tx{}, nil
 }
 
 func (c *Client) GetHistory(publicKeyHashes ...db.HashT) []db.Tx {
