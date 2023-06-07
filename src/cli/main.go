@@ -6,62 +6,83 @@ import (
 )
 
 type Command struct {
+	Name           string
 	HelpText       string
-	UsageText      string
+	ArgsUsage      string
 	RequiredArgs   int
 	RequiresConfig bool
 	Handler        func(args []string, cfg *Config) error
 }
 
-var commands map[string]Command = map[string]Command{
-	"setup": {
+func (cmd Command) UsageText() string {
+	return fmt.Sprintf("Usage: basiccoin-cli %s %s", cmd.Name, cmd.ArgsUsage)
+}
+
+var commands = []Command{
+	{
+		Name:           "setup",
 		HelpText:       "Set up the local wallet instance.",
-		UsageText:      "usage: basiccoin-cli setup",
+		ArgsUsage:      "",
 		RequiredArgs:   0,
 		RequiresConfig: false,
 		Handler: func(args []string, cfg *Config) error {
 			return nil
 		},
 	},
-	"import": {
+	{
+		Name:           "import",
 		HelpText:       "Import the given file into the current wallet.",
-		UsageText:      "usage: basiccoin-cli import [path]",
+		ArgsUsage:      "[path]",
 		RequiredArgs:   0,
 		RequiresConfig: false,
 		Handler: func(args []string, cfg *Config) error {
 			return nil
 		},
 	},
-	"balance": {
+	{
+		Name:           "generate",
+		HelpText:       "Generate a new address to receive basiccoin.",
+		ArgsUsage:      "",
+		RequiredArgs:   0,
+		RequiresConfig: true,
+		Handler: func(args []string, cfg *Config) error {
+			return nil
+		},
+	},
+	{
+		Name:           "balance",
 		HelpText:       "Get the total balance of all currently controlled addresses, or a given address.",
-		UsageText:      "usage: basiccoin-cli balance (address)",
+		ArgsUsage:      "(address)",
 		RequiredArgs:   0,
 		RequiresConfig: true,
 		Handler: func(args []string, cfg *Config) error {
 			return nil
 		},
 	},
-	"send": {
+	{
+		Name:           "send",
 		HelpText:       "Send coin to a given address.",
-		UsageText:      "usage: basiccoin-cli send [address] [amount]",
+		ArgsUsage:      "[address] [amount]",
 		RequiredArgs:   0,
 		RequiresConfig: true,
 		Handler: func(args []string, cfg *Config) error {
 			return nil
 		},
 	},
-	"history": {
+	{
+		Name:           "history",
 		HelpText:       "Get the history of all currently controlled addresses, or a given address.",
-		UsageText:      "usage: basiccoin-cli history (address)",
+		ArgsUsage:      "(address)",
 		RequiredArgs:   0,
 		RequiresConfig: true,
 		Handler: func(args []string, cfg *Config) error {
 			return nil
 		},
 	},
-	"get-config-path": {
+	{
+		Name:           "get-config-path",
 		HelpText:       "Print the path to our current config file.",
-		UsageText:      "usage: basiccoin-cli config-dir",
+		ArgsUsage:      "",
 		RequiredArgs:   0,
 		RequiresConfig: true,
 		Handler: func(args []string, cfg *Config) error {
@@ -71,6 +92,13 @@ var commands map[string]Command = map[string]Command{
 }
 
 func main() {
+	// Convert commands to map
+	cmdMap := make(map[string]Command)
+	for _, cmd := range commands {
+		cmdMap[cmd.Name] = cmd
+	}
+
+	// Load config, if it exists
 	cfg := GetConfig()
 
 	// Get cli args
@@ -87,7 +115,7 @@ func main() {
 		return
 	}
 
-	cmd, ok := commands[command]
+	cmd, ok := cmdMap[command]
 	if !ok {
 		fmt.Println(yellowStr("command not found"))
 		return
@@ -96,14 +124,14 @@ func main() {
 	// Show command help message if wanted
 	if len(cmdArgs) > 0 && cmdArgs[0] == "help" {
 		fmt.Println(cmd.HelpText)
-		fmt.Println(cmd.UsageText)
+		fmt.Println(cmd.UsageText())
 		return
 	}
 
 	// Verify sufficient arguments
 	if len(cmdArgs) < cmd.RequiredArgs {
 		fmt.Println(yellowStr("insufficient arguments"))
-		fmt.Println(cmd.UsageText)
+		fmt.Println(cmd.UsageText())
 		return
 	}
 
@@ -124,11 +152,12 @@ func main() {
 
 func PrintGeneralHelp() {
 	fmt.Println("Query a basiccoin node and manage a wallet.")
-	fmt.Println("usage: basiccoin-cli [command] ...")
-	fmt.Println("available commands:")
-	for cmd := range commands {
-		fmt.Printf("\t%s\n", cmd)
+	fmt.Println("Usage: basiccoin-cli [command] ...")
+	fmt.Println("Available commands:")
+	for _, cmd := range commands {
+		fmt.Printf(" - %s\n", cmd.Name)
 	}
+	fmt.Println("For more help, run 'basiccoin-cli [command] help'")
 }
 
 func greenStr(str string) string {
