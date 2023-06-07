@@ -1,24 +1,26 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
 	"os"
+
+	"github.com/levilutz/basiccoin/src/util"
 )
 
-type Command struct {
-	Name           string
-	HelpText       string
-	ArgsUsage      string
-	RequiredArgs   int
-	RequiresConfig bool
-	Handler        func(args []string, cfg *Config) error
-}
-
-func (cmd Command) UsageText() string {
-	return fmt.Sprintf("Usage: basiccoin-cli %s %s", cmd.Name, cmd.ArgsUsage)
-}
-
+// Define all commands available on this cli.
 var commands = []Command{
+	{
+		Name:           "version",
+		HelpText:       "Get the version of the cli.",
+		ArgsUsage:      "",
+		RequiredArgs:   0,
+		RequiresConfig: false,
+		Handler: func(args []string, cfg *Config) error {
+			fmt.Println(util.Constants.Version)
+			return nil
+		},
+	},
 	{
 		Name:           "setup",
 		HelpText:       "Set up the local wallet instance.",
@@ -26,6 +28,11 @@ var commands = []Command{
 		RequiredArgs:   0,
 		RequiresConfig: false,
 		Handler: func(args []string, cfg *Config) error {
+			addr, err := readInput("Node address: ")
+			if err != nil {
+				return err
+			}
+			fmt.Printf("<%s>\n", addr)
 			return nil
 		},
 	},
@@ -91,83 +98,18 @@ var commands = []Command{
 	},
 }
 
+// Parse input and run commands as necessary.
 func main() {
-	// Convert commands to map
-	cmdMap := make(map[string]Command)
-	for _, cmd := range commands {
-		cmdMap[cmd.Name] = cmd
-	}
+	Execute(commands)
+}
 
-	// Load config, if it exists
-	cfg := GetConfig()
-
-	// Get cli args
-	if len(os.Args) < 2 {
-		fmt.Println(yellowStr("must provide command"))
-		return
-	}
-	command := os.Args[1]
-	cmdArgs := os.Args[2:]
-
-	// Show general help message if wanted
-	if command == "help" {
-		PrintGeneralHelp()
-		return
-	}
-
-	cmd, ok := cmdMap[command]
-	if !ok {
-		fmt.Println(yellowStr("command not found"))
-		return
-	}
-
-	// Show command help message if wanted
-	if len(cmdArgs) > 0 && cmdArgs[0] == "help" {
-		fmt.Println(cmd.HelpText)
-		fmt.Println(cmd.UsageText())
-		return
-	}
-
-	// Verify sufficient arguments
-	if len(cmdArgs) < cmd.RequiredArgs {
-		fmt.Println(yellowStr("insufficient arguments"))
-		fmt.Println(cmd.UsageText())
-		return
-	}
-
-	// Verify configured if required
-	if cfg == nil && cmd.RequiresConfig {
-		fmt.Println(yellowStr("command requires setup, run 'basiccoin-cli setup' first"))
-		return
-	}
-
-	// Run the command
-	err := cmd.Handler(cmdArgs, cfg)
+// Read a line from stdin, given prompt.
+func readInput(prompt string) (string, error) {
+	reader := bufio.NewReader(os.Stdin)
+	fmt.Print(prompt)
+	text, err := reader.ReadString('\n')
 	if err != nil {
-		fmt.Println(redStr(err.Error()))
-	} else {
-		fmt.Println(greenStr("success"))
+		return "", err
 	}
-}
-
-func PrintGeneralHelp() {
-	fmt.Println("Query a basiccoin node and manage a wallet.")
-	fmt.Println("Usage: basiccoin-cli [command] ...")
-	fmt.Println("Available commands:")
-	for _, cmd := range commands {
-		fmt.Printf(" - %s\n", cmd.Name)
-	}
-	fmt.Println("For more help, run 'basiccoin-cli [command] help'")
-}
-
-func greenStr(str string) string {
-	return fmt.Sprintf("\033[32m%s\033[0m", str)
-}
-
-func yellowStr(str string) string {
-	return fmt.Sprintf("\033[33m%s\033[0m", str)
-}
-
-func redStr(str string) string {
-	return fmt.Sprintf("\033[31m%s\033[0m", str)
+	return text[:len(text)-1], nil
 }
