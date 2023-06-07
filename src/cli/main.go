@@ -66,8 +66,8 @@ var commands = []Command{
 	},
 	{
 		Name:           "balance",
-		HelpText:       "Get the total balance of all currently controlled addresses, or a given address.",
-		ArgsUsage:      "(address)",
+		HelpText:       "Get the total balance of all currently controlled addresses, or given addresses.",
+		ArgsUsage:      "(address...)",
 		RequiredArgs:   0,
 		RequiresClient: true,
 		Handler: func(ctx HandlerContext) error {
@@ -87,14 +87,12 @@ var commands = []Command{
 					pkhs = append(pkhs, kc.PublicKeyHash)
 				}
 			}
-			total := uint64(0)
-			for _, pkh := range pkhs {
-				balance, err := ctx.Client.GetBalance(pkh)
-				if err != nil {
-					return err
-				}
+			balances, total, err := ctx.Client.GetBalances(pkhs)
+			if err != nil {
+				return err
+			}
+			for pkh, balance := range balances {
 				fmt.Printf("%x\t%d\n", pkh, balance)
-				total += balance
 			}
 			fmt.Printf("total\t%d\n", total)
 			return nil

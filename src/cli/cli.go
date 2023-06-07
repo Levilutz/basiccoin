@@ -29,7 +29,7 @@ func (cmd Command) UsageText() string {
 
 func Execute(commands []Command) {
 	// Convert commands to map
-	cmdMap := make(map[string]Command)
+	cmdMap := make(map[string]Command, len(commands))
 	for _, cmd := range commands {
 		cmdMap[cmd.Name] = cmd
 	}

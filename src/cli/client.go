@@ -47,6 +47,7 @@ func (c *Client) Check() error {
 	return nil
 }
 
+// Query the node for the balance of the given address.
 func (c *Client) GetBalance(publicKeyHash db.HashT) (uint64, error) {
 	queryStr := fmt.Sprintf("?publicKeyHash=%x", publicKeyHash)
 	resp, err := http.Get(c.baseUrl + "balance" + queryStr)
@@ -58,6 +59,21 @@ func (c *Client) GetBalance(publicKeyHash db.HashT) (uint64, error) {
 		return 0, err
 	}
 	return strconv.ParseUint(string(body), 10, 64)
+}
+
+// Get balances per provided address and the total balance.
+func (c *Client) GetBalances(pkhs []db.HashT) (map[db.HashT]uint64, uint64, error) {
+	out := make(map[db.HashT]uint64, len(pkhs))
+	total := uint64(0)
+	for _, pkh := range pkhs {
+		bal, err := c.GetBalance(pkh)
+		if err != nil {
+			return nil, 0, err
+		}
+		out[pkh] = bal
+		total += bal
+	}
+	return out, total, nil
 }
 
 func (c *Client) SendTx(tx db.Tx) error {
