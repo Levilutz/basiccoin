@@ -11,8 +11,14 @@ type Command struct {
 	HelpText       string
 	ArgsUsage      string
 	RequiredArgs   int
-	RequiresConfig bool
-	Handler        func(args []string, cfg *Config) error
+	RequiresClient bool
+	Handler        func(ctx HandlerContext) error
+}
+
+type HandlerContext struct {
+	Args   []string
+	Config *Config
+	Client *Client
 }
 
 // Create the general usage text string.
@@ -27,8 +33,20 @@ func Execute(commands []Command) {
 		cmdMap[cmd.Name] = cmd
 	}
 
-	// Load config, if it exists
+	// Ensure config exists, then load it
+	EnsureConfig()
 	cfg := GetConfig()
+
+	// Try to make client from the config
+	var client *Client = nil
+	if cfg.NodeAddr != "" {
+		tryClient, err := NewClient(cfg.NodeAddr)
+		if err != nil {
+			fmt.Println(yellowStr("failed to connect to configured client" + err.Error()))
+		} else {
+			client = tryClient
+		}
+	}
 
 	// Get cli args
 	if len(os.Args) < 2 {
@@ -44,6 +62,7 @@ func Execute(commands []Command) {
 		return
 	}
 
+	// Get the command and verify it exists
 	cmd, ok := cmdMap[command]
 	if !ok {
 		fmt.Println(yellowStr("command not found"))
@@ -64,14 +83,18 @@ func Execute(commands []Command) {
 		return
 	}
 
-	// Verify configured if required
-	if cfg == nil && cmd.RequiresConfig {
-		fmt.Println(yellowStr("command requires setup, run 'basiccoin-cli setup' first"))
+	// Verify client connected if command requires it
+	if client == nil && cmd.RequiresClient {
+		fmt.Println(yellowStr("command requires valid node connection, run 'basiccoin-cli connect' to set up"))
 		return
 	}
 
 	// Run the command
-	err := cmd.Handler(cmdArgs, cfg)
+	err := cmd.Handler(HandlerContext{
+		Args:   cmdArgs,
+		Config: cfg,
+		Client: client,
+	})
 	if err != nil {
 		fmt.Println(redStr(err.Error()))
 	} else {

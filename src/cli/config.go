@@ -78,7 +78,7 @@ func getConfigPath() string {
 func GetConfig() *Config {
 	rawConfig, err := os.ReadFile(getConfigPath())
 	if err != nil {
-		return nil
+		panic("failed to find config: " + err.Error())
 	}
 	config := Config{}
 	if err := json.Unmarshal(rawConfig, &config); err != nil {
@@ -103,4 +103,14 @@ func (cfg *Config) Save() error {
 	}
 
 	return os.WriteFile(getConfigPath(), rawConfig, 0600)
+}
+
+func EnsureConfig() {
+	_, err := os.ReadFile(getConfigPath())
+	if os.IsNotExist(err) {
+		err = NewConfig("").Save()
+	}
+	if err != nil {
+		panic("failed to save config: " + err.Error())
+	}
 }

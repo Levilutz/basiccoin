@@ -30,11 +30,11 @@ func NewClient(baseUrl string) (*Client, error) {
 
 // Check that the server exists and is compatible with us.
 func (c *Client) Check() error {
-	resp, err := http.Get(c.baseUrl + "version")
+	_, err := http.Get(c.baseUrl + "version")
 	if err != nil {
 		return err
 	}
-	fmt.Println(resp)
+	// fmt.Println(resp)
 	return nil
 }
 
