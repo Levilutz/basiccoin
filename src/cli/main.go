@@ -31,21 +31,20 @@ var commands = []Command{
 			if err != nil {
 				return fmt.Errorf("failed to connect to client: " + err.Error())
 			}
-			err = NewConfig(addr).Save()
-			if err != nil {
-				return fmt.Errorf("failed to save config: " + err.Error())
-			}
-			return nil
+			return NewConfig(addr).Save()
 		},
 	},
 	{
 		Name:           "import",
 		HelpText:       "Import the given file into the current wallet.",
 		ArgsUsage:      "[path]",
-		RequiredArgs:   0,
+		RequiredArgs:   1,
 		RequiresClient: false,
 		Handler: func(ctx HandlerContext) error {
-			return nil
+			newCfg := GetConfig(ctx.Args[0])
+			newCfg.VerifyKeys()
+			ctx.Config.Keys = append(ctx.Config.Keys, newCfg.Keys...)
+			return ctx.Config.Save()
 		},
 	},
 	{

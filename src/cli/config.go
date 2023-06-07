@@ -50,6 +50,18 @@ func (kc *KeyConfig) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
+// Verify that the public key hash matches the private key.
+func (kc *KeyConfig) Verify() error {
+	pub, err := db.MarshalEcdsaPublic(kc.PrivateKey)
+	if err != nil {
+		return err
+	}
+	if db.DHash(pub) != kc.PublicKeyHash {
+		return fmt.Errorf("private key does not match public key hash")
+	}
+	return nil
+}
+
 type Config struct {
 	NodeAddr string      `json:"nodeAddr"`
 	Keys     []KeyConfig `json:"keys"`
@@ -59,6 +71,14 @@ func NewConfig(nodeAddr string) *Config {
 	return &Config{
 		NodeAddr: nodeAddr,
 		Keys:     []KeyConfig{},
+	}
+}
+
+func (cfg *Config) VerifyKeys() {
+	for _, kc := range cfg.Keys {
+		if err := kc.Verify(); err != nil {
+			panic(err)
+		}
 	}
 }
 
@@ -75,7 +95,7 @@ func getConfigPath() string {
 }
 
 // Get the current configuration, or nil if it doesn't exist.
-func GetConfig() *Config {
+func GetConfig(path string) *Config {
 	rawConfig, err := os.ReadFile(getConfigPath())
 	if err != nil {
 		panic("failed to find config: " + err.Error())

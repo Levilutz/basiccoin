@@ -5,6 +5,13 @@ import (
 	"os"
 )
 
+// Context to be passed to command handler functions.
+type HandlerContext struct {
+	Args   []string
+	Config *Config
+	Client *Client
+}
+
 // A single command with its help, requirements, and handler function.
 type Command struct {
 	Name           string
@@ -13,12 +20,6 @@ type Command struct {
 	RequiredArgs   int
 	RequiresClient bool
 	Handler        func(ctx HandlerContext) error
-}
-
-type HandlerContext struct {
-	Args   []string
-	Config *Config
-	Client *Client
 }
 
 // Create the general usage text string.
@@ -35,7 +36,8 @@ func Execute(commands []Command) {
 
 	// Ensure config exists, then load it
 	EnsureConfig()
-	cfg := GetConfig()
+	cfg := GetConfig(getConfigPath())
+	cfg.VerifyKeys()
 
 	// Try to make client from the config
 	var client *Client = nil
