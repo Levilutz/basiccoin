@@ -44,7 +44,7 @@ var commands = []Command{
 		Handler: func(ctx HandlerContext) error {
 			newCfg := GetConfig(ctx.Args[0])
 			newCfg.VerifyKeys()
-			ctx.Config.AddKeys(newCfg.Keys)
+			ctx.Config.AddKeys(newCfg.Keys...)
 			return ctx.Config.Save()
 		},
 	},
@@ -58,7 +58,7 @@ var commands = []Command{
 				return err
 			}
 			kc := NewKeyConfig(priv)
-			ctx.Config.Keys = append(ctx.Config.Keys, kc)
+			ctx.Config.AddKeys(kc)
 			fmt.Printf("%x\n", kc.PublicKeyHash)
 			return ctx.Config.Save()
 		},

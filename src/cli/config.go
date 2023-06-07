@@ -102,7 +102,7 @@ func (cfg *Config) HasPublicKeyHash(pkh db.HashT) bool {
 	return false
 }
 
-func (cfg *Config) AddKeys(newKeys []KeyConfig) {
+func (cfg *Config) AddKeys(newKeys ...KeyConfig) {
 	for _, kc := range newKeys {
 		if !cfg.HasPublicKeyHash(kc.PublicKeyHash) {
 			cfg.Keys = append(cfg.Keys, kc)
