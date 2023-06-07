@@ -90,8 +90,8 @@ var commands = []Command{
 			if err != nil {
 				return err
 			}
-			for pkh, balance := range balanceData.Balances {
-				fmt.Printf("%x\t%d\n", pkh, balance)
+			for _, pkh := range balanceData.SortedAddrs {
+				fmt.Printf("%x\t%d\n", pkh, balanceData.Balances[pkh])
 			}
 			fmt.Printf("total\t%d\n", balanceData.Total)
 			return nil
