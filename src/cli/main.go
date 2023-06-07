@@ -32,7 +32,8 @@ var commands = []Command{
 			if err != nil {
 				return fmt.Errorf("failed to connect to client: " + err.Error())
 			}
-			return NewConfig(addr).Save()
+			ctx.Config.NodeAddr = addr
+			return ctx.Config.Save()
 		},
 	},
 	{
@@ -70,18 +71,32 @@ var commands = []Command{
 		RequiredArgs:   0,
 		RequiresClient: true,
 		Handler: func(ctx HandlerContext) error {
+			pkhs := make([]db.HashT, 0)
 			if len(ctx.Args) > 0 {
-				// Get balance of a given address
-				pkh, err := db.StringToHash(ctx.Args[0])
-				if err != nil {
-					return err
+				// Get balance of given addresses
+				for _, arg := range ctx.Args {
+					pkh, err := db.StringToHash(arg)
+					if err != nil {
+						return err
+					}
+					pkhs = append(pkhs, pkh)
 				}
+			} else {
+				// Get balance of controlled addresses
+				for _, kc := range ctx.Config.Keys {
+					pkhs = append(pkhs, kc.PublicKeyHash)
+				}
+			}
+			total := uint64(0)
+			for _, pkh := range pkhs {
 				balance, err := ctx.Client.GetBalance(pkh)
 				if err != nil {
 					return err
 				}
 				fmt.Printf("%x\t%d\n", pkh, balance)
+				total += balance
 			}
+			fmt.Printf("total\t%d\n", total)
 			return nil
 		},
 	},
