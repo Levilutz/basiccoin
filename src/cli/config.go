@@ -21,15 +21,26 @@ type KeyConfig struct {
 	PrivateKey    *ecdsa.PrivateKey
 }
 
+func NewKeyConfig(priv *ecdsa.PrivateKey) KeyConfig {
+	pubBytes, err := db.MarshalEcdsaPublic(priv)
+	if err != nil {
+		panic(err)
+	}
+	return KeyConfig{
+		PublicKeyHash: db.DHash(pubBytes),
+		PrivateKey:    priv,
+	}
+}
+
 func (kc KeyConfig) MarshalJSON() ([]byte, error) {
 	privateBytes, err := db.MarshalEcdsaPrivate(kc.PrivateKey)
 	if err != nil {
 		return nil, err
 	}
-	return json.Marshal(KeyConfigJSON{
+	return json.MarshalIndent(KeyConfigJSON{
 		PublicKeyHash: fmt.Sprintf("%x", kc.PublicKeyHash),
 		PrivateKey:    privateBytes,
-	})
+	}, "", "    ")
 }
 
 func (kc *KeyConfig) UnmarshalJSON(data []byte) error {
@@ -82,6 +93,23 @@ func (cfg *Config) VerifyKeys() {
 	}
 }
 
+func (cfg *Config) HasPublicKeyHash(pkh db.HashT) bool {
+	for _, kc := range cfg.Keys {
+		if kc.PublicKeyHash == pkh {
+			return true
+		}
+	}
+	return false
+}
+
+func (cfg *Config) AddKeys(newKeys []KeyConfig) {
+	for _, kc := range newKeys {
+		if !cfg.HasPublicKeyHash(kc.PublicKeyHash) {
+			cfg.Keys = append(cfg.Keys, kc)
+		}
+	}
+}
+
 func getConfigDir() string {
 	user, err := user.Current()
 	if err != nil {
@@ -96,7 +124,7 @@ func getConfigPath() string {
 
 // Get the current configuration, or nil if it doesn't exist.
 func GetConfig(path string) *Config {
-	rawConfig, err := os.ReadFile(getConfigPath())
+	rawConfig, err := os.ReadFile(path)
 	if err != nil {
 		panic("failed to find config: " + err.Error())
 	}
@@ -109,7 +137,7 @@ func GetConfig(path string) *Config {
 
 // Save the configuration.
 func (cfg *Config) Save() error {
-	rawConfig, err := json.Marshal(cfg)
+	rawConfig, err := json.MarshalIndent(cfg, "", "    ")
 	if err != nil {
 		return err
 	}

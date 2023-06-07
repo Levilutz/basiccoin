@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/levilutz/basiccoin/src/db"
 	"github.com/levilutz/basiccoin/src/util"
 )
 
@@ -43,16 +44,23 @@ var commands = []Command{
 		Handler: func(ctx HandlerContext) error {
 			newCfg := GetConfig(ctx.Args[0])
 			newCfg.VerifyKeys()
-			ctx.Config.Keys = append(ctx.Config.Keys, newCfg.Keys...)
+			ctx.Config.AddKeys(newCfg.Keys)
 			return ctx.Config.Save()
 		},
 	},
 	{
 		Name:           "generate",
 		HelpText:       "Generate a new address to receive basiccoin.",
-		RequiresClient: true,
+		RequiresClient: false,
 		Handler: func(ctx HandlerContext) error {
-			return nil
+			priv, err := db.NewEcdsa()
+			if err != nil {
+				return err
+			}
+			kc := NewKeyConfig(priv)
+			ctx.Config.Keys = append(ctx.Config.Keys, kc)
+			fmt.Printf("%x\n", kc.PublicKeyHash)
+			return ctx.Config.Save()
 		},
 	},
 	{
