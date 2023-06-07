@@ -2,9 +2,11 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"net/http"
 
 	"github.com/levilutz/basiccoin/src/db"
+	"github.com/levilutz/basiccoin/src/util"
 )
 
 type Client struct {
@@ -30,11 +32,17 @@ func NewClient(baseUrl string) (*Client, error) {
 
 // Check that the server exists and is compatible with us.
 func (c *Client) Check() error {
-	_, err := http.Get(c.baseUrl + "version")
+	resp, err := http.Get(c.baseUrl + "version")
 	if err != nil {
 		return err
 	}
-	// fmt.Println(resp)
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return err
+	}
+	if string(body) != util.Constants.Version {
+		return fmt.Errorf("incompatible server version '%s'", string(body))
+	}
 	return nil
 }
 
