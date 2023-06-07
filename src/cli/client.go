@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strconv"
 
 	"github.com/levilutz/basiccoin/src/db"
 	"github.com/levilutz/basiccoin/src/util"
@@ -46,8 +47,17 @@ func (c *Client) Check() error {
 	return nil
 }
 
-func (c *Client) GetBalance(publicKeyHashes ...db.HashT) uint64 {
-	return 0
+func (c *Client) GetBalance(publicKeyHash db.HashT) (uint64, error) {
+	queryStr := fmt.Sprintf("?publicKeyHash=%x", publicKeyHash)
+	resp, err := http.Get(c.baseUrl + "balance" + queryStr)
+	if err != nil {
+		return 0, err
+	}
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return 0, err
+	}
+	return strconv.ParseUint(string(body), 10, 64)
 }
 
 func (c *Client) SendTx(tx db.Tx) error {

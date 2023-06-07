@@ -70,6 +70,18 @@ var commands = []Command{
 		RequiredArgs:   0,
 		RequiresClient: true,
 		Handler: func(ctx HandlerContext) error {
+			if len(ctx.Args) > 0 {
+				// Get balance of a given address
+				pkh, err := db.StringToHash(ctx.Args[0])
+				if err != nil {
+					return err
+				}
+				balance, err := ctx.Client.GetBalance(pkh)
+				if err != nil {
+					return err
+				}
+				fmt.Printf("%x\t%d\n", pkh, balance)
+			}
 			return nil
 		},
 	},
