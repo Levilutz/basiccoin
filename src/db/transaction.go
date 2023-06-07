@@ -8,14 +8,16 @@ import (
 // Reference to unspent transaction output.
 // This is just a subset of the fields in a TxIn.
 type Utxo struct {
-	TxId HashT
-	Ind  uint64
+	TxId  HashT
+	Ind   uint64
+	Value uint64
 }
 
 func UtxoFromInput(txi TxIn) Utxo {
 	return Utxo{
-		TxId: txi.OriginTxId,
-		Ind:  txi.OriginTxOutInd,
+		TxId:  txi.OriginTxId,
+		Ind:   txi.OriginTxOutInd,
+		Value: txi.Value,
 	}
 }
 

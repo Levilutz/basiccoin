@@ -12,6 +12,7 @@ func Start(m MainQueryHandler) {
 
 	http.HandleFunc("/version", handler.handleVersion)
 	http.HandleFunc("/balance", handler.handleBalance)
+	http.HandleFunc("/utxos", handler.handleUtxos)
 	http.HandleFunc("/tx", handler.handleTx)
 	http.HandleFunc("/txConfirms", handler.handleTxConfirms)
 

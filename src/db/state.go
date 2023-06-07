@@ -86,7 +86,7 @@ func (s *State) Rewind() error {
 		}
 		// Remove the tx outputs from the utxo set
 		for i, txo := range tx.Outputs {
-			if !s.utxos.Remove(Utxo{TxId: txId, Ind: uint64(i)}) {
+			if !s.utxos.Remove(Utxo{TxId: txId, Ind: uint64(i), Value: txo.Value}) {
 				return fmt.Errorf("state corrupt - missing utxo %x[%d]", txId, i)
 			}
 			if s.balances != nil {
@@ -171,7 +171,7 @@ func (s *State) Advance(nextBlockId HashT) error {
 		}
 		// Add the tx outputs
 		for i, txo := range tx.Outputs {
-			s.utxos.Add(Utxo{TxId: txId, Ind: uint64(i)})
+			s.utxos.Add(Utxo{TxId: txId, Ind: uint64(i), Value: txo.Value})
 			if s.balances != nil {
 				s.creditBalance(txo.PublicKeyHash, BalanceRecord{
 					TxId:  txId,

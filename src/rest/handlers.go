@@ -13,6 +13,7 @@ import (
 
 type MainQueryHandler interface {
 	SyncGetBalance(publicKeyHash db.HashT) uint64
+	SyncGetUtxos(publicKeyHash db.HashT) []db.Utxo
 	SyncNewTx(tx db.Tx) error
 	SyncGetConfirms(txId db.HashT) (uint64, bool)
 }
@@ -54,6 +55,29 @@ func (h *Handler) handleGetBalance(w http.ResponseWriter, r *http.Request) {
 	}
 	balance := h.m.SyncGetBalance(pkh)
 	io.WriteString(w, strconv.FormatUint(balance, 10))
+}
+
+func (h *Handler) handleUtxos(w http.ResponseWriter, r *http.Request) {
+	if r.Method == "GET" {
+		h.handleGetUtxos(w, r)
+	} else {
+		write405(w, r)
+	}
+}
+
+func (h *Handler) handleGetUtxos(w http.ResponseWriter, r *http.Request) {
+	publicKeyHashes, ok := r.URL.Query()["publicKeyHash"]
+	if !ok || len(publicKeyHashes) != 1 {
+		write400(w, r, fmt.Errorf("must provide 1 public key hash"))
+		return
+	}
+	pkh, err := db.StringToHash(publicKeyHashes[0])
+	if err != nil {
+		write400(w, r, err)
+		return
+	}
+	h.m.SyncGetUtxos(pkh)
+	io.WriteString(w, "")
 }
 
 func (h *Handler) handleTx(w http.ResponseWriter, r *http.Request) {

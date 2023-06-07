@@ -153,6 +153,10 @@ func (m *Manager) SyncGetBalance(publicKeyHash db.HashT) uint64 {
 	return <-rCh
 }
 
+func (m *Manager) SyncGetUtxos(publicKeyHash db.HashT) []db.Utxo {
+	return nil
+}
+
 func (m *Manager) SyncNewTx(tx db.Tx) error {
 	rCh := make(chan error)
 	m.queueEvent(newTxQuery{rCh, tx})
