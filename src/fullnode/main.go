@@ -25,7 +25,7 @@ func main() {
 	}
 	fmt.Printf("starting with id %s\n", util.Constants.RuntimeID)
 
-	manager := NewManager()
+	manager := NewManager(cli_args.MinerPayoutAddr)
 
 	if cli_args.SeedAddr != "" {
 		var pc *peer.PeerConn

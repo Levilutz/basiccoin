@@ -20,31 +20,33 @@ type MetConn struct {
 }
 
 type Manager struct {
-	metConnChannel chan MetConn
-	mainBus        chan any
-	peers          map[string]*peer.Peer
-	inv            *db.Inv
-	state          *db.State
-	minerSet       *miner.MinerSet
+	metConnChannel  chan MetConn
+	mainBus         chan any
+	peers           map[string]*peer.Peer
+	inv             *db.Inv
+	state           *db.State
+	minerSet        *miner.MinerSet
+	minerPayoutAddr db.HashT
 }
 
-func NewManager() *Manager {
+func NewManager(minerPayoutAddr db.HashT) *Manager {
 	inv := db.NewInv()
 	// Create state tracker (only track balances if we're serving http)
 	state := db.NewState(inv, util.Constants.HttpPort != -1)
 	// TODO: don't actually start the miner set if we don't need, check before calls
 	minerSet := miner.StartMinerSet(util.Constants.Miners)
 	if util.Constants.Miners > 0 {
-		initialTarget := CreateMiningTarget(state, inv, db.HashTZero)
+		initialTarget := CreateMiningTarget(state, inv, minerPayoutAddr)
 		minerSet.SetTargets(initialTarget)
 	}
 	m := &Manager{
-		metConnChannel: make(chan MetConn),
-		mainBus:        make(chan any),
-		peers:          make(map[string]*peer.Peer),
-		inv:            inv,
-		state:          state,
-		minerSet:       minerSet,
+		metConnChannel:  make(chan MetConn),
+		mainBus:         make(chan any),
+		peers:           make(map[string]*peer.Peer),
+		inv:             inv,
+		state:           state,
+		minerSet:        minerSet,
+		minerPayoutAddr: minerPayoutAddr,
 	}
 	if util.Constants.HttpPort != -1 {
 		go rest.Start(m)
@@ -380,7 +382,7 @@ func (m *Manager) handleNewBestChain(
 	m.state = newState
 	// Set new miner targets
 	if util.Constants.Miners > 0 {
-		target := CreateMiningTarget(m.state, m.inv, db.HashTZero)
+		target := CreateMiningTarget(m.state, m.inv, m.minerPayoutAddr)
 		m.minerSet.SetTargets(target)
 	}
 	// Broadcast solution to peers
