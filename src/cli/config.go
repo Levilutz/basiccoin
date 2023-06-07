@@ -55,12 +55,23 @@ type Config struct {
 	Keys     []KeyConfig `json:"keys"`
 }
 
-func getConfigPath() string {
+func NewConfig(nodeAddr string) *Config {
+	return &Config{
+		NodeAddr: nodeAddr,
+		Keys:     []KeyConfig{},
+	}
+}
+
+func getConfigDir() string {
 	user, err := user.Current()
 	if err != nil {
 		panic("failed to get current user: " + err.Error())
 	}
-	return path.Join(user.HomeDir, ".config/basiccoin/cli.json")
+	return path.Join(user.HomeDir, ".config/basiccoin")
+}
+
+func getConfigPath() string {
+	return getConfigDir() + "/cli.json"
 }
 
 // Get the current configuration, or nil if it doesn't exist.
@@ -82,5 +93,14 @@ func (cfg *Config) Save() error {
 	if err != nil {
 		return err
 	}
+	stat, err := os.Stat(getConfigDir())
+	if os.IsNotExist(err) {
+		os.MkdirAll(getConfigDir(), 0700)
+	} else if err != nil {
+		return err
+	} else if !stat.IsDir() {
+		return fmt.Errorf("config dir should be directory: %s", getConfigDir())
+	}
+
 	return os.WriteFile(getConfigPath(), rawConfig, 0600)
 }

@@ -13,8 +13,6 @@ var commands = []Command{
 	{
 		Name:           "version",
 		HelpText:       "Get the version of the cli.",
-		ArgsUsage:      "",
-		RequiredArgs:   0,
 		RequiresConfig: false,
 		Handler: func(args []string, cfg *Config) error {
 			fmt.Println(util.Constants.Version)
@@ -24,15 +22,20 @@ var commands = []Command{
 	{
 		Name:           "setup",
 		HelpText:       "Set up the local wallet instance.",
-		ArgsUsage:      "",
-		RequiredArgs:   0,
 		RequiresConfig: false,
 		Handler: func(args []string, cfg *Config) error {
 			addr, err := readInput("Node address: ")
 			if err != nil {
 				return err
 			}
-			fmt.Printf("<%s>\n", addr)
+			_, err = NewClient(addr)
+			if err != nil {
+				return fmt.Errorf("failed to connect to client: " + err.Error())
+			}
+			err = NewConfig(addr).Save()
+			if err != nil {
+				return fmt.Errorf("failed to save config: " + err.Error())
+			}
 			return nil
 		},
 	},
@@ -49,8 +52,6 @@ var commands = []Command{
 	{
 		Name:           "generate",
 		HelpText:       "Generate a new address to receive basiccoin.",
-		ArgsUsage:      "",
-		RequiredArgs:   0,
 		RequiresConfig: true,
 		Handler: func(args []string, cfg *Config) error {
 			return nil
@@ -89,8 +90,6 @@ var commands = []Command{
 	{
 		Name:           "get-config-path",
 		HelpText:       "Print the path to our current config file.",
-		ArgsUsage:      "",
-		RequiredArgs:   0,
 		RequiresConfig: true,
 		Handler: func(args []string, cfg *Config) error {
 			return nil
