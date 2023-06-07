@@ -7,13 +7,6 @@ import (
 	"github.com/levilutz/basiccoin/src/util"
 )
 
-// A record of balance originating from a utxo.
-type BalanceRecord struct {
-	TxId  HashT
-	Ind   uint64
-	Value uint64
-}
-
 // State at a blockchain node. Responsible for preventing double-spends.
 // Meant to only be accessed synchronously by a single thread.
 type State struct {
@@ -22,7 +15,7 @@ type State struct {
 	utxos            *util.Set[Utxo]
 	inv              InvReader
 	mempoolRates     map[HashT]float64
-	balances         map[HashT][]BalanceRecord
+	pkhUtxos         map[HashT]*util.Set[Utxo]
 	includedTxBlocks map[HashT]HashT
 }
 
@@ -33,24 +26,30 @@ func NewState(inv InvReader, trackBalances bool) *State {
 		utxos:            util.NewSet[Utxo](),
 		inv:              inv,
 		mempoolRates:     make(map[HashT]float64),
-		balances:         nil,
+		pkhUtxos:         nil,
 		includedTxBlocks: make(map[HashT]HashT),
 	}
 	if trackBalances {
-		s.balances = make(map[HashT][]BalanceRecord)
+		s.pkhUtxos = make(map[HashT]*util.Set[Utxo])
 	}
 	return s
 }
 
 // Copy a state.
 func (s *State) Copy() *State {
+	// Must deep copy pkhUtxos
+	newPkhUtxos := make(map[HashT]*util.Set[Utxo], len(s.pkhUtxos))
+	for pkh, utxos := range s.pkhUtxos {
+		newPkhUtxos[pkh] = utxos.Copy()
+	}
+	// Shallow copy everything else
 	return &State{
 		head:             s.head,
 		mempool:          s.mempool.Copy(),
 		utxos:            s.utxos.Copy(),
 		inv:              s.inv,
 		mempoolRates:     util.CopyMap(s.mempoolRates),
-		balances:         util.CopyMap(s.balances),
+		pkhUtxos:         newPkhUtxos,
 		includedTxBlocks: util.CopyMap(s.includedTxBlocks),
 	}
 }
@@ -75,13 +74,9 @@ func (s *State) Rewind() error {
 		// Return the tx inputs
 		for _, utxo := range tx.GetConsumedUtxos() {
 			s.utxos.Add(utxo)
-			if s.balances != nil {
+			if s.pkhUtxos != nil {
 				txo := s.inv.GetTxOut(utxo.TxId, utxo.Ind)
-				s.creditBalance(txo.PublicKeyHash, BalanceRecord{
-					TxId:  utxo.TxId,
-					Ind:   utxo.Ind,
-					Value: txo.Value,
-				})
+				s.creditBalance(txo.PublicKeyHash, utxo)
 			}
 		}
 		// Remove the tx outputs from the utxo set
@@ -89,8 +84,8 @@ func (s *State) Rewind() error {
 			if !s.utxos.Remove(Utxo{TxId: txId, Ind: uint64(i), Value: txo.Value}) {
 				return fmt.Errorf("state corrupt - missing utxo %x[%d]", txId, i)
 			}
-			if s.balances != nil {
-				s.debitBalance(txo.PublicKeyHash, BalanceRecord{
+			if s.pkhUtxos != nil {
+				s.debitBalance(txo.PublicKeyHash, Utxo{
 					TxId:  txId,
 					Ind:   uint64(i),
 					Value: txo.Value,
@@ -160,20 +155,16 @@ func (s *State) Advance(nextBlockId HashT) error {
 			if !s.utxos.Remove(utxo) {
 				return fmt.Errorf("tx input not available %x[%d]", utxo.TxId, utxo.Ind)
 			}
-			if s.balances != nil {
+			if s.pkhUtxos != nil {
 				txo := s.inv.GetTxOut(utxo.TxId, utxo.Ind)
-				s.debitBalance(txo.PublicKeyHash, BalanceRecord{
-					TxId:  utxo.TxId,
-					Ind:   utxo.Ind,
-					Value: txo.Value,
-				})
+				s.debitBalance(txo.PublicKeyHash, utxo)
 			}
 		}
 		// Add the tx outputs
 		for i, txo := range tx.Outputs {
 			s.utxos.Add(Utxo{TxId: txId, Ind: uint64(i), Value: txo.Value})
-			if s.balances != nil {
-				s.creditBalance(txo.PublicKeyHash, BalanceRecord{
+			if s.pkhUtxos != nil {
+				s.creditBalance(txo.PublicKeyHash, Utxo{
 					TxId:  txId,
 					Ind:   uint64(i),
 					Value: txo.Value,
@@ -235,63 +226,53 @@ func (s *State) AddMempoolTx(txId HashT) {
 	s.mempoolRates[txId] = tx.Rate()
 }
 
-// Add to the balance of a public key hash.
-func (s *State) creditBalance(publicKeyHash HashT, credit BalanceRecord) {
-	if s.balances == nil {
+// Add to the utxo set of a public key hash.
+func (s *State) creditBalance(publicKeyHash HashT, credit Utxo) {
+	if s.pkhUtxos == nil {
 		panic("balance tracking was not enabled")
 	}
-	_, ok := s.balances[publicKeyHash]
+	_, ok := s.pkhUtxos[publicKeyHash]
 	if !ok {
-		s.balances[publicKeyHash] = []BalanceRecord{credit}
-	} else {
-		s.balances[publicKeyHash] = append(s.balances[publicKeyHash], credit)
+		s.pkhUtxos[publicKeyHash] = util.NewSet[Utxo]()
 	}
+	s.pkhUtxos[publicKeyHash].Add(credit)
 }
 
-// Remove from the balance of a public key hash.
-func (s *State) debitBalance(publicKeyHash HashT, debit BalanceRecord) {
-	if s.balances == nil {
+// Remove from the utxo set of a public key hash.
+func (s *State) debitBalance(publicKeyHash HashT, debit Utxo) {
+	if s.pkhUtxos == nil {
 		panic("balance tracking was not enabled")
 	}
-	balances, ok := s.balances[publicKeyHash]
-	if ok {
-		for i := 0; i < len(balances); i++ {
-			if balances[i] == debit {
-				if len(balances) == 1 {
-					delete(s.balances, publicKeyHash)
-				} else {
-					s.balances[publicKeyHash] = append(balances[:i], balances[i+1:]...)
-				}
-				return
-			}
-		}
+	utxos, ok := s.pkhUtxos[publicKeyHash]
+	if !ok || !s.pkhUtxos[publicKeyHash].Includes(debit) {
+		panic("cannot debit balance, balance does not exist")
 	}
-	panic("cannot debit balance, balance does not exist")
+	utxos.Remove(debit)
 }
 
-// Get the balances of a public key hash.
-func (s *State) GetBalances(publicKeyHash HashT) []BalanceRecord {
-	if s.balances == nil {
+// Get the utxos of a public key hash.
+func (s *State) GetUtxos(publicKeyHash HashT) []Utxo {
+	if s.pkhUtxos == nil {
 		panic("balance tracking was not enabled")
 	}
-	balances, ok := s.balances[publicKeyHash]
+	utxos, ok := s.pkhUtxos[publicKeyHash]
 	if !ok {
-		return []BalanceRecord{}
+		return []Utxo{}
 	}
-	return balances
+	return utxos.ToList()
 }
 
 func (s *State) GetTotalBalance(publicKeyHash HashT) uint64 {
-	if s.balances == nil {
+	if s.pkhUtxos == nil {
 		panic("balance tracking was not enabled")
 	}
-	balances, ok := s.balances[publicKeyHash]
+	utxos, ok := s.pkhUtxos[publicKeyHash]
 	if !ok {
 		return 0
 	}
 	total := uint64(0)
-	for _, balance := range balances {
-		total += balance.Value
+	for _, utxo := range utxos.ToList() {
+		total += utxo.Value
 	}
 	return total
 }
