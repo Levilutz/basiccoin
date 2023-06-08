@@ -76,8 +76,13 @@ func (h *Handler) handleGetUtxos(w http.ResponseWriter, r *http.Request) {
 		write400(w, r, err)
 		return
 	}
-	h.m.SyncGetUtxos(pkh)
-	io.WriteString(w, "")
+	utxos := h.m.SyncGetUtxos(pkh)
+	utxosJson, err := json.Marshal(utxos)
+	if err != nil {
+		write500(w, r, err)
+		return
+	}
+	io.WriteString(w, string(utxosJson))
 }
 
 func (h *Handler) handleTx(w http.ResponseWriter, r *http.Request) {
@@ -149,4 +154,9 @@ func write422(w http.ResponseWriter, r *http.Request, err error) {
 func write405(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(405)
 	io.WriteString(w, "method not allowed: "+r.Method)
+}
+
+func write500(w http.ResponseWriter, r *http.Request, err error) {
+	w.WriteHeader(500)
+	io.WriteString(w, "server error: "+err.Error())
 }

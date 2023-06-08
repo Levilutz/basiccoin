@@ -251,7 +251,7 @@ func (s *State) debitBalance(publicKeyHash HashT, debit Utxo) {
 }
 
 // Get the utxos of a public key hash.
-func (s *State) GetUtxos(publicKeyHash HashT) []Utxo {
+func (s *State) GetPkhUtxos(publicKeyHash HashT) []Utxo {
 	if s.pkhUtxos == nil {
 		panic("balance tracking was not enabled")
 	}
@@ -262,7 +262,7 @@ func (s *State) GetUtxos(publicKeyHash HashT) []Utxo {
 	return utxos.ToList()
 }
 
-func (s *State) GetTotalBalance(publicKeyHash HashT) uint64 {
+func (s *State) GetPkhBalance(publicKeyHash HashT) uint64 {
 	if s.pkhUtxos == nil {
 		panic("balance tracking was not enabled")
 	}

@@ -154,7 +154,9 @@ func (m *Manager) SyncGetBalance(publicKeyHash db.HashT) uint64 {
 }
 
 func (m *Manager) SyncGetUtxos(publicKeyHash db.HashT) []db.Utxo {
-	return nil
+	rCh := make(chan []db.Utxo)
+	m.queueEvent(utxosQuery{rCh, publicKeyHash})
+	return <-rCh
 }
 
 func (m *Manager) SyncNewTx(tx db.Tx) error {
@@ -287,7 +289,11 @@ func (m *Manager) handleMainBusEvent(event any) {
 		}
 
 	case balanceQuery:
-		msg.rCh <- m.state.GetTotalBalance(msg.publicKeyHash)
+		msg.rCh <- m.state.GetPkhBalance(msg.publicKeyHash)
+		close(msg.rCh)
+
+	case utxosQuery:
+		msg.rCh <- m.state.GetPkhUtxos(msg.publicKeyHash)
 		close(msg.rCh)
 
 	case newTxQuery:

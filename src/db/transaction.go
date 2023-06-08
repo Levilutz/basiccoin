@@ -13,6 +13,35 @@ type Utxo struct {
 	Value uint64
 }
 
+type UtxoJSON struct {
+	TxId  string `json:"txId"`
+	Ind   uint64 `json:"ind"`
+	Value uint64 `json:"value"`
+}
+
+func (utxo Utxo) MarshalJSON() ([]byte, error) {
+	return json.Marshal(UtxoJSON{
+		TxId:  fmt.Sprintf("%x", utxo.TxId),
+		Ind:   utxo.Ind,
+		Value: utxo.Value,
+	})
+}
+
+func (utxo *Utxo) UnmarshalJSON(data []byte) error {
+	v := UtxoJSON{}
+	if err := json.Unmarshal(data, &v); err != nil {
+		return err
+	}
+	txId, err := StringToHash(v.TxId)
+	if err != nil {
+		return err
+	}
+	utxo.TxId = txId
+	utxo.Ind = v.Ind
+	utxo.Value = v.Value
+	return nil
+}
+
 func UtxoFromInput(txi TxIn) Utxo {
 	return Utxo{
 		TxId:  txi.OriginTxId,

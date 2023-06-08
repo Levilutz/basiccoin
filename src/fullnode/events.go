@@ -36,6 +36,12 @@ type balanceQuery struct {
 	publicKeyHash db.HashT
 }
 
+// Get the utxos available to a given public key hash.
+type utxosQuery struct {
+	rCh           chan<- []db.Utxo
+	publicKeyHash db.HashT
+}
+
 // Store a new tx, respond with success.
 type newTxQuery struct {
 	rCh chan<- error
