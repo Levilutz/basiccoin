@@ -117,7 +117,7 @@ var commands = []Command{
 		Name:           "send",
 		HelpText:       "Send coin to a given address.",
 		ArgsUsage:      "[address] [amount]",
-		RequiredArgs:   0,
+		RequiredArgs:   2,
 		RequiresClient: true,
 		Handler: func(ctx HandlerContext) error {
 			destPkh, err := db.StringToHash(ctx.Args[0])

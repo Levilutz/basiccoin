@@ -198,6 +198,9 @@ func (m *Manager) addMetConn(metConn MetConn) {
 		)
 		go peer.Loop()
 		m.peers[metConn.Info.RuntimeID] = peer
+		if metConn.WeAreInitiator {
+			peer.SyncHead(m.state.GetHead())
+		}
 
 	} else {
 		if util.Constants.DebugLevel >= 1 {

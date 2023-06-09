@@ -10,15 +10,16 @@ Build
 go build -o basiccoin ./src/fullnode
 ```
 
-To start a new chain
+To start a node
 ```bash
-./basiccoin --addr="<addr:port to host from>"
+./basiccoin
 ```
 
-To connect to an existing chain
+To start a mining node
 ```bash
-./basiccoin --seed="<addr:port of seed peer>"
+./basiccoin --miners 8 --minerPayoutAddr <address>
 ```
+You can generate a miner payout address with the cli `generate` command.
 
 For more info
 ```bash
@@ -32,12 +33,17 @@ Build
 go build -o basiccoin-cli ./src/cli
 ```
 
-Set up a new local wallet
+To generate an address
 ```bash
-./basiccoin-cli setup
+./basiccoin-cli generate
 ```
 
-Import an existing local wallet
+To view your balance
 ```bash
-./basiccoin-cli import [path]
+./basiccoin-cli balance
+```
+
+For more help
+```bash
+./basiccoin-cli help
 ```
