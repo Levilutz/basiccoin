@@ -246,7 +246,7 @@ func (inv *Inv) HasTxOut(txId HashT, ind uint64) bool {
 	if !inv.HasTx(txId) {
 		return false
 	}
-	return ind >= uint64(len(inv.GetTx(txId).Outputs))
+	return ind < uint64(len(inv.GetTx(txId).Outputs))
 }
 
 // Get the given output from the given tx.
