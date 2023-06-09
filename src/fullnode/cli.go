@@ -26,7 +26,7 @@ func ParseCLIArgs() CLIArgs {
 	localAddr := flag.String("addr", "", "Address to host from")
 	miners := flag.Int("miners", 0, "How many miner instances (defaults to 0)")
 	minerPayoutAddr := flag.String("minerPayoutAddr", "", "Where to pay out mined block rewards")
-	seedAddr := flag.String("seed", "", "Seed peer, or nothing to create new network")
+	seedAddr := flag.String("seed", "coin.levilutz.com:21720", "Seed peer, or nothing to create new network")
 	verbose1 := flag.Bool("v", false, "Whether to show debug logs")
 	verbose2 := flag.Bool("vv", false, "Whether to show more debug logs")
 
@@ -47,9 +47,6 @@ func ParseCLIArgs() CLIArgs {
 	}
 	if *seedAddr != "" {
 		util.Constants.SeedAddr = *seedAddr
-	}
-	if *localAddr == "" && *seedAddr == "" {
-		util.Constants.SeedAddr = "coin.levilutz.com:21720"
 	}
 	payoutAddr := db.HashTZero
 	if *miners > 0 {
