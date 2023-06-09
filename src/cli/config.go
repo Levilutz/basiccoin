@@ -173,7 +173,7 @@ func (cfg *Config) Save() error {
 func EnsureConfig() {
 	_, err := os.ReadFile(getConfigPath())
 	if os.IsNotExist(err) {
-		err = NewConfig("").Save()
+		err = NewConfig("http://coin.levilutz.com:80").Save()
 	}
 	if err != nil {
 		panic("failed to save config: " + err.Error())

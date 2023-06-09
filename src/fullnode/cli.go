@@ -34,9 +34,6 @@ func ParseCLIArgs() CLIArgs {
 	flag.Parse()
 
 	// Validate
-	if *localAddr == "" && *seedAddr == "" {
-		panic("Must provide either --addr or --seed")
-	}
 	if *miners > 0 && *minerPayoutAddr == "" {
 		panic("Must provide payout address if mining")
 	}
@@ -50,6 +47,9 @@ func ParseCLIArgs() CLIArgs {
 	}
 	if *seedAddr != "" {
 		util.Constants.SeedAddr = *seedAddr
+	}
+	if *localAddr == "" && *seedAddr == "" {
+		util.Constants.SeedAddr = "coin.levilutz.com:21720"
 	}
 	payoutAddr := db.HashTZero
 	if *miners > 0 {
