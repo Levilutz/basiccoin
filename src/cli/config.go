@@ -101,6 +101,15 @@ func (cfg *Config) GetPublicKeyHashes() []db.HashT {
 	return out
 }
 
+func (cfg *Config) GetPrivateKey(publicKeyHash db.HashT) (*ecdsa.PrivateKey, error) {
+	for _, kc := range cfg.Keys {
+		if kc.PublicKeyHash == publicKeyHash {
+			return kc.PrivateKey, nil
+		}
+	}
+	return nil, fmt.Errorf("given public key hash does not controlled")
+}
+
 func (cfg *Config) HasPublicKeyHash(pkh db.HashT) bool {
 	for _, kc := range cfg.Keys {
 		if kc.PublicKeyHash == pkh {

@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"os"
+	"strconv"
 
 	"github.com/levilutz/basiccoin/src/db"
 	"github.com/levilutz/basiccoin/src/util"
@@ -86,7 +87,7 @@ var commands = []Command{
 				// Get balance of controlled addresses
 				pkhs = ctx.Config.GetPublicKeyHashes()
 			}
-			balanceData, err := ctx.Client.GetBalances(pkhs)
+			balanceData, err := ctx.Client.GetAllBalances(pkhs)
 			if err != nil {
 				return err
 			}
@@ -98,12 +99,47 @@ var commands = []Command{
 		},
 	},
 	{
+		Name:           "utxos",
+		HelpText:       "Get all utxos available to currently controlled addresses.",
+		RequiresClient: true,
+		Handler: func(ctx HandlerContext) error {
+			utxos, err := ctx.Client.GetAllUtxos(ctx.Config.GetPublicKeyHashes())
+			if err != nil {
+				return err
+			}
+			for utxo := range utxos {
+				fmt.Printf("%x[%d]\t%d\n", utxo.TxId, utxo.Ind, utxo.Value)
+			}
+			return nil
+		},
+	},
+	{
 		Name:           "send",
 		HelpText:       "Send coin to a given address.",
 		ArgsUsage:      "[address] [amount]",
 		RequiredArgs:   0,
 		RequiresClient: true,
 		Handler: func(ctx HandlerContext) error {
+			destPkh, err := db.StringToHash(ctx.Args[0])
+			if err != nil {
+				return err
+			}
+			amt, err := strconv.ParseUint(ctx.Args[1], 10, 64)
+			if err != nil {
+				return err
+			}
+			outputValues := map[db.HashT]uint64{
+				destPkh: amt,
+			}
+			tx, err := ctx.Client.MakeOutboundTx(outputValues)
+			if err != nil {
+				return err
+			}
+			txId, err := ctx.Client.SendTx(tx)
+			if err != nil {
+				return err
+			}
+			fmt.Println(greenStr(fmt.Sprintf("%x", txId)))
 			return nil
 		},
 	},

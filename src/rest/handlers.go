@@ -110,7 +110,9 @@ func (h *Handler) handlePostTx(w http.ResponseWriter, r *http.Request) {
 	}
 	if err = h.m.SyncNewTx(tx); err != nil {
 		write400(w, r, err)
+		return
 	}
+	io.WriteString(w, fmt.Sprintf("%x", tx.Hash()))
 }
 
 func (h *Handler) handleTxConfirms(w http.ResponseWriter, r *http.Request) {
