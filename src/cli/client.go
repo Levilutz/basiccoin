@@ -289,3 +289,89 @@ func (c *Client) MakeOutboundTx(outputValues map[db.HashT]uint64) (db.Tx, error)
 
 	return tx, nil
 }
+
+// Manufacture a tx to consolidate as many of our utxos as possible.
+func (c *Client) MakeConsolidateTx() (db.Tx, error) {
+	targetRate := float64(1.0) // Target fee rate coin / vByte
+	// Get available utxos
+	utxos, err := c.GetAllUtxos(c.config.GetPublicKeyHashes())
+	if err != nil {
+		return db.Tx{}, err
+	} else if len(utxos) == 0 {
+		return db.Tx{}, fmt.Errorf("insufficient balance")
+	} else if len(utxos) == 1 {
+		return db.Tx{}, fmt.Errorf("no consolidation possible")
+	}
+	balance := uint64(0)
+	pkhBalances := make(map[db.HashT]uint64)
+	for utxo, pkh := range utxos {
+		balance += utxo.Value
+		pkhBalances[pkh] += utxo.Value
+	}
+	sortedPkhs := util.MapKeys(pkhBalances)
+	sort.Slice(sortedPkhs, func(i, j int) bool {
+		// > instead of < because we want descending
+		return pkhBalances[sortedPkhs[i]] > pkhBalances[sortedPkhs[j]]
+	})
+
+	// Get utxos sorted by value
+	utxosSorted := util.MapKeys(utxos)
+	sort.Slice(utxosSorted, func(i, j int) bool {
+		// > instead of < because we want descending
+		return utxosSorted[i].Value > utxosSorted[j].Value
+	})
+
+	// Build base tx with placeholder output
+	tx := db.Tx{
+		MinBlock: 0, // TODO: Query this from the node
+		Inputs:   []db.TxIn{},
+		Outputs: []db.TxOut{
+			{
+				Value:         0,
+				PublicKeyHash: sortedPkhs[0],
+			},
+		},
+	}
+
+	// Add utxos until we reach target (with placeholder sigs)
+	totalIn := uint64(0)
+	for _, utxo := range utxosSorted {
+		newIn := db.TxIn{
+			OriginTxId:     utxo.TxId,
+			OriginTxOutInd: utxo.Ind,
+			PublicKey:      db.ExamplePubDer(),
+			Signature:      db.ExampleMaxSigAsn(),
+			Value:          utxo.Value,
+		}
+		if tx.VSize()+newIn.VSize() > util.Constants.MaxTxVSize {
+			break
+		}
+		totalIn += utxo.Value
+		tx.Inputs = append(tx.Inputs, newIn)
+	}
+
+	// Set the output amount
+	tx.Outputs[0].Value = totalIn - uint64(targetRate*float64(tx.VSize()))
+
+	// Sign the inputs, replacing placeholders
+	preSigHash := db.TxHashPreSig(tx.MinBlock, tx.Outputs)
+	for i := range tx.Inputs {
+		utxo := utxosSorted[i]
+		priv, err := c.config.GetPrivateKey(utxos[utxo])
+		if err != nil {
+			return db.Tx{}, err
+		}
+		pub, err := db.MarshalEcdsaPublic(priv)
+		if err != nil {
+			return db.Tx{}, err
+		}
+		sig, err := db.EcdsaSign(priv, preSigHash)
+		if err != nil {
+			return db.Tx{}, err
+		}
+		tx.Inputs[i].PublicKey = pub
+		tx.Inputs[i].Signature = sig
+	}
+
+	return tx, nil
+}

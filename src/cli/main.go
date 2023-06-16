@@ -144,6 +144,23 @@ var commands = []Command{
 		},
 	},
 	{
+		Name:           "consolidate",
+		HelpText:       "Consolidate utxos to the wealthiest controlled address",
+		RequiresClient: true,
+		Handler: func(ctx HandlerContext) error {
+			tx, err := ctx.Client.MakeConsolidateTx()
+			if err != nil {
+				return err
+			}
+			txId, err := ctx.Client.SendTx(tx)
+			if err != nil {
+				return err
+			}
+			fmt.Println(greenStr(fmt.Sprintf("%x", txId)))
+			return nil
+		},
+	},
+	{
 		Name:           "history",
 		HelpText:       "Get the history of all currently controlled addresses, or a given address.",
 		ArgsUsage:      "(address)",
