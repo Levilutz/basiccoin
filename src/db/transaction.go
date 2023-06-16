@@ -238,7 +238,7 @@ func MinNonCoinbaseVSize() uint64 {
 			{
 				OriginTxId:     HashTZero,
 				OriginTxOutInd: 0,
-				PublicKey:      []byte{},
+				PublicKey:      ExamplePubDer(),
 				Signature:      []byte{},
 				Value:          0,
 			},

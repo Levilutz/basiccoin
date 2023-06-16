@@ -184,16 +184,25 @@ func (c *Client) GetHistory(publicKeyHashes ...db.HashT) []db.Tx {
 // Manufacture an outbound tx that could be sent to the network.
 // TODO: Allow this to be customized, don't use utxos that have unconfirmed spends.
 func (c *Client) MakeOutboundTx(outputValues map[db.HashT]uint64) (db.Tx, error) {
-	targetRate := float64(1.0)
+	targetRate := float64(1.0) // Target fee rate in coin / vByte
 	// Get available utxos
 	utxos, err := c.GetAllUtxos(c.config.GetPublicKeyHashes())
 	if err != nil {
 		return db.Tx{}, err
+	} else if len(utxos) == 0 {
+		return db.Tx{}, fmt.Errorf("insufficient balance")
 	}
 	balance := uint64(0)
-	for utxo := range utxos {
+	pkhBalances := make(map[db.HashT]uint64)
+	for utxo, pkh := range utxos {
 		balance += utxo.Value
+		pkhBalances[pkh] += utxo.Value
 	}
+	sortedPkhs := util.MapKeys(pkhBalances)
+	sort.Slice(sortedPkhs, func(i, j int) bool {
+		// > instead of < because we want descending
+		return pkhBalances[sortedPkhs[i]] > pkhBalances[sortedPkhs[j]]
+	})
 
 	// Get total outputs and verify <= utxos
 	totalOut := uint64(0)
@@ -211,11 +220,16 @@ func (c *Client) MakeOutboundTx(outputValues map[db.HashT]uint64) (db.Tx, error)
 		return utxosSorted[i].Value > utxosSorted[j].Value
 	})
 
-	// Build base tx with outputs
+	// Build base tx with outputs and placeholder change output
 	tx := db.Tx{
 		MinBlock: 0, // TODO: Query this from node
 		Inputs:   []db.TxIn{},
-		Outputs:  []db.TxOut{},
+		Outputs: []db.TxOut{
+			{
+				Value:         0,
+				PublicKeyHash: sortedPkhs[0],
+			},
+		},
 	}
 	for pkh, val := range outputValues {
 		tx.Outputs = append(tx.Outputs, db.TxOut{
@@ -223,12 +237,40 @@ func (c *Client) MakeOutboundTx(outputValues map[db.HashT]uint64) (db.Tx, error)
 			PublicKeyHash: pkh,
 		})
 	}
-	preSigHash := db.TxHashPreSig(tx.MinBlock, tx.Outputs)
 
-	// Add utxos until we reach target input
+	// Add utxos until we reach target input (with placeholder signatures)
 	totalIn := uint64(0)
 	for i, utxo := range utxosSorted {
 		totalIn += utxo.Value
+
+		tx.Inputs = append(tx.Inputs, db.TxIn{
+			OriginTxId:     utxo.TxId,
+			OriginTxOutInd: utxo.Ind,
+			PublicKey:      db.ExamplePubDer(),
+			Signature:      db.ExampleMaxSigAsn(),
+			Value:          utxo.Value,
+		})
+		if tx.VSize() > util.Constants.MaxTxVSize {
+			return db.Tx{}, fmt.Errorf("cannot create tx within vsize limits")
+		}
+		if totalIn >= totalOut+uint64(targetRate*float64(tx.VSize())) {
+			break
+		}
+		if i == len(utxosSorted)-1 {
+			return db.Tx{}, fmt.Errorf("insufficient balance to pay target fee rate")
+		}
+	}
+
+	// Set the change output
+	// Ideally we would do this after replacing sigs bc vSize and thus fee would decrease
+	// But unfortunately we need this output finalized so we can compute preSigHash
+	// Thus we will on average overestimate vSize by ~1 vByte per output (<1% fee diff)
+	tx.Outputs[0].Value = totalIn - totalOut - uint64(targetRate*float64(tx.VSize()))
+
+	// Sign the inputs, replacing placeholders
+	preSigHash := db.TxHashPreSig(tx.MinBlock, tx.Outputs)
+	for i := range tx.Inputs {
+		utxo := utxosSorted[i]
 		priv, err := c.config.GetPrivateKey(utxos[utxo])
 		if err != nil {
 			return db.Tx{}, err
@@ -241,22 +283,8 @@ func (c *Client) MakeOutboundTx(outputValues map[db.HashT]uint64) (db.Tx, error)
 		if err != nil {
 			return db.Tx{}, err
 		}
-		tx.Inputs = append(tx.Inputs, db.TxIn{
-			OriginTxId:     utxo.TxId,
-			OriginTxOutInd: utxo.Ind,
-			PublicKey:      pub,
-			Signature:      sig,
-			Value:          utxo.Value,
-		})
-		if tx.VSize() > util.Constants.MaxTxVSize {
-			return db.Tx{}, fmt.Errorf("cannot create tx within vsize limits")
-		}
-		if totalIn >= totalOut+uint64(targetRate*float64(tx.VSize())) {
-			break
-		}
-		if i == len(utxosSorted)-1 {
-			return db.Tx{}, fmt.Errorf("insufficient balance to pay target fee rate")
-		}
+		tx.Inputs[i].PublicKey = pub
+		tx.Inputs[i].Signature = sig
 	}
 
 	return tx, nil

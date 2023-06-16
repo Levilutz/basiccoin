@@ -267,3 +267,29 @@ func ParseB64(content64 []byte) ([]byte, error) {
 	}
 	return out[:n], nil
 }
+
+// An example der-encoded ecdsa public key of expected length 91 bytes.
+func ExamplePubDer() []byte {
+	pubDer, err := hex.DecodeString(
+		"3059301306072a8648ce3d020106082a8648ce3d030107034200042a74cb8265" +
+			"947240a77e61fa899cfe7ad0d3ea8df329acd72b22052f0fe4b37b2f5ddbe8a8" +
+			"0bb907483121c08db045276e99795db0390d5bcbd80c7bfda68e86",
+	)
+	if err != nil {
+		panic(err)
+	}
+	return pubDer
+}
+
+// An example of a max-length asn.1 encoded ecdsa signature of length 72 bytes.
+func ExampleMaxSigAsn() []byte {
+	sig, err := hex.DecodeString(
+		"3046022100e98da6096a0602d10b6718ff1ce05e396654d427ac5e195c8dfa16" +
+			"b43776576b022100d9227403a5fbd8e2ef67b5f22172f94e0b7047d3b5be07e0" +
+			"1c671d5d9dfe5a0b",
+	)
+	if err != nil {
+		panic(err)
+	}
+	return sig
+}
