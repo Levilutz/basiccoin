@@ -18,13 +18,10 @@ import (
 // Checks total of all txs (including coinbase) has 0 surplus.
 // Checks block vSize is within limit (covered by verifyMerkle, but just to be safe).
 func verifyBlock(inv InvReader, block kern.Block) error {
-	if !block.Hash().Lt(block.Difficulty) {
-		return fmt.Errorf(
-			"new block failed to beat target difficulty: %s !< %s",
-			block.Hash(),
-			block.Difficulty,
-		)
-	} else if !inv.HasMerkle(block.MerkleRoot) {
+	if err := block.VerifyIsolated(); err != nil {
+		return err
+	}
+	if !inv.HasMerkle(block.MerkleRoot) {
 		return fmt.Errorf("failed to find new block merkle root")
 	} else if !inv.HasBlock(block.PrevBlockId) {
 		return fmt.Errorf("failed to find new block parent id")
@@ -105,26 +102,8 @@ func verifyMerkle(inv InvReader, merkle kern.MerkleNode) error {
 // Checks tx public key matches hash on claimed utxo for each tx input.
 // Checks tx input value matches utxo value for each tx input.
 func verifyTx(inv InvReader, tx kern.Tx) error {
-	vSize := tx.VSize()
-	if !tx.SignaturesValid() {
-		return fmt.Errorf("tx signatures invalid")
-	} else if vSize > util.Constants.MaxTxVSize {
-		return fmt.Errorf("tx VSize exceeds limit")
-	}
-	if len(tx.Inputs) > 0 {
-		// Not coinbase - verify total outputs < total inputs
-		if tx.OutputsValue() >= tx.InputsValue() {
-			return fmt.Errorf("tx outputs exceed or match inputs")
-		}
-	} else {
-		// Coinbase - verify outputs exist and total outputs >= BlockReward
-		if len(tx.Outputs) != 1 {
-			return fmt.Errorf("coinbase must have 1 output")
-		} else if tx.OutputsValue() < uint64(util.Constants.BlockReward) {
-			return fmt.Errorf(
-				"coinbase has insufficient block reward: %d", tx.OutputsValue(),
-			)
-		}
+	if err := tx.VerifyIsolated(); err != nil {
+		return err
 	}
 	// Verify given public key and value match those on origin utxo
 	for _, txi := range tx.Inputs {

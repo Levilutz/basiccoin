@@ -166,11 +166,21 @@ func DHashUint64(content uint64) HashT {
 	return DHashBytes(bs)
 }
 
+// Generate a new double-sha256 hash from the given bool.
+func DHashBool(content bool) HashT {
+	if content {
+		return DHashBytes([]byte{0})
+	} else {
+		return DHashBytes([]byte{1})
+	}
+}
+
 // Generate a new double-sha256 hash from whatever the given value is.
 // If content is a hash, it's returned unchanged.
 // If content is a Hasher, the output of its Hash() method is returned.
 // If content is a uint64, the hash of its big-endian bytes is returned.
 // If content is a byte slice, its hash is returned.
+// If content is a bool, it's converted to a single 1 or 0 byte then hashed.
 // If content is of unexpected type, this method panics.
 func DHashAny(content any) HashT {
 	switch typed := content.(type) {
@@ -182,6 +192,8 @@ func DHashAny(content any) HashT {
 		return DHashUint64(typed)
 	case []byte:
 		return DHashBytes(typed)
+	case bool:
+		return DHashBool(typed)
 	default:
 		panic(fmt.Sprintf("unhashable type: %T", typed))
 	}

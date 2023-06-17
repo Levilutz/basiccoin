@@ -24,16 +24,16 @@ type Block struct {
 	Nonce       uint64
 }
 
-func (b Block) Hash() HashT {
-	return DHashVarious(b.PrevBlockId, b.MerkleRoot, b.Difficulty, b.Noise, b.Nonce)
-}
-
-// Verify that the claimed proof of work is valid.
-func (b Block) VerifyProofOfWork() error {
+// Verify what we can about this block in isolation.
+func (b Block) VerifyIsolated() error {
 	if !b.Hash().Lt(b.Difficulty) {
-		return fmt.Errorf("failed to beat claimed target")
+		return fmt.Errorf("block fails to beat claimed target difficulty")
 	}
 	return nil
+}
+
+func (b Block) Hash() HashT {
+	return DHashVarious(b.PrevBlockId, b.MerkleRoot, b.Difficulty, b.Noise, b.Nonce)
 }
 
 // The maximum number of txs that could theoretically be in a block, including coinbase.
