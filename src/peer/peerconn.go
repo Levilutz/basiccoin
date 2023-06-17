@@ -193,6 +193,18 @@ func (pc *PeerConn) TransmitBytesHexLine(msg []byte) {
 	pc.TransmitStringLine(fmt.Sprintf("%x", msg))
 }
 
+// Transmit a boolean as a line.
+func (pc *PeerConn) TransmitBoolLine(msg bool) {
+	if pc.e != nil {
+		return
+	}
+	if msg {
+		pc.TransmitStringLine("bool:true")
+	} else {
+		pc.TransmitStringLine("bool:false")
+	}
+}
+
 // Transmit a block header.
 func (pc *PeerConn) TransmitBlockHeader(block kern.Block) {
 	if pc.e != nil {
@@ -220,6 +232,7 @@ func (pc *PeerConn) TransmitTx(tx kern.Tx) {
 		return
 	}
 	// Send tx base
+	pc.TransmitBoolLine(tx.IsCoinbase)
 	pc.TransmitUint64Line(tx.MinBlock)
 	pc.TransmitUint64Line(uint64(len(tx.Inputs)))
 	pc.TransmitUint64Line(uint64(len(tx.Outputs)))
@@ -305,6 +318,26 @@ func (pc *PeerConn) RetryReadBytesHexLine(attempts int) []byte {
 	return out
 }
 
+// Retry reading a bool line, exponential wait.
+// See RetryReadLine for more info.
+func (pc *PeerConn) RetryReadBoolLine(attempts int) bool {
+	if pc.e != nil {
+		return false
+	}
+	raw := pc.RetryReadLine(attempts)
+	if pc.e != nil {
+		return false
+	}
+	if string(raw) == "bool:true" {
+		return true
+	} else if string(raw) == "bool:false" {
+		return false
+	} else {
+		pc.e = fmt.Errorf("unrecognized bool string: %s", string(raw))
+		return false
+	}
+}
+
 // Retry reading a block header, each line has exponential wait.
 // If expectId is not zero value, verifies block hash is expected.kern.HashT
 func (pc *PeerConn) RetryReadBlockHeader(attemptsPer int, expectId kern.HashT) kern.Block {
@@ -349,6 +382,7 @@ func (pc *PeerConn) RetryReadTx(attemptsPer int, expectId kern.HashT) kern.Tx {
 		return kern.Tx{}
 	}
 	// Receive tx base
+	isCoinbase := pc.RetryReadBoolLine(attemptsPer)
 	minBlock := pc.RetryReadUint64Line(attemptsPer)
 	numTxIns := pc.RetryReadUint64Line(attemptsPer)
 	numTxOuts := pc.RetryReadUint64Line(attemptsPer)
@@ -378,9 +412,10 @@ func (pc *PeerConn) RetryReadTx(attemptsPer int, expectId kern.HashT) kern.Tx {
 		return kern.Tx{}
 	}
 	tx := kern.Tx{
-		MinBlock: minBlock,
-		Inputs:   txIns,
-		Outputs:  txOuts,
+		IsCoinbase: isCoinbase,
+		MinBlock:   minBlock,
+		Inputs:     txIns,
+		Outputs:    txOuts,
 	}
 	if !expectId.EqZero() && tx.Hash() != expectId {
 		pc.e = errors.New("tx has unexpected hash")

@@ -160,7 +160,7 @@ func MinNonCoinbaseVSize() uint64 {
 				OriginTxId:     HashT{},
 				OriginTxOutInd: 0,
 				PublicKey:      ExamplePubDer(),
-				Signature:      []byte{},
+				Signature:      []byte{}, // No lower bound on signature length
 				Value:          0,
 			},
 		},

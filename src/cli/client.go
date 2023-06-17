@@ -222,8 +222,9 @@ func (c *Client) MakeOutboundTx(outputValues map[kern.HashT]uint64) (kern.Tx, er
 
 	// Build base tx with outputs and placeholder change output
 	tx := kern.Tx{
-		MinBlock: 0, // TODO: Query this from node
-		Inputs:   []kern.TxIn{},
+		IsCoinbase: false,
+		MinBlock:   0, // TODO: Query this from node
+		Inputs:     []kern.TxIn{},
 		Outputs: []kern.TxOut{
 			{
 				Value:         0,
@@ -323,8 +324,9 @@ func (c *Client) MakeConsolidateTx() (kern.Tx, error) {
 
 	// Build base tx with placeholder output
 	tx := kern.Tx{
-		MinBlock: 0, // TODO: Query this from the node
-		Inputs:   []kern.TxIn{},
+		IsCoinbase: false,
+		MinBlock:   0, // TODO: Query this from the node
+		Inputs:     []kern.TxIn{},
 		Outputs: []kern.TxOut{
 			{
 				Value:         0,

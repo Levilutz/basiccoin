@@ -38,22 +38,16 @@ func verifyBlock(inv InvReader, block kern.Block) error {
 	totalInputs := uint64(util.Constants.BlockReward)
 	totalOutputs := uint64(0)
 	for i, tx := range txs {
-		if i == 0 {
-			if len(tx.Inputs) != 0 {
-				return fmt.Errorf("coinbase tx must have no inputs")
-			} else if len(tx.Outputs) != 1 || tx.OutputsValue() < util.Constants.BlockReward {
-				return fmt.Errorf("coinbase tx must have outputs > block reward")
-			}
-		} else {
-			if len(tx.Inputs) == 0 || !tx.HasSurplus() {
-				return fmt.Errorf("non-coinbase tx must have surplus")
-			}
+		if i == 0 && !tx.IsCoinbase {
+			return fmt.Errorf("first block tx must be coinbase")
+		} else if i != 0 && tx.IsCoinbase {
+			return fmt.Errorf("only first block tx may be coinbase")
 		}
 		totalInputs += tx.InputsValue()
 		totalOutputs += tx.OutputsValue()
 	}
 	if totalInputs != totalOutputs {
-		return fmt.Errorf("total inputs and outputs do not match")
+		return fmt.Errorf("block total inputs and outputs do not match")
 	} else if inv.GetMerkleVSize(block.MerkleRoot) > util.Constants.MaxBlockVSize {
 		return fmt.Errorf("block exceeds max vSize")
 	}

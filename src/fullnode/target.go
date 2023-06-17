@@ -50,8 +50,9 @@ func CreateMiningTarget(s *db.State, inv *db.Inv, publicKeyHash kern.HashT) kern
 		panic(err)
 	}
 	outTxs[0] = kern.Tx{
-		MinBlock: headHeight + 1,
-		Inputs:   make([]kern.TxIn, 0),
+		IsCoinbase: true,
+		MinBlock:   headHeight + 1,
+		Inputs:     make([]kern.TxIn, 0),
 		Outputs: []kern.TxOut{
 			{
 				Value:         uint64(totalFees) + util.Constants.BlockReward,

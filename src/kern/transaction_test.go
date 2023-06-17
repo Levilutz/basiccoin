@@ -64,9 +64,10 @@ func TestTransactionHash(t *testing.T) {
 
 	// Generate final hash
 	tx := Tx{
-		MinBlock: minBlock,
-		Inputs:   inputs,
-		Outputs:  outputs,
+		IsCoinbase: false,
+		MinBlock:   minBlock,
+		Inputs:     inputs,
+		Outputs:    outputs,
 	}
 	txHash := tx.Hash()
 	t.Log("txhash", len(txHash.Data()), txHash)
@@ -78,7 +79,8 @@ func TestTxJson(t *testing.T) {
 	outPkh1 := NewHashTRand()
 	outPkh2 := NewHashTRand()
 	tx := Tx{
-		MinBlock: 443,
+		IsCoinbase: false,
+		MinBlock:   443,
 		Inputs: []TxIn{
 			{
 				OriginTxId:     originId,
