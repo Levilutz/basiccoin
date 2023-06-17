@@ -197,7 +197,7 @@ func DHashHashes(items []HashT) HashT {
 }
 
 // Generate a new double-sha256 hash of the given various items concatenated.
-// See DHashAny2 for documentation on how each type is handled
+// See DHashAny for documentation on how each type is handled
 func DHashVarious(items ...any) HashT {
 	hashes := make([]HashT, len(items))
 	for i := range items {
