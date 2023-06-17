@@ -42,6 +42,16 @@ func NewHashTFromString(data string) (HashT, error) {
 	return out, nil
 }
 
+// Parse a hash from a hex-encoding in a string, panic if failure.
+// This should only be used for hardcoded hash values.
+func NewHashTFromStringAssert(data string) HashT {
+	hash, err := NewHashTFromString(data)
+	if err != nil {
+		panic(err)
+	}
+	return hash
+}
+
 // Create a hash from a big.Int. Panics if data > 2^32-1
 func NewHashTFromBigInt(data *big.Int) HashT {
 	out := HashT{}
@@ -107,6 +117,31 @@ func (h HashT) WorkAppendTarget(newTarget HashT) HashT {
 	nextInt := newTarget.TargetToWork()
 	curInt.Add(curInt, nextInt)
 	return NewHashTFromBigInt(curInt)
+}
+
+// Maximum (easiest) allowed next target after this one.
+func (h HashT) MaxNextTarget(params Params) HashT {
+	// Catch targets that are already out of bounds and bump
+	if params.MaxTarget.Lt(h) {
+		return params.MaxTarget
+	}
+	// Multiply h by 4
+	hInt := h.BigInt()
+	hInt.Mul(hInt, big.NewInt(4))
+	newTarget := NewHashTFromBigInt(hInt)
+	// If greater than max target, return max target
+	if params.MaxTarget.Lt(newTarget) {
+		return params.MaxTarget
+	}
+	return newTarget
+}
+
+// Minimum (hardest) allowed next target after this one.
+func (h HashT) MinNextTarget() HashT {
+	// Divide by 4
+	hInt := h.BigInt()
+	hInt.Div(hInt, big.NewInt(4))
+	return NewHashTFromBigInt(hInt)
 }
 
 // Convert the given list of targets to an amount of total work to reach them all.

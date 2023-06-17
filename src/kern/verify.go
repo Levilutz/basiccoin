@@ -188,6 +188,33 @@ func (v Verifier) VerifyBlock(b Block) error {
 	if b.MinedTime > uint64(time.Now().Unix())+3600 {
 		return fmt.Errorf("block mined time more than one hour in the future")
 	}
+
+	// Verify block difficulty adjustment correct
+	if !b.PrevBlockId.EqZero() {
+		prevDifficulty := v.inv.GetBlock(b.PrevBlockId).Difficulty
+		if newBlockHeight%v.params.DifficultyPeriod == 0 {
+			// Verify new difficulty isn't too hard compared to the last
+			if b.Difficulty.Lt(prevDifficulty.MinNextTarget()) {
+				return fmt.Errorf("block target reduced more than 4x")
+			}
+
+			// Verify new difficulty isn't too easy compared to the last
+			if prevDifficulty.MaxNextTarget(v.params).Lt(b.Difficulty) {
+				return fmt.Errorf("block target increased more than 4x")
+			}
+
+		} else {
+			// Verify difficulty unchanged
+			if !b.Difficulty.Eq(prevDifficulty) {
+				return fmt.Errorf("block altering target from parent out of period")
+			}
+		}
+	} else {
+		// This is first block - verify difficulty correct
+		if !b.Difficulty.Eq(v.params.OriginalTarget) {
+			return fmt.Errorf("first block does not have required difficulty")
+		}
+	}
 	return nil
 }
 
