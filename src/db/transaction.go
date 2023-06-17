@@ -1,45 +1,11 @@
 package db
 
-import (
-	"encoding/json"
-	"fmt"
-)
-
 // Reference to unspent transaction output.
 // This is just a subset of the fields in a TxIn.
 type Utxo struct {
-	TxId  HashT
-	Ind   uint64
-	Value uint64
-}
-
-type UtxoJSON struct {
-	TxId  string `json:"txId"`
+	TxId  HashT2 `json:"txId"`
 	Ind   uint64 `json:"ind"`
 	Value uint64 `json:"value"`
-}
-
-func (utxo Utxo) MarshalJSON() ([]byte, error) {
-	return json.Marshal(UtxoJSON{
-		TxId:  fmt.Sprintf("%x", utxo.TxId),
-		Ind:   utxo.Ind,
-		Value: utxo.Value,
-	})
-}
-
-func (utxo *Utxo) UnmarshalJSON(data []byte) error {
-	v := UtxoJSON{}
-	if err := json.Unmarshal(data, &v); err != nil {
-		return err
-	}
-	txId, err := StringToHash(v.TxId)
-	if err != nil {
-		return err
-	}
-	utxo.TxId = txId
-	utxo.Ind = v.Ind
-	utxo.Value = v.Value
-	return nil
 }
 
 func UtxoFromInput(txi TxIn) Utxo {
@@ -52,24 +18,16 @@ func UtxoFromInput(txi TxIn) Utxo {
 
 // A transaction input.
 type TxIn struct {
-	OriginTxId     HashT
-	OriginTxOutInd uint64
-	PublicKey      []byte
-	Signature      []byte
-	Value          uint64
-}
-
-type TxInJSON struct {
-	OriginTxId     string `json:"originTxId"`
+	OriginTxId     HashT2 `json:"originTxId"`
 	OriginTxOutInd uint64 `json:"originTxOutInd"`
 	PublicKey      []byte `json:"publicKey"`
 	Signature      []byte `json:"signature"`
 	Value          uint64 `json:"value"`
 }
 
-func (txi TxIn) Hash() HashT {
-	return DHashItems(
-		txi.OriginTxId[:],
+func (txi TxIn) Hash() HashT2 {
+	return DHashVarious2(
+		txi.OriginTxId,
 		txi.OriginTxOutInd,
 		txi.PublicKey,
 		txi.Signature,
@@ -77,80 +35,19 @@ func (txi TxIn) Hash() HashT {
 	)
 }
 
-func (txi TxIn) MarshalJSON() ([]byte, error) {
-	return json.Marshal(TxInJSON{
-		OriginTxId:     fmt.Sprintf("%x", txi.OriginTxId),
-		OriginTxOutInd: txi.OriginTxOutInd,
-		PublicKey:      txi.PublicKey,
-		Signature:      txi.Signature,
-		Value:          txi.Value,
-	})
-}
-
-func (txi *TxIn) UnmarshalJSON(data []byte) error {
-	v := TxInJSON{}
-	if err := json.Unmarshal(data, &v); err != nil {
-		return err
-	}
-	origin, err := StringToHash(v.OriginTxId)
-	if err != nil {
-		return err
-	}
-	txi.OriginTxId = origin
-	txi.OriginTxOutInd = v.OriginTxOutInd
-	txi.PublicKey = v.PublicKey
-	txi.Signature = v.Signature
-	txi.Value = v.Value
-	return nil
-}
-
 func (txi TxIn) VSize() uint64 {
 	// 32 from OriginTxId, 8 from OriginTxOutInd, 8 from Value
 	return uint64(32 + 8 + 8 + len(txi.PublicKey) + len(txi.Signature))
 }
 
-func TxInPackHasher(txins []TxIn) []Hasher {
-	out := make([]Hasher, len(txins))
-	for i := 0; i < len(txins); i++ {
-		out[i] = txins[i]
-	}
-	return out
-}
-
 // A transaction output.
 type TxOut struct {
-	Value         uint64
-	PublicKeyHash HashT
-}
-
-type TxOutJSON struct {
 	Value         uint64 `json:"value"`
-	PublicKeyHash string `json:"publicKeyHash"`
+	PublicKeyHash HashT2 `json:"publicKeyHash"`
 }
 
-func (txo TxOut) Hash() HashT {
-	return DHashItems(txo.Value, txo.PublicKeyHash)
-}
-
-func (txo TxOut) MarshalJSON() ([]byte, error) {
-	return json.Marshal(TxOutJSON{
-		Value:         txo.Value,
-		PublicKeyHash: fmt.Sprintf("%x", txo.PublicKeyHash),
-	})
-}
-
-func (txo *TxOut) UnmarshalJSON(data []byte) error {
-	v := TxOutJSON{}
-	if err := json.Unmarshal(data, &v); err != nil {
-		return err
-	}
-	pkh, err := StringToHash(v.PublicKeyHash)
-	if err != nil {
-		return err
-	}
-	txo.Value = v.Value
-	txo.PublicKeyHash = pkh
-	return nil
+func (txo TxOut) Hash() HashT2 {
+	return DHashVarious2(txo.Value, txo.PublicKeyHash)
 }
 
 func (txo TxOut) VSize() uint64 {
@@ -160,14 +57,14 @@ func (txo TxOut) VSize() uint64 {
 
 // A transaction.
 type Tx struct {
-	MinBlock uint64
-	Inputs   []TxIn
-	Outputs  []TxOut
+	MinBlock uint64  `json:"minBlock"`
+	Inputs   []TxIn  `json:"inputs"`
+	Outputs  []TxOut `json:"outputs"`
 }
 
-func (tx Tx) Hash() HashT {
-	return DHashItems(
-		tx.MinBlock, DHashList(tx.Inputs), DHashList(tx.Outputs),
+func (tx Tx) Hash() HashT2 {
+	return DHashVarious2(
+		tx.MinBlock, DHashList2(tx.Inputs), DHashList2(tx.Outputs),
 	)
 }
 
@@ -227,8 +124,8 @@ func (tx Tx) GetConsumedUtxos() []Utxo {
 	return out
 }
 
-func TxHashPreSig(minBlock uint64, outputs []TxOut) HashT {
-	return DHashItems(minBlock, DHashList(outputs))
+func TxHashPreSig(minBlock uint64, outputs []TxOut) HashT2 {
+	return DHashVarious2(minBlock, DHashList2(outputs))
 }
 
 func MinNonCoinbaseVSize() uint64 {
@@ -236,7 +133,7 @@ func MinNonCoinbaseVSize() uint64 {
 		MinBlock: 0,
 		Inputs: []TxIn{
 			{
-				OriginTxId:     HashTZero,
+				OriginTxId:     HashT2{},
 				OriginTxOutInd: 0,
 				PublicKey:      ExamplePubDer(),
 				Signature:      []byte{},
@@ -254,7 +151,7 @@ func CoinbaseVSize() uint64 {
 		Outputs: []TxOut{
 			{
 				Value:         0,
-				PublicKeyHash: HashTZero,
+				PublicKeyHash: HashT2{},
 			},
 		},
 	}.VSize()

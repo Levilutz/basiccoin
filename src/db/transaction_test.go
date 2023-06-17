@@ -24,21 +24,19 @@ func TestTransactionHash(t *testing.T) {
 	inKey2Priv, inKey2PubDer := generateWithPublic()
 	_, outKey1PubDer := generateWithPublic()
 	_, outKey2PubDer := generateWithPublic()
-	inKey1PrivDer, err := MarshalEcdsaPrivate(inKey1Priv)
+	_, err := MarshalEcdsaPrivate(inKey1Priv)
 	util.AssertNoErr(t, err)
-	t.Log("priv1", len(inKey1PrivDer), string(EncodeB64(inKey1PrivDer)))
-	t.Log("pub1", len(inKey1PubDer), string(EncodeB64(inKey1PubDer)))
 
 	// Generate pre-signature content
 	var minBlock uint64 = 44
 	outputs := []TxOut{
 		{
 			Value:         554,
-			PublicKeyHash: DHash(outKey1PubDer),
+			PublicKeyHash: DHashBytes2(outKey1PubDer),
 		},
 		{
 			Value:         102,
-			PublicKeyHash: DHash(outKey2PubDer),
+			PublicKeyHash: DHashBytes2(outKey2PubDer),
 		},
 	}
 	preSigHash := TxHashPreSig(minBlock, outputs)
@@ -48,16 +46,16 @@ func TestTransactionHash(t *testing.T) {
 	util.AssertNoErr(t, err)
 	sig2Asn, err := EcdsaSign(inKey2Priv, preSigHash)
 	util.AssertNoErr(t, err)
-	t.Log("sig1", len(sig1Asn), string(EncodeB64(sig1Asn)))
+	t.Log("sig1", len(sig1Asn))
 	inputs := []TxIn{
 		{
-			OriginTxId:     DHash([]byte("Hello World")),
+			OriginTxId:     DHashBytes2([]byte("Hello World")),
 			OriginTxOutInd: 2,
 			PublicKey:      inKey1PubDer,
 			Signature:      sig1Asn,
 		},
 		{
-			OriginTxId:     DHash([]byte("Hello World 123")),
+			OriginTxId:     DHashBytes2([]byte("Hello World 123")),
 			OriginTxOutInd: 3,
 			PublicKey:      inKey2PubDer,
 			Signature:      sig2Asn,
@@ -71,17 +69,14 @@ func TestTransactionHash(t *testing.T) {
 		Outputs:  outputs,
 	}
 	txHash := tx.Hash()
-	t.Log("txhash", len(txHash), HashHex(txHash), string(EncodeB64(txHash[:])))
+	t.Log("txhash", len(txHash.Data()), txHash)
 }
 
 // Test that a tx and components can be json serialized and deserialized.
 func TestTxJson(t *testing.T) {
-	originId, err := RandHash()
-	util.AssertNoErr(t, err)
-	outPkh1, err := RandHash()
-	util.AssertNoErr(t, err)
-	outPkh2, err := RandHash()
-	util.AssertNoErr(t, err)
+	originId := NewHashT2Rand()
+	outPkh1 := NewHashT2Rand()
+	outPkh2 := NewHashT2Rand()
 	tx := Tx{
 		MinBlock: 443,
 		Inputs: []TxIn{

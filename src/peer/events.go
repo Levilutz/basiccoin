@@ -7,7 +7,7 @@ type shouldEndEvent struct{}
 
 // Inform this peer of our head, sync if desired.
 type syncHeadEvent struct {
-	head db.HashT
+	head db.HashT2
 }
 
 // Inform the peer of other peers.
@@ -20,5 +20,5 @@ type peersWantedEvent struct{}
 
 // Inform the peer of a new tx.
 type sendTxEvent struct {
-	txId db.HashT
+	txId db.HashT2
 }

@@ -178,11 +178,11 @@ func (pc *PeerConn) TransmitUint64Line(msg uint64) {
 }
 
 // Transmit a hash as a line.
-func (pc *PeerConn) TransmitHashLine(msg db.HashT) {
+func (pc *PeerConn) TransmitHashLine(msg db.HashT2) {
 	if pc.e != nil {
 		return
 	}
-	pc.TransmitStringLine(fmt.Sprintf("%x", msg))
+	pc.TransmitStringLine(msg.String())
 }
 
 // Transmit bytes as a hex line.
@@ -271,24 +271,20 @@ func (pc *PeerConn) RetryReadUint64Line(attempts int) uint64 {
 
 // Retry reading a hash line, exponential wait.
 // See RetryReadLine for more info.
-func (pc *PeerConn) RetryReadHashLine(attempts int) db.HashT {
+func (pc *PeerConn) RetryReadHashLine(attempts int) db.HashT2 {
 	if pc.e != nil {
-		return db.HashTZero
+		return db.HashT2{}
 	}
 	raw := pc.RetryReadLine(attempts)
 	if pc.e != nil {
-		return db.HashTZero
+		return db.HashT2{}
 	}
-	out, err := hex.DecodeString(string(raw))
+	out, err := db.NewHashT2FromString(string(raw))
 	if err != nil {
 		pc.e = err
-		return db.HashTZero
+		return db.HashT2{}
 	}
-	if len(out) != 32 {
-		pc.e = fmt.Errorf("cannot decode hash - unexpected length %d", len(out))
-		return db.HashTZero
-	}
-	return db.HashT(out)
+	return out
 }
 
 // Retry reading a bytes line as hex, exponential wait.
@@ -310,8 +306,8 @@ func (pc *PeerConn) RetryReadBytesHexLine(attempts int) []byte {
 }
 
 // Retry reading a block header, each line has exponential wait.
-// If expectId is not HashTZero, verifies block hash is expected.
-func (pc *PeerConn) RetryReadBlockHeader(attemptsPer int, expectId db.HashT) db.Block {
+// If expectId is not zero value, verifies block hash is expected.
+func (pc *PeerConn) RetryReadBlockHeader(attemptsPer int, expectId db.HashT2) db.Block {
 	if pc.e != nil {
 		return db.Block{}
 	}
@@ -322,7 +318,7 @@ func (pc *PeerConn) RetryReadBlockHeader(attemptsPer int, expectId db.HashT) db.
 		Noise:       pc.RetryReadHashLine(attemptsPer),
 		Nonce:       pc.RetryReadUint64Line(attemptsPer),
 	}
-	if expectId != db.HashTZero && block.Hash() != expectId {
+	if !expectId.EqZero() && block.Hash() != expectId {
 		pc.e = errors.New("block has unexpected hash")
 		return db.Block{}
 	}
@@ -330,8 +326,8 @@ func (pc *PeerConn) RetryReadBlockHeader(attemptsPer int, expectId db.HashT) db.
 }
 
 // Retry reading a merkle node, each line has exponential wait.
-// If expectId is not HashTZero, verifies merkle hash is expected.
-func (pc *PeerConn) RetryReadMerkle(attemptsPer int, expectId db.HashT) db.MerkleNode {
+// If expectId is not zero value, verifies merkle hash is expected.
+func (pc *PeerConn) RetryReadMerkle(attemptsPer int, expectId db.HashT2) db.MerkleNode {
 	if pc.e != nil {
 		return db.MerkleNode{}
 	}
@@ -339,7 +335,7 @@ func (pc *PeerConn) RetryReadMerkle(attemptsPer int, expectId db.HashT) db.Merkl
 		LChild: pc.RetryReadHashLine(attemptsPer),
 		RChild: pc.RetryReadHashLine(attemptsPer),
 	}
-	if expectId != db.HashTZero && merkle.Hash() != expectId {
+	if !expectId.EqZero() && merkle.Hash() != expectId {
 		pc.e = errors.New("merkle has unexpected hash")
 		return db.MerkleNode{}
 	}
@@ -347,8 +343,8 @@ func (pc *PeerConn) RetryReadMerkle(attemptsPer int, expectId db.HashT) db.Merkl
 }
 
 // Retry reading a tx, each line has exponential wait.
-// If expectId is not HashTZero, verifies tx hash is expected.
-func (pc *PeerConn) RetryReadTx(attemptsPer int, expectId db.HashT) db.Tx {
+// If expectId is not zero value, verifies tx hash is expected.
+func (pc *PeerConn) RetryReadTx(attemptsPer int, expectId db.HashT2) db.Tx {
 	if pc.e != nil {
 		return db.Tx{}
 	}
@@ -386,7 +382,7 @@ func (pc *PeerConn) RetryReadTx(attemptsPer int, expectId db.HashT) db.Tx {
 		Inputs:   txIns,
 		Outputs:  txOuts,
 	}
-	if expectId != db.HashTZero && tx.Hash() != expectId {
+	if !expectId.EqZero() && tx.Hash() != expectId {
 		pc.e = errors.New("tx has unexpected hash")
 		return db.Tx{}
 	}

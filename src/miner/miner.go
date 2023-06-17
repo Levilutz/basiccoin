@@ -52,7 +52,7 @@ func (m *Miner) Loop() {
 			return
 
 		default:
-			if m.target.MerkleRoot == db.HashTZero || m.nextNonce == 1<<64-1 {
+			if m.target.MerkleRoot.EqZero() || m.nextNonce == 1<<64-1 {
 				time.Sleep(time.Second)
 			} else {
 				solution, ok := m.mine(1 << 16)
@@ -78,7 +78,7 @@ func (m *Miner) mine(rounds uint64) (db.Block, bool) {
 		if m.nextNonce != 1<<64-1 {
 			m.nextNonce += 1
 		}
-		if db.HashLT(hash, m.target.Difficulty) {
+		if hash.Lt(m.target.Difficulty) {
 			return target, true
 		}
 		if m.nextNonce == 1<<64-1 {

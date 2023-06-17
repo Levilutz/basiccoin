@@ -9,38 +9,6 @@ import (
 	"github.com/levilutz/basiccoin/src/util"
 )
 
-// Test that DHashItems and DHashList agree
-func TestHashAlternates(t *testing.T) {
-	txs := []Tx{
-		{
-			MinBlock: 5,
-		},
-		{
-			MinBlock: 77,
-		},
-		{
-			MinBlock: 21720,
-		},
-	}
-	txHashes := make([]HashT, len(txs))
-	for i, tx := range txs {
-		txHashes[i] = tx.Hash()
-	}
-	baseline := DHashHashes(txHashes)
-	allHashes := []HashT{
-		DHashItems(txs[0], txs[1], txs[2]),
-		DHashItems(txHashes[0], txHashes[1], txHashes[2]),
-		DHashList(txs),
-	}
-	t.Log("baseline", baseline)
-	for i, hash := range allHashes {
-		util.Assert(
-			t, hash == baseline,
-			"allHashes[%d] = %s != %s = baseline", i, HashHex(hash), HashHex(baseline),
-		)
-	}
-}
-
 // Test hash hex comparison
 func TestBelowTarget(t *testing.T) {
 	var err error
@@ -173,9 +141,9 @@ func TestEcdsaSign(t *testing.T) {
 	pubDer, err := MarshalEcdsaPublic(priv)
 	util.AssertNoErr(t, err)
 	content := []byte("Hello World")
-	sigAsn, err := EcdsaSign(priv, DHash(content))
+	sigAsn, err := EcdsaSign(priv, DHashBytes2(content))
 	util.AssertNoErr(t, err)
-	valid, err := EcdsaVerify(pubDer, DHash(content), sigAsn)
+	valid, err := EcdsaVerify(pubDer, DHashBytes2(content), sigAsn)
 	util.AssertNoErr(t, err)
 	util.Assert(t, valid, "invalid signature")
 }
@@ -188,9 +156,9 @@ func TestEcdsaBadSign(t *testing.T) {
 	util.AssertNoErr(t, err)
 	content := []byte("Hello World")
 	content2 := []byte("Hello World.")
-	sigAsn, err := EcdsaSign(priv, DHash(content))
+	sigAsn, err := EcdsaSign(priv, DHashBytes2(content))
 	util.AssertNoErr(t, err)
-	valid, err := EcdsaVerify(pubDer, DHash(content2), sigAsn)
+	valid, err := EcdsaVerify(pubDer, DHashBytes2(content2), sigAsn)
 	util.AssertNoErr(t, err)
 	util.Assert(t, !valid, "incorrectly valid signature")
 }

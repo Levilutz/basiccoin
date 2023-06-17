@@ -10,27 +10,27 @@ import (
 // State at a blockchain node. Responsible for preventing double-spends.
 // Meant to only be accessed synchronously by a single thread.
 type State struct {
-	head             HashT
-	mempool          *util.Set[HashT]
+	head             HashT2
+	mempool          *util.Set[HashT2]
 	utxos            *util.Set[Utxo]
 	inv              InvReader
-	mempoolRates     map[HashT]float64
-	pkhUtxos         map[HashT]*util.Set[Utxo]
-	includedTxBlocks map[HashT]HashT
+	mempoolRates     map[HashT2]float64
+	pkhUtxos         map[HashT2]*util.Set[Utxo]
+	includedTxBlocks map[HashT2]HashT2
 }
 
 func NewState(inv InvReader, trackBalances bool) *State {
 	s := &State{
-		head:             HashTZero,
-		mempool:          util.NewSet[HashT](),
+		head:             HashT2{},
+		mempool:          util.NewSet[HashT2](),
 		utxos:            util.NewSet[Utxo](),
 		inv:              inv,
-		mempoolRates:     make(map[HashT]float64),
+		mempoolRates:     make(map[HashT2]float64),
 		pkhUtxos:         nil,
-		includedTxBlocks: make(map[HashT]HashT),
+		includedTxBlocks: make(map[HashT2]HashT2),
 	}
 	if trackBalances {
-		s.pkhUtxos = make(map[HashT]*util.Set[Utxo])
+		s.pkhUtxos = make(map[HashT2]*util.Set[Utxo])
 	}
 	return s
 }
@@ -38,7 +38,7 @@ func NewState(inv InvReader, trackBalances bool) *State {
 // Copy a state.
 func (s *State) Copy() *State {
 	// Must deep copy pkhUtxos
-	newPkhUtxos := make(map[HashT]*util.Set[Utxo], len(s.pkhUtxos))
+	newPkhUtxos := make(map[HashT2]*util.Set[Utxo], len(s.pkhUtxos))
 	for pkh, utxos := range s.pkhUtxos {
 		newPkhUtxos[pkh] = utxos.Copy()
 	}
@@ -54,14 +54,14 @@ func (s *State) Copy() *State {
 	}
 }
 
-func (s *State) GetHead() HashT {
+func (s *State) GetHead() HashT2 {
 	return s.head
 }
 
 // Rewind a state to its parent block.
 // If this fails state will be corrupted, so copy before if necessary.
 func (s *State) Rewind() error {
-	if s.head == HashTZero {
+	if s.head.EqZero() {
 		return fmt.Errorf("cannot rewind - at root")
 	}
 	rBlock := s.inv.GetBlock(s.head)
@@ -82,7 +82,7 @@ func (s *State) Rewind() error {
 		// Remove the tx outputs from the utxo set
 		for i, txo := range tx.Outputs {
 			if !s.utxos.Remove(Utxo{TxId: txId, Ind: uint64(i), Value: txo.Value}) {
-				return fmt.Errorf("state corrupt - missing utxo %x[%d]", txId, i)
+				return fmt.Errorf("state corrupt - missing utxo %s[%d]", txId, i)
 			}
 			if s.pkhUtxos != nil {
 				s.debitBalance(txo.PublicKeyHash, Utxo{
@@ -95,7 +95,7 @@ func (s *State) Rewind() error {
 		// Remove the tx included block (and continue to verify it existed)
 		existingBlockId, ok := s.GetIncludedTxBlock(txId)
 		if !ok || existingBlockId != s.head {
-			panic(fmt.Sprintf("state corrupt - missing/wrong tx block %x", txId))
+			panic(fmt.Sprintf("state corrupt - missing/wrong tx block %s", txId))
 		}
 		delete(s.includedTxBlocks, txId)
 	}
@@ -105,10 +105,10 @@ func (s *State) Rewind() error {
 
 // Rewind a state until head is the given block.
 // If this fails state will be corrupted, so copy before if necessary.
-func (s *State) RewindUntil(blockId HashT) {
+func (s *State) RewindUntil(blockId HashT2) {
 	depth, ok := s.inv.GetBlockAncestorDepth(s.head, blockId)
 	if !ok {
-		panic(fmt.Sprintf("head does not have ancestor %x", blockId))
+		panic(fmt.Sprintf("head does not have ancestor %s", blockId))
 	}
 	for i := uint64(0); i < depth; i++ {
 		fmt.Println("!!! rewinding!")
@@ -117,21 +117,21 @@ func (s *State) RewindUntil(blockId HashT) {
 		}
 	}
 	if s.head != blockId {
-		panic(fmt.Sprintf("head is not expected value: %x != %x", s.head, blockId))
+		panic(fmt.Sprintf("head is not expected value: %s != %s", s.head, blockId))
 	}
 }
 
 // Advance a state to a given next block.
 // If this fails state will be corrupted, so copy before if necessary.
-func (s *State) Advance(nextBlockId HashT) error {
+func (s *State) Advance(nextBlockId HashT2) error {
 	if !s.inv.HasBlock(nextBlockId) {
-		return fmt.Errorf("cannot advance, block unknown: %x", nextBlockId)
+		return fmt.Errorf("cannot advance, block unknown: %s", nextBlockId)
 	}
 	nBlock := s.inv.GetBlock(nextBlockId)
 	nTxs := s.inv.GetMerkleTxs(nBlock.MerkleRoot)
 	if nBlock.PrevBlockId != s.head {
 		return fmt.Errorf(
-			"block not based on this parent: %x != %x", nBlock.PrevBlockId, s.head,
+			"block not based on this parent: %s != %s", nBlock.PrevBlockId, s.head,
 		)
 	}
 	for _, tx := range nTxs {
@@ -147,13 +147,13 @@ func (s *State) Advance(nextBlockId HashT) error {
 		}
 		// Remove tx from mempool
 		if !s.mempool.Remove(txId) {
-			return fmt.Errorf("state corrupt - missing tx %x", txId)
+			return fmt.Errorf("state corrupt - missing tx %s", txId)
 		}
 		delete(s.mempoolRates, txId)
 		// Consume the tx inputs
 		for _, utxo := range tx.GetConsumedUtxos() {
 			if !s.utxos.Remove(utxo) {
-				return fmt.Errorf("tx input not available %x[%d]", utxo.TxId, utxo.Ind)
+				return fmt.Errorf("tx input not available %s[%d]", utxo.TxId, utxo.Ind)
 			}
 			if s.pkhUtxos != nil {
 				txo := s.inv.GetTxOut(utxo.TxId, utxo.Ind)
@@ -174,7 +174,7 @@ func (s *State) Advance(nextBlockId HashT) error {
 		// Add the tx included block (and continue to verify tx isn't already included)
 		existingBlockId, ok := s.GetIncludedTxBlock(txId)
 		if ok {
-			return fmt.Errorf("tx already included in block %x", existingBlockId)
+			return fmt.Errorf("tx already included in block %s", existingBlockId)
 		}
 		s.includedTxBlocks[txId] = nextBlockId
 	}
@@ -183,7 +183,7 @@ func (s *State) Advance(nextBlockId HashT) error {
 }
 
 // Check whether a tx can be included in a new block based on this head.
-func (s *State) VerifyTxIncludable(txId HashT) error {
+func (s *State) VerifyTxIncludable(txId HashT2) error {
 	if !s.inv.HasTx(txId) {
 		return ErrEntityUnknown
 	}
@@ -199,16 +199,16 @@ func (s *State) VerifyTxIncludable(txId HashT) error {
 	// This guards against double-spends
 	for _, utxo := range tx.GetConsumedUtxos() {
 		if !s.utxos.Includes(utxo) {
-			return fmt.Errorf("tx input not available %x[%d]", utxo.TxId, utxo.Ind)
+			return fmt.Errorf("tx input not available %s[%d]", utxo.TxId, utxo.Ind)
 		}
 	}
 	return nil
 }
 
 // Get includable mempool txs sorted be fee rate, descending.
-func (s *State) GetSortedIncludableMempool() []HashT {
+func (s *State) GetSortedIncludableMempool() []HashT2 {
 	mem := s.mempool.Copy()
-	mem.Filter(func(txId HashT) bool {
+	mem.Filter(func(txId HashT2) bool {
 		return s.VerifyTxIncludable(txId) == nil && s.inv.GetTx(txId).HasSurplus()
 	})
 	memL := mem.ToList()
@@ -220,14 +220,14 @@ func (s *State) GetSortedIncludableMempool() []HashT {
 }
 
 // Add a tx to the mempool.
-func (s *State) AddMempoolTx(txId HashT) {
+func (s *State) AddMempoolTx(txId HashT2) {
 	tx := s.inv.GetTx(txId)
 	s.mempool.Add(txId)
 	s.mempoolRates[txId] = tx.Rate()
 }
 
 // Add to the utxo set of a public key hash.
-func (s *State) creditBalance(publicKeyHash HashT, credit Utxo) {
+func (s *State) creditBalance(publicKeyHash HashT2, credit Utxo) {
 	if s.pkhUtxos == nil {
 		panic("balance tracking was not enabled")
 	}
@@ -239,7 +239,7 @@ func (s *State) creditBalance(publicKeyHash HashT, credit Utxo) {
 }
 
 // Remove from the utxo set of a public key hash.
-func (s *State) debitBalance(publicKeyHash HashT, debit Utxo) {
+func (s *State) debitBalance(publicKeyHash HashT2, debit Utxo) {
 	if s.pkhUtxos == nil {
 		panic("balance tracking was not enabled")
 	}
@@ -251,7 +251,7 @@ func (s *State) debitBalance(publicKeyHash HashT, debit Utxo) {
 }
 
 // Get the utxos of a public key hash.
-func (s *State) GetPkhUtxos(publicKeyHash HashT) []Utxo {
+func (s *State) GetPkhUtxos(publicKeyHash HashT2) []Utxo {
 	if s.pkhUtxos == nil {
 		panic("balance tracking was not enabled")
 	}
@@ -262,7 +262,7 @@ func (s *State) GetPkhUtxos(publicKeyHash HashT) []Utxo {
 	return utxos.ToList()
 }
 
-func (s *State) GetPkhBalance(publicKeyHash HashT) uint64 {
+func (s *State) GetPkhBalance(publicKeyHash HashT2) uint64 {
 	if s.pkhUtxos == nil {
 		panic("balance tracking was not enabled")
 	}
@@ -277,7 +277,7 @@ func (s *State) GetPkhBalance(publicKeyHash HashT) uint64 {
 	return total
 }
 
-func (s *State) GetIncludedTxBlock(txId HashT) (HashT, bool) {
+func (s *State) GetIncludedTxBlock(txId HashT2) (HashT2, bool) {
 	blockId, ok := s.includedTxBlocks[txId]
 	return blockId, ok
 }

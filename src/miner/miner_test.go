@@ -11,14 +11,13 @@ import (
 )
 
 func TestMine(t *testing.T) {
-	difficulty, err := db.StringToHash(
+	difficulty, err := db.NewHashT2FromString(
 		"00000fffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
 	)
 	util.AssertNoErr(t, err)
-	merkle, err := db.RandHash()
-	util.AssertNoErr(t, err)
+	merkle := db.NewHashT2Rand()
 	target := db.Block{
-		PrevBlockId: db.HashTZero,
+		PrevBlockId: db.HashT2{},
 		MerkleRoot:  merkle,
 		Difficulty:  difficulty,
 		Nonce:       0,
@@ -30,8 +29,8 @@ func TestMine(t *testing.T) {
 	select {
 	case sol := <-m.SolutionCh:
 		fmt.Println(sol.Nonce)
-		fmt.Printf("%x\n", sol.Hash())
-		util.Assert(t, db.HashLT(sol.Hash(), sol.Difficulty), "not below target")
+		fmt.Println(sol.Hash())
+		util.Assert(t, sol.Hash().Lt(sol.Difficulty), "not below target")
 
 	case <-timer.C:
 		util.Assert(t, false, "timed out mining")

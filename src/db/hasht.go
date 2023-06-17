@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/binary"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"math/big"
 )
@@ -76,6 +77,11 @@ func (h HashT2) Lt(other HashT2) bool {
 	return false
 }
 
+// Check whether this is the zero hash.
+func (h HashT2) EqZero() bool {
+	return h.Eq(HashT2{})
+}
+
 // Convert the Hash to a big.Int.
 func (h HashT2) BigInt() *big.Int {
 	out := &big.Int{}
@@ -95,6 +101,7 @@ func (h HashT2) TargetToWork() *big.Int {
 }
 
 // Increase the given total amount of work by the given target's work.
+// Does not change hash value in-place.
 func (h HashT2) WorkAppendTarget(newTarget HashT2) HashT2 {
 	curInt := h.BigInt()
 	nextInt := newTarget.TargetToWork()
@@ -121,9 +128,26 @@ func bigInt2_256() *big.Int {
 	return out
 }
 
+func (h HashT2) MarshalJSON() ([]byte, error) {
+	return json.Marshal(h.String())
+}
+
+func (h *HashT2) UnmarshalJSON(data []byte) error {
+	var v string
+	if err := json.Unmarshal(data, &v); err != nil {
+		return err
+	}
+	parsed, err := NewHashT2FromString(v)
+	if err != nil {
+		return err
+	}
+	h.data = parsed.data
+	return nil
+}
+
 // Any object that defines how it is meant to be hashed.
 type Hasher2 interface {
-	Hash2() HashT2
+	Hash() HashT2
 }
 
 // Generate a new double-sha256 hash from the given bytes.
@@ -151,7 +175,7 @@ func DHashUint642(content uint64) HashT2 {
 func DHashAny2(content any) HashT2 {
 	switch typed := content.(type) {
 	case Hasher2:
-		return typed.Hash2()
+		return typed.Hash()
 	case HashT2:
 		return typed
 	case uint64:

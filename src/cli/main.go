@@ -61,7 +61,7 @@ var commands = []Command{
 			}
 			kc := NewKeyConfig(priv)
 			ctx.Config.AddKeys(kc)
-			fmt.Printf("%x\n", kc.PublicKeyHash)
+			fmt.Printf("%s\n", kc.PublicKeyHash)
 			return ctx.Config.Save()
 		},
 	},
@@ -72,12 +72,12 @@ var commands = []Command{
 		RequiredArgs:   0,
 		RequiresClient: true,
 		Handler: func(ctx HandlerContext) error {
-			var pkhs []db.HashT
+			var pkhs []db.HashT2
 			if len(ctx.Args) > 0 {
 				// Get balance of given addresses
-				pkhs = make([]db.HashT, len(ctx.Args))
+				pkhs = make([]db.HashT2, len(ctx.Args))
 				for i, arg := range ctx.Args {
-					pkh, err := db.StringToHash(arg)
+					pkh, err := db.NewHashT2FromString(arg)
 					if err != nil {
 						return err
 					}
@@ -92,7 +92,7 @@ var commands = []Command{
 				return err
 			}
 			for _, pkh := range balanceData.SortedAddrs {
-				fmt.Printf("%x\t%d\n", pkh, balanceData.Balances[pkh])
+				fmt.Printf("%s\t%d\n", pkh, balanceData.Balances[pkh])
 			}
 			fmt.Printf("total\t%d\n", balanceData.Total)
 			return nil
@@ -108,7 +108,7 @@ var commands = []Command{
 				return err
 			}
 			for utxo := range utxos {
-				fmt.Printf("%x[%d]\t%d\n", utxo.TxId, utxo.Ind, utxo.Value)
+				fmt.Printf("%s[%d]\t%d\n", utxo.TxId, utxo.Ind, utxo.Value)
 			}
 			return nil
 		},
@@ -120,7 +120,7 @@ var commands = []Command{
 		RequiredArgs:   2,
 		RequiresClient: true,
 		Handler: func(ctx HandlerContext) error {
-			destPkh, err := db.StringToHash(ctx.Args[0])
+			destPkh, err := db.NewHashT2FromString(ctx.Args[0])
 			if err != nil {
 				return err
 			}
@@ -128,7 +128,7 @@ var commands = []Command{
 			if err != nil {
 				return err
 			}
-			outputValues := map[db.HashT]uint64{
+			outputValues := map[db.HashT2]uint64{
 				destPkh: amt,
 			}
 			tx, err := ctx.Client.MakeOutboundTx(outputValues)
@@ -139,7 +139,7 @@ var commands = []Command{
 			if err != nil {
 				return err
 			}
-			fmt.Println(greenStr(fmt.Sprintf("%x", txId)))
+			fmt.Println(greenStr(fmt.Sprint(txId)))
 			return nil
 		},
 	},
@@ -156,7 +156,7 @@ var commands = []Command{
 			if err != nil {
 				return err
 			}
-			fmt.Println(greenStr(fmt.Sprintf("%x", txId)))
+			fmt.Println(greenStr(fmt.Sprint(txId)))
 			return nil
 		},
 	},

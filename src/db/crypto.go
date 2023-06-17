@@ -6,7 +6,6 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"crypto/x509"
-	"encoding/base64"
 	"encoding/binary"
 	"encoding/hex"
 	"fmt"
@@ -226,15 +225,15 @@ func MarshalEcdsaPublic(priv *ecdsa.PrivateKey) ([]byte, error) {
 // Sign data with ECDSA, return ASN.1 encoded signature.
 // priv is an ecdsa private key.
 // hash is the hash of the content that needs to be signed.
-func EcdsaSign(priv *ecdsa.PrivateKey, hash HashT) ([]byte, error) {
-	return ecdsa.SignASN1(rand.Reader, priv, hash[:])
+func EcdsaSign(priv *ecdsa.PrivateKey, hash HashT2) ([]byte, error) {
+	return ecdsa.SignASN1(rand.Reader, priv, hash.data[:])
 }
 
 // Verify an ECDSA signature.
 // pub is the DER encoding of PKIX, ASN.1 form ecdsa public key.
 // hash is the hash of the content that should have been signed.
 // sig is the ASN.1 encoding of ecdsa signature.
-func EcdsaVerify(pub []byte, hash HashT, sig []byte) (bool, error) {
+func EcdsaVerify(pub []byte, hash HashT2, sig []byte) (bool, error) {
 	// Retrieve public key from DER form
 	pubRawKey, err := x509.ParsePKIXPublicKey(pub)
 	if err != nil {
@@ -246,24 +245,7 @@ func EcdsaVerify(pub []byte, hash HashT, sig []byte) (bool, error) {
 	}
 
 	// Check signature
-	return ecdsa.VerifyASN1(pubKey, hash[:], sig), nil
-}
-
-// Encode the given content into base64.
-func EncodeB64(content []byte) []byte {
-	out := make([]byte, base64.StdEncoding.EncodedLen(len(content)))
-	base64.StdEncoding.Encode(out, content)
-	return out
-}
-
-// Decode content from the given base64, return err if invalid base64.
-func ParseB64(content64 []byte) ([]byte, error) {
-	out := make([]byte, base64.StdEncoding.DecodedLen(len(content64)))
-	n, err := base64.StdEncoding.Decode(out, content64)
-	if err != nil {
-		return out, err
-	}
-	return out[:n], nil
+	return ecdsa.VerifyASN1(pubKey, hash.data[:], sig), nil
 }
 
 // An example der-encoded ecdsa public key of expected length 91 bytes.

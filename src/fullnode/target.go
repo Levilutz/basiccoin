@@ -6,16 +6,13 @@ import (
 )
 
 // Create a new mining target block given where to send the reward.
-// If publicKeyHash is HashTZero, it's changed to a random hash (used for testing).
-func CreateMiningTarget(s *db.State, inv *db.Inv, publicKeyHash db.HashT) db.Block {
+// If publicKeyHash is zero value, it's changed to a random hash (used for testing).
+func CreateMiningTarget(s *db.State, inv *db.Inv, publicKeyHash db.HashT2) db.Block {
 	var err error
-	if publicKeyHash == db.HashTZero {
-		publicKeyHash, err = db.RandHash()
-		if err != nil {
-			panic(err)
-		}
+	if publicKeyHash.EqZero() {
+		publicKeyHash = db.NewHashT2Rand()
 	}
-	difficulty, err := db.StringToHash(
+	difficulty, err := db.NewHashT2FromString(
 		"000000ffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
 	)
 	if err != nil {
@@ -62,7 +59,7 @@ func CreateMiningTarget(s *db.State, inv *db.Inv, publicKeyHash db.HashT) db.Blo
 		},
 	}
 	// Build merkle tree from tx list
-	txIds := make([]db.HashT, len(outTxs))
+	txIds := make([]db.HashT2, len(outTxs))
 	for i := range txIds {
 		txIds[i] = outTxs[i].Hash()
 	}

@@ -17,9 +17,9 @@ import (
 // Checks total of all txs (including coinbase) has 0 surplus.
 // Checks block vSize is within limit (covered by verifyMerkle, but just to be safe).
 func verifyBlock(inv InvReader, block Block) error {
-	if !HashLT(block.Hash(), block.Difficulty) {
+	if !block.Hash().Lt(block.Difficulty) {
 		return fmt.Errorf(
-			"new block failed to beat target difficulty: %x !< %x",
+			"new block failed to beat target difficulty: %s !< %s",
 			block.Hash(),
 			block.Difficulty,
 		)
@@ -73,14 +73,14 @@ func verifyMerkle(inv InvReader, merkle MerkleNode) error {
 	if inv.HasEntity(merkle.LChild) {
 		totalSize += inv.GetEntityVSize(merkle.LChild)
 	} else {
-		return fmt.Errorf("failed to find LChild: %x", merkle.LChild)
+		return fmt.Errorf("failed to find LChild: %s", merkle.LChild)
 	}
 	// Get right child size (if appropriate)
 	if merkle.RChild != merkle.LChild {
 		if inv.HasEntity(merkle.RChild) {
 			totalSize += inv.GetEntityVSize(merkle.RChild)
 		} else {
-			return fmt.Errorf("failed to find RChild: %x", merkle.RChild)
+			return fmt.Errorf("failed to find RChild: %s", merkle.RChild)
 		}
 		// Check no overlap between tx sets of children
 		lTxs := util.NewSetFromList(inv.GetMerkleTxIds(merkle.LChild))
@@ -129,13 +129,13 @@ func verifyTx(inv InvReader, tx Tx) error {
 	for _, txi := range tx.Inputs {
 		if !inv.HasTxOut(txi.OriginTxId, txi.OriginTxOutInd) {
 			return fmt.Errorf(
-				"failed to find utxo %x[%d]",
+				"failed to find utxo %s[%d]",
 				txi.OriginTxId,
 				txi.OriginTxOutInd,
 			)
 		}
 		origin := inv.GetTxOut(txi.OriginTxId, txi.OriginTxOutInd)
-		if DHash(txi.PublicKey) != origin.PublicKeyHash {
+		if !DHashBytes2(txi.PublicKey).Eq(origin.PublicKeyHash) {
 			return fmt.Errorf("given public key does not match claimed utxo")
 		}
 		if txi.Value != origin.Value {

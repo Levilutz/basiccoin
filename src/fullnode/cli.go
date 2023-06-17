@@ -8,13 +8,13 @@ import (
 )
 
 type CLIArgs struct {
-	HttpPort        int      `json:"httpPort"`
-	Listen          bool     `json:"listen"`
-	LocalAddr       string   `json:"localAddr"`
-	Miners          int      `json:"miners"`
-	MinerPayoutAddr db.HashT `json:"minerPayoutAddr"`
-	SeedAddr        string   `json:"seedAddr"`
-	Verbosity       int      `json:"verbosity"`
+	HttpPort        int       `json:"httpPort"`
+	Listen          bool      `json:"listen"`
+	LocalAddr       string    `json:"localAddr"`
+	Miners          int       `json:"miners"`
+	MinerPayoutAddr db.HashT2 `json:"minerPayoutAddr"`
+	SeedAddr        string    `json:"seedAddr"`
+	Verbosity       int       `json:"verbosity"`
 }
 
 func ParseCLIArgs() CLIArgs {
@@ -51,9 +51,9 @@ func ParseCLIArgs() CLIArgs {
 	if *localAddr == "" && *seedAddr == "" {
 		util.Constants.SeedAddr = "coin.levilutz.com:21720"
 	}
-	payoutAddr := db.HashTZero
+	payoutAddr := db.HashT2{}
 	if *miners > 0 {
-		payoutAddr, err = db.StringToHash(*minerPayoutAddr)
+		payoutAddr, err = db.NewHashT2FromString(*minerPayoutAddr)
 		if err != nil {
 			panic("failed to parse payout address: " + err.Error())
 		}

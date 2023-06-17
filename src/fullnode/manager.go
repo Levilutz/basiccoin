@@ -26,10 +26,10 @@ type Manager struct {
 	inv             *db.Inv
 	state           *db.State
 	minerSet        *miner.MinerSet
-	minerPayoutAddr db.HashT
+	minerPayoutAddr db.HashT2
 }
 
-func NewManager(minerPayoutAddr db.HashT) *Manager {
+func NewManager(minerPayoutAddr db.HashT2) *Manager {
 	inv := db.NewInv()
 	// Create state tracker (only track balances if we're serving http)
 	state := db.NewState(inv, util.Constants.HttpPort != -1)
@@ -94,7 +94,7 @@ func (m *Manager) Loop() {
 
 		case sol := <-m.minerSet.SolutionCh:
 			solId := sol.Hash()
-			fmt.Printf("<== MINED ==> potential next block: %x\n", solId)
+			fmt.Printf("<== MINED ==> potential next block: %s\n", solId)
 			err := m.handleNewBestChain(
 				solId, []db.Block{sol}, []db.MerkleNode{}, []db.Tx{},
 			)
@@ -116,7 +116,7 @@ func (m *Manager) HandlePeerClosing(runtimeId string) {
 }
 
 func (m *Manager) HandleInboundSync(
-	head db.HashT,
+	head db.HashT2,
 	blocks []db.Block,
 	merkles []db.MerkleNode,
 	txs []db.Tx,
@@ -147,13 +147,13 @@ func (m *Manager) HandleNewTx(tx db.Tx) {
 	})
 }
 
-func (m *Manager) SyncGetBalance(publicKeyHash db.HashT) uint64 {
+func (m *Manager) SyncGetBalance(publicKeyHash db.HashT2) uint64 {
 	rCh := make(chan uint64)
 	m.queueEvent(balanceQuery{rCh, publicKeyHash})
 	return <-rCh
 }
 
-func (m *Manager) SyncGetUtxos(publicKeyHash db.HashT) []db.Utxo {
+func (m *Manager) SyncGetUtxos(publicKeyHash db.HashT2) []db.Utxo {
 	rCh := make(chan []db.Utxo)
 	m.queueEvent(utxosQuery{rCh, publicKeyHash})
 	return <-rCh
@@ -165,7 +165,7 @@ func (m *Manager) SyncNewTx(tx db.Tx) error {
 	return <-rCh
 }
 
-func (m *Manager) SyncGetConfirms(txId db.HashT) (uint64, bool) {
+func (m *Manager) SyncGetConfirms(txId db.HashT2) (uint64, bool) {
 	if !m.inv.HasTx(txId) {
 		return 0, false
 	}
@@ -278,7 +278,7 @@ func (m *Manager) handleMainBusEvent(event any) {
 
 	case inboundSyncEvent:
 		if util.Constants.DebugLevel >= 1 {
-			fmt.Printf("received potential next block: %x\n", msg.head)
+			fmt.Printf("received potential next block: %s\n", msg.head)
 		}
 		err := m.handleNewBestChain(msg.head, msg.blocks, msg.merkles, msg.txs)
 		if err != nil {
@@ -329,7 +329,7 @@ func (m *Manager) IntroducePeerConn(pc *peer.PeerConn, weAreInitiator bool) {
 // Upgrades our chain to the given new head, if it proves to be better.
 // Provide any blocks, merkles, or txs we might not know about (in the order to insert).
 func (m *Manager) handleNewBestChain(
-	newHead db.HashT,
+	newHead db.HashT2,
 	blocks []db.Block,
 	merkles []db.MerkleNode,
 	txs []db.Tx,
@@ -369,7 +369,7 @@ func (m *Manager) handleNewBestChain(
 	}
 	newWork := m.inv.GetBlockTotalWork(newHead)
 	oldWork := m.inv.GetBlockTotalWork(oldHead)
-	if !db.HashLT(oldWork, newWork) {
+	if !oldWork.Lt(newWork) {
 		return fmt.Errorf("new chain is not higher total work than current chain")
 	}
 	// Find common ancestor of our chain heads
@@ -388,9 +388,9 @@ func (m *Manager) handleNewBestChain(
 		return fmt.Errorf("failed to advance to mined block: %s", err.Error())
 	}
 	// Shift to new head - this func shouldn't return err after this point
-	fmt.Printf("upgrading head to %x\n", newState.GetHead())
+	fmt.Printf("upgrading head to %s\n", newState.GetHead())
 	if util.Constants.DebugLevel >= 1 {
-		fmt.Printf("proven work %x\n", newWork)
+		fmt.Printf("proven work %s\n", newWork)
 	}
 	m.state = newState
 	// Set new miner targets

@@ -58,10 +58,7 @@ func (ms *MinerSet) SetTargets(target db.Block) {
 	// Set each target
 	for i := 0; i < len(ms.miners); i++ {
 		noisedTarget := target
-		noise, err := db.RandHash()
-		if err != nil {
-			panic(err)
-		}
+		noise := db.NewHashT2Rand()
 		noisedTarget.Noise = noise
 		ms.miners[i].SetTarget(noisedTarget)
 	}

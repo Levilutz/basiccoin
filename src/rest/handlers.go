@@ -12,10 +12,10 @@ import (
 )
 
 type MainQueryHandler interface {
-	SyncGetBalance(publicKeyHash db.HashT) uint64
-	SyncGetUtxos(publicKeyHash db.HashT) []db.Utxo
+	SyncGetBalance(publicKeyHash db.HashT2) uint64
+	SyncGetUtxos(publicKeyHash db.HashT2) []db.Utxo
 	SyncNewTx(tx db.Tx) error
-	SyncGetConfirms(txId db.HashT) (uint64, bool)
+	SyncGetConfirms(txId db.HashT2) (uint64, bool)
 }
 
 type Handler struct {
@@ -48,7 +48,7 @@ func (h *Handler) handleGetBalance(w http.ResponseWriter, r *http.Request) {
 		write400(w, r, fmt.Errorf("must provide 1 public key hash"))
 		return
 	}
-	pkh, err := db.StringToHash(publicKeyHashes[0])
+	pkh, err := db.NewHashT2FromString(publicKeyHashes[0])
 	if err != nil {
 		write400(w, r, err)
 		return
@@ -71,7 +71,7 @@ func (h *Handler) handleGetUtxos(w http.ResponseWriter, r *http.Request) {
 		write400(w, r, fmt.Errorf("must provide 1 public key hash"))
 		return
 	}
-	pkh, err := db.StringToHash(publicKeyHashes[0])
+	pkh, err := db.NewHashT2FromString(publicKeyHashes[0])
 	if err != nil {
 		write400(w, r, err)
 		return
@@ -112,7 +112,7 @@ func (h *Handler) handlePostTx(w http.ResponseWriter, r *http.Request) {
 		write400(w, r, err)
 		return
 	}
-	io.WriteString(w, fmt.Sprintf("%x", tx.Hash()))
+	io.WriteString(w, fmt.Sprint(tx.Hash()))
 }
 
 func (h *Handler) handleTxConfirms(w http.ResponseWriter, r *http.Request) {
@@ -129,7 +129,7 @@ func (h *Handler) handleGetTxConfirms(w http.ResponseWriter, r *http.Request) {
 		write400(w, r, fmt.Errorf("must provide one transaction id"))
 		return
 	}
-	txId, err := db.StringToHash(txIds[0])
+	txId, err := db.NewHashT2FromString(txIds[0])
 	if err != nil {
 		write400(w, r, err)
 		return

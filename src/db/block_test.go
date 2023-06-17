@@ -8,12 +8,10 @@ import (
 )
 
 func TestMerkleFromTxIds(t *testing.T) {
-	var err error
 	// Build list of txs
-	txIds := make([]HashT, 5)
+	txIds := make([]HashT2, 5)
 	for i := 0; i < 5; i++ {
-		txIds[i], err = RandHash()
-		util.AssertNoErr(t, err)
+		txIds[i] = NewHashT2Rand()
 	}
 	// Construct merkle tree
 	merkleMap, merkleIds := MerkleFromTxIds(txIds)
