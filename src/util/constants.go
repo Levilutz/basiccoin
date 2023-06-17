@@ -1,7 +1,6 @@
 package util
 
 import (
-	"math/big"
 	"time"
 )
 
@@ -38,14 +37,4 @@ var Constants = ConstantsType{
 	RuntimeID:            AssertUUID(),
 	SeekNewPeersFreq:     time.Second * 10,
 	Version:              "basiccoin:0.1.0",
-}
-
-// Compute 2^256 as a big.Int.
-func BigInt2_256() *big.Int {
-	out := &big.Int{}
-	out.SetString(
-		"ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
-		16,
-	)
-	return out
 }

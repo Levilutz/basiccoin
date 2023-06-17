@@ -11,8 +11,6 @@ import (
 	"encoding/hex"
 	"fmt"
 	"math/big"
-
-	"github.com/levilutz/basiccoin/src/util"
 )
 
 type Hasher interface {
@@ -136,7 +134,7 @@ func TargetsToTotalWork(targets []HashT) *big.Int {
 		// total += 2^256 / target
 		targetInt := &big.Int{}
 		targetInt.SetBytes(target[:])
-		targetInt.Div(util.BigInt2_256(), targetInt)
+		targetInt.Div(bigInt2_256(), targetInt)
 		total.Add(total, targetInt)
 	}
 	return total
@@ -151,7 +149,7 @@ func AppendTotalWork(prior HashT, target HashT) HashT {
 	priorInt.SetBytes(prior[:])
 	targetInt.SetBytes(target[:])
 	// Compute work from new target
-	targetInt.Div(util.BigInt2_256(), targetInt)
+	targetInt.Div(bigInt2_256(), targetInt)
 	priorInt.Add(priorInt, targetInt)
 	// Convert back to HashT to return
 	priorInt.FillBytes(prior[:])
