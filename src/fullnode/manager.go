@@ -28,16 +28,17 @@ type Manager struct {
 	state           *db.State
 	minerSet        *miner.MinerSet
 	minerPayoutAddr kern.HashT
+	kernelParams    kern.Params
 }
 
-func NewManager(minerPayoutAddr kern.HashT) *Manager {
-	inv := db.NewInv()
+func NewManager(minerPayoutAddr kern.HashT, kernelParams kern.Params) *Manager {
+	inv := db.NewInv(kernelParams)
 	// Create state tracker (only track balances if we're serving http)
 	state := db.NewState(inv, util.Constants.HttpPort != -1)
 	// TODO: don't actually start the miner set if we don't need, check before calls
 	minerSet := miner.StartMinerSet(util.Constants.Miners)
 	if util.Constants.Miners > 0 {
-		initialTarget := CreateMiningTarget(state, inv, minerPayoutAddr)
+		initialTarget := CreateMiningTarget(state, inv, kernelParams, minerPayoutAddr)
 		minerSet.SetTargets(initialTarget)
 	}
 	m := &Manager{
@@ -48,6 +49,7 @@ func NewManager(minerPayoutAddr kern.HashT) *Manager {
 		state:           state,
 		minerSet:        minerSet,
 		minerPayoutAddr: minerPayoutAddr,
+		kernelParams:    kernelParams,
 	}
 	if util.Constants.HttpPort != -1 {
 		go rest.Start(m)
@@ -396,7 +398,7 @@ func (m *Manager) handleNewBestChain(
 	m.state = newState
 	// Set new miner targets
 	if util.Constants.Miners > 0 {
-		target := CreateMiningTarget(m.state, m.inv, m.minerPayoutAddr)
+		target := CreateMiningTarget(m.state, m.inv, m.kernelParams, m.minerPayoutAddr)
 		m.minerSet.SetTargets(target)
 	}
 	// Broadcast solution to peers

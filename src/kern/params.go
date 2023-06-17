@@ -2,11 +2,11 @@ package kern
 
 // Various parameters that should be shared among all nodes in a network.
 type Params struct {
-	BlockReward      uint64 // How much to reward the mining of a block.
-	DifficultyPeriod uint64 // How many blocks between difficulty adjustments.
-	BlockTargetTime  uint64 // Difficulty target for how long to mine a block.
-	MaxBlockVSize    uint64 // Maximum number of total hashed bytes in a block's txs.
-	MaxTxVSize       uint64 // Maximum number of hashed bytes in a single tx.
+	BlockReward      uint64 `json:"blockReward"`      // How much to reward the mining of a block.
+	DifficultyPeriod uint64 `json:"difficultyPeriod"` // How many blocks between difficulty adjustments.
+	BlockTargetTime  uint64 `json:"blockTargetTime"`  // Difficulty target for how long to mine a block.
+	MaxBlockVSize    uint64 `json:"maxBlockVSize"`    // Maximum number of total hashed bytes in a block's txs.
+	MaxTxVSize       uint64 `json:"maxTxVSize"`       // Maximum number of hashed bytes in a single tx.
 }
 
 // Generate params for the production network.

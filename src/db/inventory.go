@@ -55,18 +55,20 @@ type txRecord struct {
 // Write-once read-many maps.
 // Only one thread should be making writes at a time, but many can be reading.
 type Inv struct {
+	verifier *kern.Verifier
 	// Main inventory
 	blocks  *util.SyncMap[kern.HashT, blockRecord]
 	merkles *util.SyncMap[kern.HashT, merkleRecord]
 	txs     *util.SyncMap[kern.HashT, txRecord]
 }
 
-func NewInv() *Inv {
+func NewInv(kernelParams kern.Params) *Inv {
 	inv := &Inv{
 		blocks:  util.NewSyncMap[kern.HashT, blockRecord](),
 		merkles: util.NewSyncMap[kern.HashT, merkleRecord](),
 		txs:     util.NewSyncMap[kern.HashT, txRecord](),
 	}
+	inv.verifier = kern.NewVerifier(kernelParams, inv)
 	inv.blocks.Store(kern.HashT{}, blockRecord{
 		block:     kern.Block{},
 		height:    0,
@@ -279,7 +281,7 @@ func (inv *Inv) StoreBlock(block kern.Block) error {
 	if inv.HasBlock(blockId) {
 		return fmt.Errorf("new block already known: %s", blockId)
 	}
-	if err := verifyBlock(inv, block); err != nil {
+	if err := inv.verifier.VerifyBlock(block); err != nil {
 		return err
 	}
 	prevWork := inv.GetBlockTotalWork(block.PrevBlockId)
@@ -297,7 +299,7 @@ func (inv *Inv) StoreMerkle(merkle kern.MerkleNode) error {
 	if inv.HasMerkle(nodeId) {
 		return fmt.Errorf("merkle already known: %s", nodeId)
 	}
-	if err := verifyMerkle(inv, merkle); err != nil {
+	if err := inv.verifier.VerifyMerkle(merkle); err != nil {
 		return err
 	}
 	totalSize := inv.GetEntityVSize(merkle.LChild)
@@ -317,7 +319,7 @@ func (inv *Inv) StoreTx(tx kern.Tx) error {
 	if inv.HasTx(txId) {
 		return fmt.Errorf("tx already known: %s", txId)
 	}
-	if err := verifyTx(inv, tx); err != nil {
+	if err := inv.verifier.VerifyTx(tx); err != nil {
 		return err
 	}
 	inv.txs.Store(txId, txRecord{

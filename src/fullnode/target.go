@@ -8,7 +8,9 @@ import (
 
 // Create a new mining target block given where to send the reward.
 // If publicKeyHash is zero value, it's changed to a random hash (used for testing).
-func CreateMiningTarget(s *db.State, inv *db.Inv, publicKeyHash kern.HashT) kern.Block {
+func CreateMiningTarget(
+	s *db.State, inv *db.Inv, params kern.Params, publicKeyHash kern.HashT,
+) kern.Block {
 	var err error
 	if publicKeyHash.EqZero() {
 		publicKeyHash = kern.NewHashTRand()
@@ -23,7 +25,7 @@ func CreateMiningTarget(s *db.State, inv *db.Inv, publicKeyHash kern.HashT) kern
 	outTxs := make([]kern.Tx, 1)
 	outTxs[0] = kern.Tx{} // Placeholder for coinbase
 	totalFees := uint64(0)
-	sizeLeft := util.Constants.MaxBlockVSize - kern.CoinbaseVSize()
+	sizeLeft := params.MaxBlockVSize - kern.CoinbaseVSize()
 	candidateTxIds := s.GetSortedIncludableMempool()
 	consumedUtxos := util.NewSet[kern.Utxo]()
 	for _, txId := range candidateTxIds {
@@ -55,7 +57,7 @@ func CreateMiningTarget(s *db.State, inv *db.Inv, publicKeyHash kern.HashT) kern
 		Inputs:     make([]kern.TxIn, 0),
 		Outputs: []kern.TxOut{
 			{
-				Value:         uint64(totalFees) + util.Constants.BlockReward,
+				Value:         uint64(totalFees) + params.BlockReward,
 				PublicKeyHash: publicKeyHash,
 			},
 		},

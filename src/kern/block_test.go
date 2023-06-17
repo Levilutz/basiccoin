@@ -17,7 +17,14 @@ func TestMerkleFromTxIds(t *testing.T) {
 	merkleMap, merkleIds := MerkleFromTxIds(txIds)
 	util.Assert(t, len(merkleMap) == len(merkleIds), "out lengths mismatched")
 	util.Assert(t, len(merkleIds) == 6, "out length unexpected")
-	util.Assert(t, len(merkleIds) <= int(MerkleTreeMaxSize()), "tree max size wrong")
+	util.Assert(
+		t, len(merkleIds) <= int(MerkleTreeMaxSize(ProdNetParams())),
+		"prod tree max size too small",
+	)
+	util.Assert(
+		t, len(merkleIds) <= int(MerkleTreeMaxSize(DevNetParams())),
+		"dev tree max size too small",
+	)
 	expected := []MerkleNode{
 		{
 			LChild: txIds[0],

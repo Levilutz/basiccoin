@@ -28,8 +28,8 @@ func (b Block) Hash() HashT {
 }
 
 // The maximum number of txs that could theoretically be in a block, including coinbase.
-func BlockMaxTxs() uint64 {
-	standardTxSpace := util.Constants.MaxBlockVSize - CoinbaseVSize()
+func BlockMaxTxs(params Params) uint64 {
+	standardTxSpace := params.MaxBlockVSize - CoinbaseVSize()
 	// +1 to "round up"
 	maxStandardTxs := standardTxSpace/MinNonCoinbaseVSize() + 1
 	// +1 to re-include coinbase tx
@@ -37,9 +37,9 @@ func BlockMaxTxs() uint64 {
 }
 
 // The (overestimated) max possible size of any block's merkle tree, including tx leafs.
-func MerkleTreeMaxSize() uint64 {
+func MerkleTreeMaxSize(params Params) uint64 {
 	// Actual tree size <= floor(leafs * 20 / 9)
-	return uint64(float64(BlockMaxTxs()) * 20.0 / 9.0)
+	return uint64(float64(BlockMaxTxs(params)) * 20.0 / 9.0)
 }
 
 // Construct a merkle tree from a list of txIds.

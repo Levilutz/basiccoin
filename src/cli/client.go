@@ -251,7 +251,7 @@ func (c *Client) MakeOutboundTx(outputValues map[kern.HashT]uint64) (kern.Tx, er
 			Signature:      kern.ExampleMaxSigAsn(),
 			Value:          utxo.Value,
 		})
-		if tx.VSize() > util.Constants.MaxTxVSize {
+		if tx.VSize() > kern.DevNetParams().MaxTxVSize {
 			return kern.Tx{}, fmt.Errorf("cannot create tx within vsize limits")
 		}
 		if totalIn >= totalOut+uint64(targetRate*float64(tx.VSize())) {
@@ -345,7 +345,7 @@ func (c *Client) MakeConsolidateTx() (kern.Tx, error) {
 			Signature:      kern.ExampleMaxSigAsn(),
 			Value:          utxo.Value,
 		}
-		if tx.VSize()+newIn.VSize() > util.Constants.MaxTxVSize {
+		if tx.VSize()+newIn.VSize() > kern.DevNetParams().MaxTxVSize {
 			break
 		}
 		totalIn += utxo.Value

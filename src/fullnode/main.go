@@ -9,23 +9,15 @@ import (
 	"github.com/levilutz/basiccoin/src/util"
 )
 
-func printComputedConstants() {
-	fmt.Println("CoinbaseVSize:", kern.CoinbaseVSize())
-	fmt.Println("MinNonCoinbaseVSize:", kern.MinNonCoinbaseVSize())
-	fmt.Println("BlockMaxTxs", kern.BlockMaxTxs())
-	fmt.Println("MerkleTreeMaxSize", kern.MerkleTreeMaxSize())
-}
-
 func main() {
 	cli_args := ParseCLIArgs()
 	if util.Constants.DebugLevel >= 1 {
 		fmt.Println(util.PrettyPrint(cli_args))
 		fmt.Println(util.PrettyPrint(util.Constants))
-		printComputedConstants()
 	}
 	fmt.Printf("starting with id %s\n", util.Constants.RuntimeID)
 
-	manager := NewManager(cli_args.MinerPayoutAddr)
+	manager := NewManager(cli_args.MinerPayoutAddr, kern.DevNetParams())
 
 	if cli_args.SeedAddr != "" {
 		var pc *peer.PeerConn
