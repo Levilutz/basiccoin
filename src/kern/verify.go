@@ -2,6 +2,8 @@ package kern
 
 import (
 	"fmt"
+	"sort"
+	"time"
 
 	"github.com/levilutz/basiccoin/src/util"
 )
@@ -11,6 +13,7 @@ type InvVerifier interface {
 	HasBlock(blockId HashT) bool
 	GetBlock(blockId HashT) Block
 	GetBlockHeight(blockId HashT) uint64
+	GetBlockAncestors(blockId HashT, maxLen int) []HashT
 	HasMerkle(nodeId HashT) bool
 	GetMerkleTxIds(root HashT) []HashT
 	GetMerkleTxs(root HashT) []Tx
@@ -119,8 +122,10 @@ func (v Verifier) VerifyBlock(b Block) error {
 		return fmt.Errorf("new block has too many txs")
 	}
 
+	newBlockHeight := v.inv.GetBlockHeight(b.PrevBlockId) + 1
+
 	// Verify coinbase MinBlock is this block's height
-	if txs[0].MinBlock != v.inv.GetBlockHeight(b.PrevBlockId)+1 {
+	if txs[0].MinBlock != newBlockHeight {
 		return fmt.Errorf("coinbase MinBlock does not equal height")
 	}
 
@@ -148,6 +153,40 @@ func (v Verifier) VerifyBlock(b Block) error {
 	// Verify block total vSize within limits
 	if v.inv.GetMerkleVSize(b.MerkleRoot) > v.params.MaxBlockVSize {
 		return fmt.Errorf("block exceeds max vSize")
+	}
+
+	// Verify block mined time is above median of previous 11 (if not the first)
+	if !b.PrevBlockId.EqZero() {
+		// Get last 11 blocks, dropping the zero block if appropriate
+		ancestorIds := []HashT{b.PrevBlockId}
+		ancestorIds = append(ancestorIds, v.inv.GetBlockAncestors(b.PrevBlockId, 10)...)
+		if ancestorIds[len(ancestorIds)-1].EqZero() {
+			ancestorIds = ancestorIds[:len(ancestorIds)-1]
+		}
+
+		// Get median time
+		times := make([]uint64, len(ancestorIds))
+		for i, blockId := range ancestorIds {
+			times[i] = v.inv.GetBlock(blockId).MinedTime
+		}
+		sort.Slice(times, func(i, j int) bool { return times[i] < times[j] })
+		var median uint64
+		if len(times)%2 == 0 {
+			median = (times[len(times)/2-1] + times[len(times)/2]) / 2
+		} else {
+			median = times[(len(times)-1)/2]
+		}
+
+		// Verify
+		if b.MinedTime <= median {
+			fmt.Println(uint64(time.Now().Unix()), times, b.MinedTime)
+			return fmt.Errorf("block mined time not above median of previous 11")
+		}
+	}
+
+	// Verify block mined time less than an hour in the future
+	if b.MinedTime > uint64(time.Now().Unix())+3600 {
+		return fmt.Errorf("block mined time more than one hour in the future")
 	}
 	return nil
 }

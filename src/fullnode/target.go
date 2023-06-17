@@ -1,6 +1,8 @@
 package main
 
 import (
+	"time"
+
 	"github.com/levilutz/basiccoin/src/db"
 	"github.com/levilutz/basiccoin/src/kern"
 	"github.com/levilutz/basiccoin/src/util"
@@ -91,5 +93,6 @@ func CreateMiningTarget(
 		PrevBlockId: s.GetHead(),
 		MerkleRoot:  merkleIds[len(merkleIds)-1],
 		Difficulty:  difficulty,
+		MinedTime:   uint64(time.Now().Unix()),
 	}
 }

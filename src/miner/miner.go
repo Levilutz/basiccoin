@@ -73,6 +73,7 @@ func (m *Miner) mine(rounds uint64) (kern.Block, bool) {
 			Difficulty:  m.target.Difficulty,
 			Noise:       m.target.Noise,
 			Nonce:       m.nextNonce,
+			MinedTime:   m.target.MinedTime,
 		}
 		hash := target.Hash()
 		if m.nextNonce != 1<<64-1 {

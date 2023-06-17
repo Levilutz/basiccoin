@@ -215,6 +215,7 @@ func (pc *PeerConn) TransmitBlockHeader(block kern.Block) {
 	pc.TransmitHashLine(block.Difficulty)
 	pc.TransmitHashLine(block.Noise)
 	pc.TransmitUint64Line(block.Nonce)
+	pc.TransmitUint64Line(block.MinedTime)
 }
 
 // Transmit a merkle node.
@@ -350,6 +351,7 @@ func (pc *PeerConn) RetryReadBlockHeader(attemptsPer int, expectId kern.HashT) k
 		Difficulty:  pc.RetryReadHashLine(attemptsPer),
 		Noise:       pc.RetryReadHashLine(attemptsPer),
 		Nonce:       pc.RetryReadUint64Line(attemptsPer),
+		MinedTime:   pc.RetryReadUint64Line(attemptsPer),
 	}
 	if !expectId.EqZero() && block.Hash() != expectId {
 		pc.e = errors.New("block has unexpected hash")

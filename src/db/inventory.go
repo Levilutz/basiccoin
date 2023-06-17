@@ -113,6 +113,8 @@ func (inv *Inv) GetBlockParentId(blockId kern.HashT) kern.HashT {
 	return inv.GetBlock(blockId).PrevBlockId
 }
 
+// Get up to maxLen of this block's ancestors. Does not include the given block.
+// Includes the zero block if within maxLen ancestors.
 func (inv *Inv) GetBlockAncestors(blockId kern.HashT, maxLen int) []kern.HashT {
 	out := make([]kern.HashT, 0)
 	next := blockId

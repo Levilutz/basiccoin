@@ -21,6 +21,7 @@ type Block struct {
 	Difficulty  HashT
 	Noise       HashT
 	Nonce       uint64
+	MinedTime   uint64
 }
 
 func (b Block) Hash() HashT {
