@@ -11,9 +11,9 @@ import (
 // Test that hashes can convert back and forth from strings.
 func TestHashTStrings(t *testing.T) {
 	for i := 0; i < 100; i++ {
-		hash := NewHashT2Rand()
+		hash := NewHashTRand()
 		hashStr := hash.String()
-		hashRecov, err := NewHashT2FromString(hashStr)
+		hashRecov, err := NewHashTFromString(hashStr)
 		util.AssertNoErr(t, err)
 		util.Assert(t, hash.Eq(hashRecov), "hash %s != %s", hash, hashRecov)
 		hashStr2 := hashRecov.String()
@@ -24,15 +24,15 @@ func TestHashTStrings(t *testing.T) {
 // Test hash LT comparison.
 func TestHashTLt(t *testing.T) {
 	// Generate random hashes and corresponding big ints
-	hashes := make([]HashT2, 100)
+	hashes := make([]HashT, 100)
 	nums := make([]*big.Int, 100)
 	for i := 0; i < 100; i++ {
 		// Generate
-		hashes[i] = NewHashT2Rand()
+		hashes[i] = NewHashTRand()
 		nums[i] = hashes[i].BigInt()
 
 		// Assert bytes recoverable from int
-		recov := NewHashT2FromBigInt(nums[i])
+		recov := NewHashTFromBigInt(nums[i])
 		util.Assert(t, hashes[i].Eq(recov), "Failed to recover hash")
 	}
 
@@ -53,14 +53,14 @@ func TestHashTLt(t *testing.T) {
 
 // Test TargetsToTotalWork and WorkAppendTarget.
 func TestHashTWorkTargets(t *testing.T) {
-	hashes := make([]HashT2, 16)
+	hashes := make([]HashT, 16)
 	for i := range hashes {
-		hashes[i] = NewHashT2Rand()
+		hashes[i] = NewHashTRand()
 	}
 	lastTotal := big.NewInt(0)
-	lastTotalAsHash := NewHashT2FromBigInt(lastTotal)
+	lastTotalAsHash := NewHashTFromBigInt(lastTotal)
 	for i := 1; i <= 16; i++ {
-		newTotal := TargetsToTotalWork2(hashes[:i])
+		newTotal := TargetsToTotalWork(hashes[:i])
 		util.Assert(t, lastTotal.Cmp(newTotal) == -1, "total decreased")
 		lastTotalAsHash = lastTotalAsHash.WorkAppendTarget(hashes[i-1])
 		util.Assert(t, newTotal.Cmp(lastTotalAsHash.BigInt()) == 0, "append does not match")
@@ -71,11 +71,11 @@ func TestHashTWorkTargets(t *testing.T) {
 // Test DHashList
 func TestDHashAnyRec(t *testing.T) {
 	data := []uint64{5, 6, 7}
-	hash := DHashList2(data)
-	hashCorrect := DHashHashes2([]HashT2{
-		DHashUint642(data[0]),
-		DHashUint642(data[1]),
-		DHashUint642(data[2]),
+	hash := DHashList(data)
+	hashCorrect := DHashHashes([]HashT{
+		DHashUint64(data[0]),
+		DHashUint64(data[1]),
+		DHashUint64(data[2]),
 	})
 	util.Assert(t, hash.Eq(hashCorrect), "hash of list doesn't match")
 }

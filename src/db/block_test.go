@@ -9,9 +9,9 @@ import (
 
 func TestMerkleFromTxIds(t *testing.T) {
 	// Build list of txs
-	txIds := make([]HashT2, 5)
+	txIds := make([]HashT, 5)
 	for i := 0; i < 5; i++ {
-		txIds[i] = NewHashT2Rand()
+		txIds[i] = NewHashTRand()
 	}
 	// Construct merkle tree
 	merkleMap, merkleIds := MerkleFromTxIds(txIds)

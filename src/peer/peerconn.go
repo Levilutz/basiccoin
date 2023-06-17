@@ -178,7 +178,7 @@ func (pc *PeerConn) TransmitUint64Line(msg uint64) {
 }
 
 // Transmit a hash as a line.
-func (pc *PeerConn) TransmitHashLine(msg db.HashT2) {
+func (pc *PeerConn) TransmitHashLine(msg db.HashT) {
 	if pc.e != nil {
 		return
 	}
@@ -271,18 +271,18 @@ func (pc *PeerConn) RetryReadUint64Line(attempts int) uint64 {
 
 // Retry reading a hash line, exponential wait.
 // See RetryReadLine for more info.
-func (pc *PeerConn) RetryReadHashLine(attempts int) db.HashT2 {
+func (pc *PeerConn) RetryReadHashLine(attempts int) db.HashT {
 	if pc.e != nil {
-		return db.HashT2{}
+		return db.HashT{}
 	}
 	raw := pc.RetryReadLine(attempts)
 	if pc.e != nil {
-		return db.HashT2{}
+		return db.HashT{}
 	}
-	out, err := db.NewHashT2FromString(string(raw))
+	out, err := db.NewHashTFromString(string(raw))
 	if err != nil {
 		pc.e = err
-		return db.HashT2{}
+		return db.HashT{}
 	}
 	return out
 }
@@ -307,7 +307,7 @@ func (pc *PeerConn) RetryReadBytesHexLine(attempts int) []byte {
 
 // Retry reading a block header, each line has exponential wait.
 // If expectId is not zero value, verifies block hash is expected.
-func (pc *PeerConn) RetryReadBlockHeader(attemptsPer int, expectId db.HashT2) db.Block {
+func (pc *PeerConn) RetryReadBlockHeader(attemptsPer int, expectId db.HashT) db.Block {
 	if pc.e != nil {
 		return db.Block{}
 	}
@@ -327,7 +327,7 @@ func (pc *PeerConn) RetryReadBlockHeader(attemptsPer int, expectId db.HashT2) db
 
 // Retry reading a merkle node, each line has exponential wait.
 // If expectId is not zero value, verifies merkle hash is expected.
-func (pc *PeerConn) RetryReadMerkle(attemptsPer int, expectId db.HashT2) db.MerkleNode {
+func (pc *PeerConn) RetryReadMerkle(attemptsPer int, expectId db.HashT) db.MerkleNode {
 	if pc.e != nil {
 		return db.MerkleNode{}
 	}
@@ -344,7 +344,7 @@ func (pc *PeerConn) RetryReadMerkle(attemptsPer int, expectId db.HashT2) db.Merk
 
 // Retry reading a tx, each line has exponential wait.
 // If expectId is not zero value, verifies tx hash is expected.
-func (pc *PeerConn) RetryReadTx(attemptsPer int, expectId db.HashT2) db.Tx {
+func (pc *PeerConn) RetryReadTx(attemptsPer int, expectId db.HashT) db.Tx {
 	if pc.e != nil {
 		return db.Tx{}
 	}

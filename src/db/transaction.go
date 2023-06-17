@@ -3,7 +3,7 @@ package db
 // Reference to unspent transaction output.
 // This is just a subset of the fields in a TxIn.
 type Utxo struct {
-	TxId  HashT2 `json:"txId"`
+	TxId  HashT  `json:"txId"`
 	Ind   uint64 `json:"ind"`
 	Value uint64 `json:"value"`
 }
@@ -18,15 +18,15 @@ func UtxoFromInput(txi TxIn) Utxo {
 
 // A transaction input.
 type TxIn struct {
-	OriginTxId     HashT2 `json:"originTxId"`
+	OriginTxId     HashT  `json:"originTxId"`
 	OriginTxOutInd uint64 `json:"originTxOutInd"`
 	PublicKey      []byte `json:"publicKey"`
 	Signature      []byte `json:"signature"`
 	Value          uint64 `json:"value"`
 }
 
-func (txi TxIn) Hash() HashT2 {
-	return DHashVarious2(
+func (txi TxIn) Hash() HashT {
+	return DHashVarious(
 		txi.OriginTxId,
 		txi.OriginTxOutInd,
 		txi.PublicKey,
@@ -43,11 +43,11 @@ func (txi TxIn) VSize() uint64 {
 // A transaction output.
 type TxOut struct {
 	Value         uint64 `json:"value"`
-	PublicKeyHash HashT2 `json:"publicKeyHash"`
+	PublicKeyHash HashT  `json:"publicKeyHash"`
 }
 
-func (txo TxOut) Hash() HashT2 {
-	return DHashVarious2(txo.Value, txo.PublicKeyHash)
+func (txo TxOut) Hash() HashT {
+	return DHashVarious(txo.Value, txo.PublicKeyHash)
 }
 
 func (txo TxOut) VSize() uint64 {
@@ -62,9 +62,9 @@ type Tx struct {
 	Outputs  []TxOut `json:"outputs"`
 }
 
-func (tx Tx) Hash() HashT2 {
-	return DHashVarious2(
-		tx.MinBlock, DHashList2(tx.Inputs), DHashList2(tx.Outputs),
+func (tx Tx) Hash() HashT {
+	return DHashVarious(
+		tx.MinBlock, DHashList(tx.Inputs), DHashList(tx.Outputs),
 	)
 }
 
@@ -124,8 +124,8 @@ func (tx Tx) GetConsumedUtxos() []Utxo {
 	return out
 }
 
-func TxHashPreSig(minBlock uint64, outputs []TxOut) HashT2 {
-	return DHashVarious2(minBlock, DHashList2(outputs))
+func TxHashPreSig(minBlock uint64, outputs []TxOut) HashT {
+	return DHashVarious(minBlock, DHashList(outputs))
 }
 
 func MinNonCoinbaseVSize() uint64 {
@@ -133,7 +133,7 @@ func MinNonCoinbaseVSize() uint64 {
 		MinBlock: 0,
 		Inputs: []TxIn{
 			{
-				OriginTxId:     HashT2{},
+				OriginTxId:     HashT{},
 				OriginTxOutInd: 0,
 				PublicKey:      ExamplePubDer(),
 				Signature:      []byte{},
@@ -151,7 +151,7 @@ func CoinbaseVSize() uint64 {
 		Outputs: []TxOut{
 			{
 				Value:         0,
-				PublicKeyHash: HashT2{},
+				PublicKeyHash: HashT{},
 			},
 		},
 	}.VSize()

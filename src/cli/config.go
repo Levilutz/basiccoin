@@ -12,12 +12,12 @@ import (
 )
 
 type KeyConfigJSON struct {
-	PublicKeyHash db.HashT2 `json:"publicKeyHash"`
-	PrivateKey    []byte    `json:"privateKey"`
+	PublicKeyHash db.HashT `json:"publicKeyHash"`
+	PrivateKey    []byte   `json:"privateKey"`
 }
 
 type KeyConfig struct {
-	PublicKeyHash db.HashT2
+	PublicKeyHash db.HashT
 	PrivateKey    *ecdsa.PrivateKey
 }
 
@@ -27,7 +27,7 @@ func NewKeyConfig(priv *ecdsa.PrivateKey) KeyConfig {
 		panic(err)
 	}
 	return KeyConfig{
-		PublicKeyHash: db.DHashBytes2(pubBytes),
+		PublicKeyHash: db.DHashBytes(pubBytes),
 		PrivateKey:    priv,
 	}
 }
@@ -63,7 +63,7 @@ func (kc *KeyConfig) Verify() error {
 	if err != nil {
 		return err
 	}
-	if !db.DHashBytes2(pub).Eq(kc.PublicKeyHash) {
+	if !db.DHashBytes(pub).Eq(kc.PublicKeyHash) {
 		return fmt.Errorf("private key does not match public key hash")
 	}
 	return nil
@@ -89,15 +89,15 @@ func (cfg *Config) VerifyKeys() {
 	}
 }
 
-func (cfg *Config) GetPublicKeyHashes() []db.HashT2 {
-	out := make([]db.HashT2, len(cfg.Keys))
+func (cfg *Config) GetPublicKeyHashes() []db.HashT {
+	out := make([]db.HashT, len(cfg.Keys))
 	for i, kc := range cfg.Keys {
 		out[i] = kc.PublicKeyHash
 	}
 	return out
 }
 
-func (cfg *Config) GetPrivateKey(publicKeyHash db.HashT2) (*ecdsa.PrivateKey, error) {
+func (cfg *Config) GetPrivateKey(publicKeyHash db.HashT) (*ecdsa.PrivateKey, error) {
 	for _, kc := range cfg.Keys {
 		if kc.PublicKeyHash == publicKeyHash {
 			return kc.PrivateKey, nil
@@ -106,7 +106,7 @@ func (cfg *Config) GetPrivateKey(publicKeyHash db.HashT2) (*ecdsa.PrivateKey, er
 	return nil, fmt.Errorf("given public key hash does not controlled")
 }
 
-func (cfg *Config) HasPublicKeyHash(pkh db.HashT2) bool {
+func (cfg *Config) HasPublicKeyHash(pkh db.HashT) bool {
 	for _, kc := range cfg.Keys {
 		if kc.PublicKeyHash == pkh {
 			return true

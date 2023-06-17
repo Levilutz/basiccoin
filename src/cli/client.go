@@ -20,9 +20,9 @@ type Client struct {
 
 // Data on the balances of several addressses.
 type BalanceData struct {
-	Balances    map[db.HashT2]uint64
+	Balances    map[db.HashT]uint64
 	Total       uint64
-	SortedAddrs []db.HashT2 // Descending
+	SortedAddrs []db.HashT // Descending
 }
 
 // Create a new client from the given base url.
@@ -64,7 +64,7 @@ func (c *Client) Check() error {
 }
 
 // Query the node for the balance of the given address.
-func (c *Client) GetBalance(publicKeyHash db.HashT2) (uint64, error) {
+func (c *Client) GetBalance(publicKeyHash db.HashT) (uint64, error) {
 	queryStr := fmt.Sprintf("?publicKeyHash=%s", publicKeyHash)
 	resp, err := http.Get(c.baseUrl + "balance" + queryStr)
 	if err != nil {
@@ -81,8 +81,8 @@ func (c *Client) GetBalance(publicKeyHash db.HashT2) (uint64, error) {
 }
 
 // Get balances per provided address and the total balance.
-func (c *Client) GetAllBalances(pkhs []db.HashT2) (*BalanceData, error) {
-	out := make(map[db.HashT2]uint64, len(pkhs))
+func (c *Client) GetAllBalances(pkhs []db.HashT) (*BalanceData, error) {
+	out := make(map[db.HashT]uint64, len(pkhs))
 	total := uint64(0)
 	for _, pkh := range pkhs {
 		bal, err := c.GetBalance(pkh)
@@ -105,7 +105,7 @@ func (c *Client) GetAllBalances(pkhs []db.HashT2) (*BalanceData, error) {
 }
 
 // Query the node for the given address's utxos.
-func (c *Client) GetUtxos(publicKeyHash db.HashT2) ([]db.Utxo, error) {
+func (c *Client) GetUtxos(publicKeyHash db.HashT) ([]db.Utxo, error) {
 	queryStr := fmt.Sprintf("?publicKeyHash=%s", publicKeyHash)
 	resp, err := http.Get(c.baseUrl + "utxos" + queryStr)
 	if err != nil {
@@ -126,9 +126,9 @@ func (c *Client) GetUtxos(publicKeyHash db.HashT2) ([]db.Utxo, error) {
 }
 
 // Get utxos of all provided addresses. Return value maps utxos to their pkhs.
-func (c *Client) GetAllUtxos(pkhs []db.HashT2) (map[db.Utxo]db.HashT2, error) {
-	out := make(map[db.Utxo]db.HashT2)
-	coveredPkhs := util.NewSet[db.HashT2]()
+func (c *Client) GetAllUtxos(pkhs []db.HashT) (map[db.Utxo]db.HashT, error) {
+	out := make(map[db.Utxo]db.HashT)
+	coveredPkhs := util.NewSet[db.HashT]()
 	for _, pkh := range pkhs {
 		if coveredPkhs.Includes(pkh) {
 			return nil, fmt.Errorf("duplicate pkh: %s", pkh)
@@ -149,41 +149,41 @@ func (c *Client) GetAllUtxos(pkhs []db.HashT2) (map[db.Utxo]db.HashT2, error) {
 }
 
 // Send a tx to the node, return TxId.
-func (c *Client) SendTx(tx db.Tx) (db.HashT2, error) {
+func (c *Client) SendTx(tx db.Tx) (db.HashT, error) {
 	txJson, err := json.Marshal(tx)
 	if err != nil {
-		return db.HashT2{}, err
+		return db.HashT{}, err
 	}
 	resp, err := http.Post(c.baseUrl+"tx", "application/json", bytes.NewReader(txJson))
 	if err != nil {
-		return db.HashT2{}, err
+		return db.HashT{}, err
 	}
 	if resp.StatusCode != 200 {
 		content, _ := io.ReadAll(resp.Body)
 		fmt.Println(string(content))
-		return db.HashT2{}, fmt.Errorf("tx non-2XX response: %d", resp.StatusCode)
+		return db.HashT{}, fmt.Errorf("tx non-2XX response: %d", resp.StatusCode)
 	}
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return db.HashT2{}, err
+		return db.HashT{}, err
 	}
-	txId, err := db.NewHashT2FromString(string(body))
+	txId, err := db.NewHashTFromString(string(body))
 	if err != nil {
-		return db.HashT2{}, err
+		return db.HashT{}, err
 	}
 	if txId != tx.Hash() {
-		return db.HashT2{}, fmt.Errorf("wrong txId received: %s != %s", txId, tx.Hash())
+		return db.HashT{}, fmt.Errorf("wrong txId received: %s != %s", txId, tx.Hash())
 	}
 	return txId, nil
 }
 
-func (c *Client) GetHistory(publicKeyHashes ...db.HashT2) []db.Tx {
+func (c *Client) GetHistory(publicKeyHashes ...db.HashT) []db.Tx {
 	return []db.Tx{}
 }
 
 // Manufacture an outbound tx that could be sent to the network.
 // TODO: Allow this to be customized, don't use utxos that have unconfirmed spends.
-func (c *Client) MakeOutboundTx(outputValues map[db.HashT2]uint64) (db.Tx, error) {
+func (c *Client) MakeOutboundTx(outputValues map[db.HashT]uint64) (db.Tx, error) {
 	targetRate := float64(1.0) // Target fee rate in coin / vByte
 	// Get available utxos
 	utxos, err := c.GetAllUtxos(c.config.GetPublicKeyHashes())
@@ -193,7 +193,7 @@ func (c *Client) MakeOutboundTx(outputValues map[db.HashT2]uint64) (db.Tx, error
 		return db.Tx{}, fmt.Errorf("insufficient balance")
 	}
 	balance := uint64(0)
-	pkhBalances := make(map[db.HashT2]uint64)
+	pkhBalances := make(map[db.HashT]uint64)
 	for utxo, pkh := range utxos {
 		balance += utxo.Value
 		pkhBalances[pkh] += utxo.Value
@@ -303,7 +303,7 @@ func (c *Client) MakeConsolidateTx() (db.Tx, error) {
 		return db.Tx{}, fmt.Errorf("no consolidation possible")
 	}
 	balance := uint64(0)
-	pkhBalances := make(map[db.HashT2]uint64)
+	pkhBalances := make(map[db.HashT]uint64)
 	for utxo, pkh := range utxos {
 		balance += utxo.Value
 		pkhBalances[pkh] += utxo.Value

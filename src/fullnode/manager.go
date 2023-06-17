@@ -26,10 +26,10 @@ type Manager struct {
 	inv             *db.Inv
 	state           *db.State
 	minerSet        *miner.MinerSet
-	minerPayoutAddr db.HashT2
+	minerPayoutAddr db.HashT
 }
 
-func NewManager(minerPayoutAddr db.HashT2) *Manager {
+func NewManager(minerPayoutAddr db.HashT) *Manager {
 	inv := db.NewInv()
 	// Create state tracker (only track balances if we're serving http)
 	state := db.NewState(inv, util.Constants.HttpPort != -1)
@@ -116,7 +116,7 @@ func (m *Manager) HandlePeerClosing(runtimeId string) {
 }
 
 func (m *Manager) HandleInboundSync(
-	head db.HashT2,
+	head db.HashT,
 	blocks []db.Block,
 	merkles []db.MerkleNode,
 	txs []db.Tx,
@@ -147,13 +147,13 @@ func (m *Manager) HandleNewTx(tx db.Tx) {
 	})
 }
 
-func (m *Manager) SyncGetBalance(publicKeyHash db.HashT2) uint64 {
+func (m *Manager) SyncGetBalance(publicKeyHash db.HashT) uint64 {
 	rCh := make(chan uint64)
 	m.queueEvent(balanceQuery{rCh, publicKeyHash})
 	return <-rCh
 }
 
-func (m *Manager) SyncGetUtxos(publicKeyHash db.HashT2) []db.Utxo {
+func (m *Manager) SyncGetUtxos(publicKeyHash db.HashT) []db.Utxo {
 	rCh := make(chan []db.Utxo)
 	m.queueEvent(utxosQuery{rCh, publicKeyHash})
 	return <-rCh
@@ -165,7 +165,7 @@ func (m *Manager) SyncNewTx(tx db.Tx) error {
 	return <-rCh
 }
 
-func (m *Manager) SyncGetConfirms(txId db.HashT2) (uint64, bool) {
+func (m *Manager) SyncGetConfirms(txId db.HashT) (uint64, bool) {
 	if !m.inv.HasTx(txId) {
 		return 0, false
 	}
@@ -329,7 +329,7 @@ func (m *Manager) IntroducePeerConn(pc *peer.PeerConn, weAreInitiator bool) {
 // Upgrades our chain to the given new head, if it proves to be better.
 // Provide any blocks, merkles, or txs we might not know about (in the order to insert).
 func (m *Manager) handleNewBestChain(
-	newHead db.HashT2,
+	newHead db.HashT,
 	blocks []db.Block,
 	merkles []db.MerkleNode,
 	txs []db.Tx,

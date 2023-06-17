@@ -72,12 +72,12 @@ var commands = []Command{
 		RequiredArgs:   0,
 		RequiresClient: true,
 		Handler: func(ctx HandlerContext) error {
-			var pkhs []db.HashT2
+			var pkhs []db.HashT
 			if len(ctx.Args) > 0 {
 				// Get balance of given addresses
-				pkhs = make([]db.HashT2, len(ctx.Args))
+				pkhs = make([]db.HashT, len(ctx.Args))
 				for i, arg := range ctx.Args {
-					pkh, err := db.NewHashT2FromString(arg)
+					pkh, err := db.NewHashTFromString(arg)
 					if err != nil {
 						return err
 					}
@@ -120,7 +120,7 @@ var commands = []Command{
 		RequiredArgs:   2,
 		RequiresClient: true,
 		Handler: func(ctx HandlerContext) error {
-			destPkh, err := db.NewHashT2FromString(ctx.Args[0])
+			destPkh, err := db.NewHashTFromString(ctx.Args[0])
 			if err != nil {
 				return err
 			}
@@ -128,7 +128,7 @@ var commands = []Command{
 			if err != nil {
 				return err
 			}
-			outputValues := map[db.HashT2]uint64{
+			outputValues := map[db.HashT]uint64{
 				destPkh: amt,
 			}
 			tx, err := ctx.Client.MakeOutboundTx(outputValues)

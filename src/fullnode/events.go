@@ -14,7 +14,7 @@ type peersReceivedEvent struct {
 
 // A candidate (unverified) set of blocks to upgrade the ledger to, with needed data.
 type inboundSyncEvent struct {
-	head    db.HashT2
+	head    db.HashT
 	blocks  []db.Block
 	merkles []db.MerkleNode
 	txs     []db.Tx
@@ -33,13 +33,13 @@ type newTxEvent struct {
 // Get the balance of a public key hash.
 type balanceQuery struct {
 	rCh           chan<- uint64
-	publicKeyHash db.HashT2
+	publicKeyHash db.HashT
 }
 
 // Get the utxos available to a given public key hash.
 type utxosQuery struct {
 	rCh           chan<- []db.Utxo
-	publicKeyHash db.HashT2
+	publicKeyHash db.HashT
 }
 
 // Store a new tx, respond with success.

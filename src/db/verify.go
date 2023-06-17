@@ -135,7 +135,7 @@ func verifyTx(inv InvReader, tx Tx) error {
 			)
 		}
 		origin := inv.GetTxOut(txi.OriginTxId, txi.OriginTxOutInd)
-		if !DHashBytes2(txi.PublicKey).Eq(origin.PublicKeyHash) {
+		if !DHashBytes(txi.PublicKey).Eq(origin.PublicKeyHash) {
 			return fmt.Errorf("given public key does not match claimed utxo")
 		}
 		if txi.Value != origin.Value {

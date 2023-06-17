@@ -12,7 +12,7 @@ import (
 type MainEventHandler interface {
 	HandlePeerClosing(runtimeId string)
 	HandleInboundSync(
-		head db.HashT2,
+		head db.HashT,
 		blocks []db.Block,
 		merkles []db.MerkleNode,
 		txs []db.Tx,
@@ -30,7 +30,7 @@ type Peer struct {
 	mainHandler    MainEventHandler
 	weAreInitiator bool
 	inv            db.InvReader
-	head           db.HashT2
+	head           db.HashT
 	shouldClose    bool
 }
 
@@ -46,7 +46,7 @@ func NewPeer(
 	mainHandler MainEventHandler,
 	weAreInitiator bool,
 	inv db.InvReader,
-	head db.HashT2,
+	head db.HashT,
 ) *Peer {
 	return &Peer{
 		Info:           info,
@@ -69,7 +69,7 @@ func (p *Peer) ShouldEnd() {
 }
 
 // Inform this peer of a new chain head.
-func (p *Peer) SyncHead(head db.HashT2) {
+func (p *Peer) SyncHead(head db.HashT) {
 	p.queueEvent(syncHeadEvent{
 		head: head,
 	})
@@ -87,7 +87,7 @@ func (p *Peer) PeersWanted() {
 	p.queueEvent(peersWantedEvent{})
 }
 
-func (p *Peer) SendTx(txId db.HashT2) {
+func (p *Peer) SendTx(txId db.HashT) {
 	p.queueEvent(sendTxEvent{
 		txId: txId,
 	})
@@ -319,7 +319,7 @@ func (p *Peer) handleSync() error {
 // Send a chain sync.
 func (p *Peer) handleSendSync() error {
 	// Find last common ancestor with peer
-	neededBlockIds := make([]db.HashT2, 0)
+	neededBlockIds := make([]db.HashT, 0)
 	lcaId := p.head
 	p.conn.TransmitHashLine(lcaId)
 	resp := p.conn.RetryReadStringLine(7)
@@ -385,7 +385,7 @@ func (p *Peer) handleSendSync() error {
 // Receive a chain sync.
 func (p *Peer) handleReceiveSync() error {
 	// Find last common ancestor with peer
-	neededBlockIds := make([]db.HashT2, 0)
+	neededBlockIds := make([]db.HashT, 0)
 	newHead := p.conn.RetryReadHashLine(7)
 	lcaId := newHead
 	for !p.inv.HasBlock(lcaId) {
@@ -398,7 +398,7 @@ func (p *Peer) handleReceiveSync() error {
 		return fmt.Errorf("we do not need upgrade, sync should not have run")
 	}
 	// Receive blocks from peer
-	blockMap := make(map[db.HashT2]db.Block)
+	blockMap := make(map[db.HashT]db.Block)
 	for _, blockId := range neededBlockIds {
 		blockMap[blockId] = p.conn.RetryReadBlockHeader(7, blockId)
 		if p.conn.HasErr() {
@@ -422,8 +422,8 @@ func (p *Peer) handleReceiveSync() error {
 	newBlocks := make([]db.Block, 0)
 	newMerkles := make([]db.MerkleNode, 0)
 	newTxs := make([]db.Tx, 0)
-	entityQueue := util.NewQueue[db.HashT2]()
-	newEntitySet := util.NewSet[db.HashT2]()
+	entityQueue := util.NewQueue[db.HashT]()
+	newEntitySet := util.NewSet[db.HashT]()
 	for _, blockId := range neededBlockIds {
 		merkle := blockMap[blockId].MerkleRoot
 		if !p.inv.HasMerkle(merkle) {
@@ -462,7 +462,7 @@ func (p *Peer) handleReceiveSync() error {
 		}
 		newEntitySet.Add(entityId)
 	}
-	p.conn.TransmitHashLine(db.HashT2{})
+	p.conn.TransmitHashLine(db.HashT{})
 	// Send the event to the manager
 	p.mainHandler.HandleInboundSync(newHead, newBlocks, newMerkles, newTxs)
 	return nil
@@ -471,10 +471,10 @@ func (p *Peer) handleReceiveSync() error {
 // Verify a new chain's continuity, expected endpoints, and proof-of-work.
 // Leaves heavier and state-based verification to manager, this just helps prevent ddos.
 func (p *Peer) quickVerifyChain(
-	newHead db.HashT2,
-	lcaId db.HashT2,
-	neededBlockIds []db.HashT2,
-	blockMap map[db.HashT2]db.Block,
+	newHead db.HashT,
+	lcaId db.HashT,
+	neededBlockIds []db.HashT,
+	blockMap map[db.HashT]db.Block,
 ) error {
 	// Verify chain has expected head
 	if neededBlockIds[0] != newHead {

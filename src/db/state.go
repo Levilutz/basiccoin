@@ -10,27 +10,27 @@ import (
 // State at a blockchain node. Responsible for preventing double-spends.
 // Meant to only be accessed synchronously by a single thread.
 type State struct {
-	head             HashT2
-	mempool          *util.Set[HashT2]
+	head             HashT
+	mempool          *util.Set[HashT]
 	utxos            *util.Set[Utxo]
 	inv              InvReader
-	mempoolRates     map[HashT2]float64
-	pkhUtxos         map[HashT2]*util.Set[Utxo]
-	includedTxBlocks map[HashT2]HashT2
+	mempoolRates     map[HashT]float64
+	pkhUtxos         map[HashT]*util.Set[Utxo]
+	includedTxBlocks map[HashT]HashT
 }
 
 func NewState(inv InvReader, trackBalances bool) *State {
 	s := &State{
-		head:             HashT2{},
-		mempool:          util.NewSet[HashT2](),
+		head:             HashT{},
+		mempool:          util.NewSet[HashT](),
 		utxos:            util.NewSet[Utxo](),
 		inv:              inv,
-		mempoolRates:     make(map[HashT2]float64),
+		mempoolRates:     make(map[HashT]float64),
 		pkhUtxos:         nil,
-		includedTxBlocks: make(map[HashT2]HashT2),
+		includedTxBlocks: make(map[HashT]HashT),
 	}
 	if trackBalances {
-		s.pkhUtxos = make(map[HashT2]*util.Set[Utxo])
+		s.pkhUtxos = make(map[HashT]*util.Set[Utxo])
 	}
 	return s
 }
@@ -38,7 +38,7 @@ func NewState(inv InvReader, trackBalances bool) *State {
 // Copy a state.
 func (s *State) Copy() *State {
 	// Must deep copy pkhUtxos
-	newPkhUtxos := make(map[HashT2]*util.Set[Utxo], len(s.pkhUtxos))
+	newPkhUtxos := make(map[HashT]*util.Set[Utxo], len(s.pkhUtxos))
 	for pkh, utxos := range s.pkhUtxos {
 		newPkhUtxos[pkh] = utxos.Copy()
 	}
@@ -54,7 +54,7 @@ func (s *State) Copy() *State {
 	}
 }
 
-func (s *State) GetHead() HashT2 {
+func (s *State) GetHead() HashT {
 	return s.head
 }
 
@@ -105,7 +105,7 @@ func (s *State) Rewind() error {
 
 // Rewind a state until head is the given block.
 // If this fails state will be corrupted, so copy before if necessary.
-func (s *State) RewindUntil(blockId HashT2) {
+func (s *State) RewindUntil(blockId HashT) {
 	depth, ok := s.inv.GetBlockAncestorDepth(s.head, blockId)
 	if !ok {
 		panic(fmt.Sprintf("head does not have ancestor %s", blockId))
@@ -123,7 +123,7 @@ func (s *State) RewindUntil(blockId HashT2) {
 
 // Advance a state to a given next block.
 // If this fails state will be corrupted, so copy before if necessary.
-func (s *State) Advance(nextBlockId HashT2) error {
+func (s *State) Advance(nextBlockId HashT) error {
 	if !s.inv.HasBlock(nextBlockId) {
 		return fmt.Errorf("cannot advance, block unknown: %s", nextBlockId)
 	}
@@ -183,7 +183,7 @@ func (s *State) Advance(nextBlockId HashT2) error {
 }
 
 // Check whether a tx can be included in a new block based on this head.
-func (s *State) VerifyTxIncludable(txId HashT2) error {
+func (s *State) VerifyTxIncludable(txId HashT) error {
 	if !s.inv.HasTx(txId) {
 		return ErrEntityUnknown
 	}
@@ -206,9 +206,9 @@ func (s *State) VerifyTxIncludable(txId HashT2) error {
 }
 
 // Get includable mempool txs sorted be fee rate, descending.
-func (s *State) GetSortedIncludableMempool() []HashT2 {
+func (s *State) GetSortedIncludableMempool() []HashT {
 	mem := s.mempool.Copy()
-	mem.Filter(func(txId HashT2) bool {
+	mem.Filter(func(txId HashT) bool {
 		return s.VerifyTxIncludable(txId) == nil && s.inv.GetTx(txId).HasSurplus()
 	})
 	memL := mem.ToList()
@@ -220,14 +220,14 @@ func (s *State) GetSortedIncludableMempool() []HashT2 {
 }
 
 // Add a tx to the mempool.
-func (s *State) AddMempoolTx(txId HashT2) {
+func (s *State) AddMempoolTx(txId HashT) {
 	tx := s.inv.GetTx(txId)
 	s.mempool.Add(txId)
 	s.mempoolRates[txId] = tx.Rate()
 }
 
 // Add to the utxo set of a public key hash.
-func (s *State) creditBalance(publicKeyHash HashT2, credit Utxo) {
+func (s *State) creditBalance(publicKeyHash HashT, credit Utxo) {
 	if s.pkhUtxos == nil {
 		panic("balance tracking was not enabled")
 	}
@@ -239,7 +239,7 @@ func (s *State) creditBalance(publicKeyHash HashT2, credit Utxo) {
 }
 
 // Remove from the utxo set of a public key hash.
-func (s *State) debitBalance(publicKeyHash HashT2, debit Utxo) {
+func (s *State) debitBalance(publicKeyHash HashT, debit Utxo) {
 	if s.pkhUtxos == nil {
 		panic("balance tracking was not enabled")
 	}
@@ -251,7 +251,7 @@ func (s *State) debitBalance(publicKeyHash HashT2, debit Utxo) {
 }
 
 // Get the utxos of a public key hash.
-func (s *State) GetPkhUtxos(publicKeyHash HashT2) []Utxo {
+func (s *State) GetPkhUtxos(publicKeyHash HashT) []Utxo {
 	if s.pkhUtxos == nil {
 		panic("balance tracking was not enabled")
 	}
@@ -262,7 +262,7 @@ func (s *State) GetPkhUtxos(publicKeyHash HashT2) []Utxo {
 	return utxos.ToList()
 }
 
-func (s *State) GetPkhBalance(publicKeyHash HashT2) uint64 {
+func (s *State) GetPkhBalance(publicKeyHash HashT) uint64 {
 	if s.pkhUtxos == nil {
 		panic("balance tracking was not enabled")
 	}
@@ -277,7 +277,7 @@ func (s *State) GetPkhBalance(publicKeyHash HashT2) uint64 {
 	return total
 }
 
-func (s *State) GetIncludedTxBlock(txId HashT2) (HashT2, bool) {
+func (s *State) GetIncludedTxBlock(txId HashT) (HashT, bool) {
 	blockId, ok := s.includedTxBlocks[txId]
 	return blockId, ok
 }

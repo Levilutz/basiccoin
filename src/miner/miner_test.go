@@ -11,13 +11,13 @@ import (
 )
 
 func TestMine(t *testing.T) {
-	difficulty, err := db.NewHashT2FromString(
+	difficulty, err := db.NewHashTFromString(
 		"00000fffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
 	)
 	util.AssertNoErr(t, err)
-	merkle := db.NewHashT2Rand()
+	merkle := db.NewHashTRand()
 	target := db.Block{
-		PrevBlockId: db.HashT2{},
+		PrevBlockId: db.HashT{},
 		MerkleRoot:  merkle,
 		Difficulty:  difficulty,
 		Nonce:       0,

@@ -32,11 +32,11 @@ func TestTransactionHash(t *testing.T) {
 	outputs := []TxOut{
 		{
 			Value:         554,
-			PublicKeyHash: DHashBytes2(outKey1PubDer),
+			PublicKeyHash: DHashBytes(outKey1PubDer),
 		},
 		{
 			Value:         102,
-			PublicKeyHash: DHashBytes2(outKey2PubDer),
+			PublicKeyHash: DHashBytes(outKey2PubDer),
 		},
 	}
 	preSigHash := TxHashPreSig(minBlock, outputs)
@@ -49,13 +49,13 @@ func TestTransactionHash(t *testing.T) {
 	t.Log("sig1", len(sig1Asn))
 	inputs := []TxIn{
 		{
-			OriginTxId:     DHashBytes2([]byte("Hello World")),
+			OriginTxId:     DHashBytes([]byte("Hello World")),
 			OriginTxOutInd: 2,
 			PublicKey:      inKey1PubDer,
 			Signature:      sig1Asn,
 		},
 		{
-			OriginTxId:     DHashBytes2([]byte("Hello World 123")),
+			OriginTxId:     DHashBytes([]byte("Hello World 123")),
 			OriginTxOutInd: 3,
 			PublicKey:      inKey2PubDer,
 			Signature:      sig2Asn,
@@ -74,9 +74,9 @@ func TestTransactionHash(t *testing.T) {
 
 // Test that a tx and components can be json serialized and deserialized.
 func TestTxJson(t *testing.T) {
-	originId := NewHashT2Rand()
-	outPkh1 := NewHashT2Rand()
-	outPkh2 := NewHashT2Rand()
+	originId := NewHashTRand()
+	outPkh1 := NewHashTRand()
+	outPkh2 := NewHashTRand()
 	tx := Tx{
 		MinBlock: 443,
 		Inputs: []TxIn{

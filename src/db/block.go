@@ -8,24 +8,24 @@ import (
 )
 
 type MerkleNode struct {
-	LChild HashT2
-	RChild HashT2
+	LChild HashT
+	RChild HashT
 }
 
-func (node MerkleNode) Hash() HashT2 {
-	return DHashVarious2(node.LChild, node.RChild)
+func (node MerkleNode) Hash() HashT {
+	return DHashVarious(node.LChild, node.RChild)
 }
 
 type Block struct {
-	PrevBlockId HashT2
-	MerkleRoot  HashT2
-	Difficulty  HashT2
-	Noise       HashT2
+	PrevBlockId HashT
+	MerkleRoot  HashT
+	Difficulty  HashT
+	Noise       HashT
 	Nonce       uint64
 }
 
-func (b Block) Hash() HashT2 {
-	return DHashVarious2(b.PrevBlockId, b.MerkleRoot, b.Difficulty, b.Noise, b.Nonce)
+func (b Block) Hash() HashT {
+	return DHashVarious(b.PrevBlockId, b.MerkleRoot, b.Difficulty, b.Noise, b.Nonce)
 }
 
 // Verify that the claimed proof of work is valid.
@@ -54,7 +54,7 @@ func MerkleTreeMaxSize() uint64 {
 // Construct a merkle tree from a list of txIds.
 // Returns merkle nodes by hash, and order they should be inserted into inv.
 // Last id in list is the root.
-func MerkleFromTxIds(txIds []HashT2) (map[HashT2]MerkleNode, []HashT2) {
+func MerkleFromTxIds(txIds []HashT) (map[HashT]MerkleNode, []HashT) {
 	if len(txIds) == 0 {
 		panic("need at least one tx to generate tree")
 	}
@@ -62,16 +62,16 @@ func MerkleFromTxIds(txIds []HashT2) (map[HashT2]MerkleNode, []HashT2) {
 	if len(txIds) == 1 {
 		node := MerkleNode{LChild: txIds[0], RChild: txIds[0]}
 		nodeId := node.Hash()
-		return map[HashT2]MerkleNode{nodeId: node}, []HashT2{nodeId}
+		return map[HashT]MerkleNode{nodeId: node}, []HashT{nodeId}
 	}
 	// Normal case - generate layers one at a time
-	outMap := make(map[HashT2]MerkleNode)
+	outMap := make(map[HashT]MerkleNode)
 	// Number of tree layers, _including_ txs at bottom
 	numLayers := int(math.Ceil(math.Log2(float64(len(txIds))))) + 1
 	// Initialize tree layers
-	outLayers := make([][]HashT2, numLayers)
+	outLayers := make([][]HashT, numLayers)
 	for i := range outLayers {
-		outLayers[i] = make([]HashT2, 0)
+		outLayers[i] = make([]HashT, 0)
 	}
 	// Populate lowest layer of tree with txIds
 	outLayers[0] = append(outLayers[0], txIds...)
