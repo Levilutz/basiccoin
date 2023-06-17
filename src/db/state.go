@@ -4,33 +4,34 @@ import (
 	"fmt"
 	"sort"
 
+	"github.com/levilutz/basiccoin/src/kern"
 	"github.com/levilutz/basiccoin/src/util"
 )
 
 // State at a blockchain node. Responsible for preventing double-spends.
 // Meant to only be accessed synchronously by a single thread.
 type State struct {
-	head             HashT
-	mempool          *util.Set[HashT]
-	utxos            *util.Set[Utxo]
+	head             kern.HashT
+	mempool          *util.Set[kern.HashT]
+	utxos            *util.Set[kern.Utxo]
 	inv              InvReader
-	mempoolRates     map[HashT]float64
-	pkhUtxos         map[HashT]*util.Set[Utxo]
-	includedTxBlocks map[HashT]HashT
+	mempoolRates     map[kern.HashT]float64
+	pkhUtxos         map[kern.HashT]*util.Set[kern.Utxo]
+	includedTxBlocks map[kern.HashT]kern.HashT
 }
 
 func NewState(inv InvReader, trackBalances bool) *State {
 	s := &State{
-		head:             HashT{},
-		mempool:          util.NewSet[HashT](),
-		utxos:            util.NewSet[Utxo](),
+		head:             kern.HashT{},
+		mempool:          util.NewSet[kern.HashT](),
+		utxos:            util.NewSet[kern.Utxo](),
 		inv:              inv,
-		mempoolRates:     make(map[HashT]float64),
+		mempoolRates:     make(map[kern.HashT]float64),
 		pkhUtxos:         nil,
-		includedTxBlocks: make(map[HashT]HashT),
+		includedTxBlocks: make(map[kern.HashT]kern.HashT),
 	}
 	if trackBalances {
-		s.pkhUtxos = make(map[HashT]*util.Set[Utxo])
+		s.pkhUtxos = make(map[kern.HashT]*util.Set[kern.Utxo])
 	}
 	return s
 }
@@ -38,7 +39,7 @@ func NewState(inv InvReader, trackBalances bool) *State {
 // Copy a state.
 func (s *State) Copy() *State {
 	// Must deep copy pkhUtxos
-	newPkhUtxos := make(map[HashT]*util.Set[Utxo], len(s.pkhUtxos))
+	newPkhUtxos := make(map[kern.HashT]*util.Set[kern.Utxo], len(s.pkhUtxos))
 	for pkh, utxos := range s.pkhUtxos {
 		newPkhUtxos[pkh] = utxos.Copy()
 	}
@@ -54,7 +55,7 @@ func (s *State) Copy() *State {
 	}
 }
 
-func (s *State) GetHead() HashT {
+func (s *State) GetHead() kern.HashT {
 	return s.head
 }
 
@@ -81,11 +82,11 @@ func (s *State) Rewind() error {
 		}
 		// Remove the tx outputs from the utxo set
 		for i, txo := range tx.Outputs {
-			if !s.utxos.Remove(Utxo{TxId: txId, Ind: uint64(i), Value: txo.Value}) {
+			if !s.utxos.Remove(kern.Utxo{TxId: txId, Ind: uint64(i), Value: txo.Value}) {
 				return fmt.Errorf("state corrupt - missing utxo %s[%d]", txId, i)
 			}
 			if s.pkhUtxos != nil {
-				s.debitBalance(txo.PublicKeyHash, Utxo{
+				s.debitBalance(txo.PublicKeyHash, kern.Utxo{
 					TxId:  txId,
 					Ind:   uint64(i),
 					Value: txo.Value,
@@ -105,7 +106,7 @@ func (s *State) Rewind() error {
 
 // Rewind a state until head is the given block.
 // If this fails state will be corrupted, so copy before if necessary.
-func (s *State) RewindUntil(blockId HashT) {
+func (s *State) RewindUntil(blockId kern.HashT) {
 	depth, ok := s.inv.GetBlockAncestorDepth(s.head, blockId)
 	if !ok {
 		panic(fmt.Sprintf("head does not have ancestor %s", blockId))
@@ -123,7 +124,7 @@ func (s *State) RewindUntil(blockId HashT) {
 
 // Advance a state to a given next block.
 // If this fails state will be corrupted, so copy before if necessary.
-func (s *State) Advance(nextBlockId HashT) error {
+func (s *State) Advance(nextBlockId kern.HashT) error {
 	if !s.inv.HasBlock(nextBlockId) {
 		return fmt.Errorf("cannot advance, block unknown: %s", nextBlockId)
 	}
@@ -162,9 +163,9 @@ func (s *State) Advance(nextBlockId HashT) error {
 		}
 		// Add the tx outputs
 		for i, txo := range tx.Outputs {
-			s.utxos.Add(Utxo{TxId: txId, Ind: uint64(i), Value: txo.Value})
+			s.utxos.Add(kern.Utxo{TxId: txId, Ind: uint64(i), Value: txo.Value})
 			if s.pkhUtxos != nil {
-				s.creditBalance(txo.PublicKeyHash, Utxo{
+				s.creditBalance(txo.PublicKeyHash, kern.Utxo{
 					TxId:  txId,
 					Ind:   uint64(i),
 					Value: txo.Value,
@@ -183,7 +184,7 @@ func (s *State) Advance(nextBlockId HashT) error {
 }
 
 // Check whether a tx can be included in a new block based on this head.
-func (s *State) VerifyTxIncludable(txId HashT) error {
+func (s *State) VerifyTxIncludable(txId kern.HashT) error {
 	if !s.inv.HasTx(txId) {
 		return ErrEntityUnknown
 	}
@@ -206,9 +207,9 @@ func (s *State) VerifyTxIncludable(txId HashT) error {
 }
 
 // Get includable mempool txs sorted be fee rate, descending.
-func (s *State) GetSortedIncludableMempool() []HashT {
+func (s *State) GetSortedIncludableMempool() []kern.HashT {
 	mem := s.mempool.Copy()
-	mem.Filter(func(txId HashT) bool {
+	mem.Filter(func(txId kern.HashT) bool {
 		return s.VerifyTxIncludable(txId) == nil && s.inv.GetTx(txId).HasSurplus()
 	})
 	memL := mem.ToList()
@@ -220,26 +221,26 @@ func (s *State) GetSortedIncludableMempool() []HashT {
 }
 
 // Add a tx to the mempool.
-func (s *State) AddMempoolTx(txId HashT) {
+func (s *State) AddMempoolTx(txId kern.HashT) {
 	tx := s.inv.GetTx(txId)
 	s.mempool.Add(txId)
 	s.mempoolRates[txId] = tx.Rate()
 }
 
 // Add to the utxo set of a public key hash.
-func (s *State) creditBalance(publicKeyHash HashT, credit Utxo) {
+func (s *State) creditBalance(publicKeyHash kern.HashT, credit kern.Utxo) {
 	if s.pkhUtxos == nil {
 		panic("balance tracking was not enabled")
 	}
 	_, ok := s.pkhUtxos[publicKeyHash]
 	if !ok {
-		s.pkhUtxos[publicKeyHash] = util.NewSet[Utxo]()
+		s.pkhUtxos[publicKeyHash] = util.NewSet[kern.Utxo]()
 	}
 	s.pkhUtxos[publicKeyHash].Add(credit)
 }
 
 // Remove from the utxo set of a public key hash.
-func (s *State) debitBalance(publicKeyHash HashT, debit Utxo) {
+func (s *State) debitBalance(publicKeyHash kern.HashT, debit kern.Utxo) {
 	if s.pkhUtxos == nil {
 		panic("balance tracking was not enabled")
 	}
@@ -251,18 +252,18 @@ func (s *State) debitBalance(publicKeyHash HashT, debit Utxo) {
 }
 
 // Get the utxos of a public key hash.
-func (s *State) GetPkhUtxos(publicKeyHash HashT) []Utxo {
+func (s *State) GetPkhUtxos(publicKeyHash kern.HashT) []kern.Utxo {
 	if s.pkhUtxos == nil {
 		panic("balance tracking was not enabled")
 	}
 	utxos, ok := s.pkhUtxos[publicKeyHash]
 	if !ok {
-		return []Utxo{}
+		return []kern.Utxo{}
 	}
 	return utxos.ToList()
 }
 
-func (s *State) GetPkhBalance(publicKeyHash HashT) uint64 {
+func (s *State) GetPkhBalance(publicKeyHash kern.HashT) uint64 {
 	if s.pkhUtxos == nil {
 		panic("balance tracking was not enabled")
 	}
@@ -277,7 +278,7 @@ func (s *State) GetPkhBalance(publicKeyHash HashT) uint64 {
 	return total
 }
 
-func (s *State) GetIncludedTxBlock(txId HashT) (HashT, bool) {
+func (s *State) GetIncludedTxBlock(txId kern.HashT) (kern.HashT, bool) {
 	blockId, ok := s.includedTxBlocks[txId]
 	return blockId, ok
 }

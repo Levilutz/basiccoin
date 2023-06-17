@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/levilutz/basiccoin/src/db"
+	"github.com/levilutz/basiccoin/src/kern"
 	"github.com/levilutz/basiccoin/src/miner"
 	"github.com/levilutz/basiccoin/src/peer"
 	"github.com/levilutz/basiccoin/src/rest"
@@ -26,10 +27,10 @@ type Manager struct {
 	inv             *db.Inv
 	state           *db.State
 	minerSet        *miner.MinerSet
-	minerPayoutAddr db.HashT
+	minerPayoutAddr kern.HashT
 }
 
-func NewManager(minerPayoutAddr db.HashT) *Manager {
+func NewManager(minerPayoutAddr kern.HashT) *Manager {
 	inv := db.NewInv()
 	// Create state tracker (only track balances if we're serving http)
 	state := db.NewState(inv, util.Constants.HttpPort != -1)
@@ -96,7 +97,7 @@ func (m *Manager) Loop() {
 			solId := sol.Hash()
 			fmt.Printf("<== MINED ==> potential next block: %s\n", solId)
 			err := m.handleNewBestChain(
-				solId, []db.Block{sol}, []db.MerkleNode{}, []db.Tx{},
+				solId, []kern.Block{sol}, []kern.MerkleNode{}, []kern.Tx{},
 			)
 			if err != nil {
 				fmt.Println("handleMinedSolution err:", err.Error())
@@ -116,10 +117,10 @@ func (m *Manager) HandlePeerClosing(runtimeId string) {
 }
 
 func (m *Manager) HandleInboundSync(
-	head db.HashT,
-	blocks []db.Block,
-	merkles []db.MerkleNode,
-	txs []db.Tx,
+	head kern.HashT,
+	blocks []kern.Block,
+	merkles []kern.MerkleNode,
+	txs []kern.Tx,
 ) {
 	m.queueEvent(inboundSyncEvent{
 		head:    head,
@@ -141,31 +142,31 @@ func (m *Manager) HandlePeersWanted(runtimeId string) {
 	})
 }
 
-func (m *Manager) HandleNewTx(tx db.Tx) {
+func (m *Manager) HandleNewTx(tx kern.Tx) {
 	m.queueEvent(newTxEvent{
 		tx: tx,
 	})
 }
 
-func (m *Manager) SyncGetBalance(publicKeyHash db.HashT) uint64 {
+func (m *Manager) SyncGetBalance(publicKeyHash kern.HashT) uint64 {
 	rCh := make(chan uint64)
 	m.queueEvent(balanceQuery{rCh, publicKeyHash})
 	return <-rCh
 }
 
-func (m *Manager) SyncGetUtxos(publicKeyHash db.HashT) []db.Utxo {
-	rCh := make(chan []db.Utxo)
+func (m *Manager) SyncGetUtxos(publicKeyHash kern.HashT) []kern.Utxo {
+	rCh := make(chan []kern.Utxo)
 	m.queueEvent(utxosQuery{rCh, publicKeyHash})
 	return <-rCh
 }
 
-func (m *Manager) SyncNewTx(tx db.Tx) error {
+func (m *Manager) SyncNewTx(tx kern.Tx) error {
 	rCh := make(chan error)
 	m.queueEvent(newTxQuery{rCh, tx})
 	return <-rCh
 }
 
-func (m *Manager) SyncGetConfirms(txId db.HashT) (uint64, bool) {
+func (m *Manager) SyncGetConfirms(txId kern.HashT) (uint64, bool) {
 	if !m.inv.HasTx(txId) {
 		return 0, false
 	}
@@ -329,10 +330,10 @@ func (m *Manager) IntroducePeerConn(pc *peer.PeerConn, weAreInitiator bool) {
 // Upgrades our chain to the given new head, if it proves to be better.
 // Provide any blocks, merkles, or txs we might not know about (in the order to insert).
 func (m *Manager) handleNewBestChain(
-	newHead db.HashT,
-	blocks []db.Block,
-	merkles []db.MerkleNode,
-	txs []db.Tx,
+	newHead kern.HashT,
+	blocks []kern.Block,
+	merkles []kern.MerkleNode,
+	txs []kern.Tx,
 ) error {
 	oldHead := m.state.GetHead()
 	// Insert each entity into the inventory, in order.
@@ -406,7 +407,7 @@ func (m *Manager) handleNewBestChain(
 }
 
 // Handle a new tx.
-func (m *Manager) handleNewTx(tx db.Tx) error {
+func (m *Manager) handleNewTx(tx kern.Tx) error {
 	txId := tx.Hash()
 	if m.inv.HasTx(txId) {
 		return nil

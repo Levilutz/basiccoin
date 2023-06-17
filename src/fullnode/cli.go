@@ -3,18 +3,18 @@ package main
 import (
 	"flag"
 
-	"github.com/levilutz/basiccoin/src/db"
+	"github.com/levilutz/basiccoin/src/kern"
 	"github.com/levilutz/basiccoin/src/util"
 )
 
 type CLIArgs struct {
-	HttpPort        int      `json:"httpPort"`
-	Listen          bool     `json:"listen"`
-	LocalAddr       string   `json:"localAddr"`
-	Miners          int      `json:"miners"`
-	MinerPayoutAddr db.HashT `json:"minerPayoutAddr"`
-	SeedAddr        string   `json:"seedAddr"`
-	Verbosity       int      `json:"verbosity"`
+	HttpPort        int        `json:"httpPort"`
+	Listen          bool       `json:"listen"`
+	LocalAddr       string     `json:"localAddr"`
+	Miners          int        `json:"miners"`
+	MinerPayoutAddr kern.HashT `json:"minerPayoutAddr"`
+	SeedAddr        string     `json:"seedAddr"`
+	Verbosity       int        `json:"verbosity"`
 }
 
 func ParseCLIArgs() CLIArgs {
@@ -51,9 +51,9 @@ func ParseCLIArgs() CLIArgs {
 	if *localAddr == "" && *seedAddr == "" {
 		util.Constants.SeedAddr = "coin.levilutz.com:21720"
 	}
-	payoutAddr := db.HashT{}
+	payoutAddr := kern.HashT{}
 	if *miners > 0 {
-		payoutAddr, err = db.NewHashTFromString(*minerPayoutAddr)
+		payoutAddr, err = kern.NewHashTFromString(*minerPayoutAddr)
 		if err != nil {
 			panic("failed to parse payout address: " + err.Error())
 		}

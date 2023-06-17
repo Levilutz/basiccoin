@@ -1,13 +1,15 @@
 package peer
 
-import "github.com/levilutz/basiccoin/src/db"
+import (
+	"github.com/levilutz/basiccoin/src/kern"
+)
 
 // Command to terminate the connection.
 type shouldEndEvent struct{}
 
 // Inform this peer of our head, sync if desired.
 type syncHeadEvent struct {
-	head db.HashT
+	head kern.HashT
 }
 
 // Inform the peer of other peers.
@@ -20,5 +22,5 @@ type peersWantedEvent struct{}
 
 // Inform the peer of a new tx.
 type sendTxEvent struct {
-	txId db.HashT
+	txId kern.HashT
 }

@@ -1,4 +1,4 @@
-package db
+package kern
 
 // Reference to unspent transaction output.
 // This is just a subset of the fields in a TxIn.

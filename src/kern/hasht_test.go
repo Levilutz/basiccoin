@@ -1,10 +1,10 @@
-package db_test
+package kern_test
 
 import (
 	"math/big"
 	"testing"
 
-	. "github.com/levilutz/basiccoin/src/db"
+	. "github.com/levilutz/basiccoin/src/kern"
 	"github.com/levilutz/basiccoin/src/util"
 )
 

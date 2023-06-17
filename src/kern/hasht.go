@@ -1,4 +1,4 @@
-package db
+package kern
 
 import (
 	"crypto/rand"

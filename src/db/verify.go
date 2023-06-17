@@ -3,6 +3,7 @@ package db
 import (
 	"fmt"
 
+	"github.com/levilutz/basiccoin/src/kern"
 	"github.com/levilutz/basiccoin/src/util"
 )
 
@@ -16,7 +17,7 @@ import (
 // Checks non-coinbase txs have surplus inputs.
 // Checks total of all txs (including coinbase) has 0 surplus.
 // Checks block vSize is within limit (covered by verifyMerkle, but just to be safe).
-func verifyBlock(inv InvReader, block Block) error {
+func verifyBlock(inv InvReader, block kern.Block) error {
 	if !block.Hash().Lt(block.Difficulty) {
 		return fmt.Errorf(
 			"new block failed to beat target difficulty: %s !< %s",
@@ -32,7 +33,7 @@ func verifyBlock(inv InvReader, block Block) error {
 	txs := inv.GetMerkleTxs(block.MerkleRoot)
 	if len(txs) == 0 {
 		return fmt.Errorf("new block has no txs")
-	} else if len(txs) > int(BlockMaxTxs()) {
+	} else if len(txs) > int(kern.BlockMaxTxs()) {
 		return fmt.Errorf("new block has too many txs")
 	} else if txs[0].MinBlock != parentHeight+1 {
 		return fmt.Errorf("coinbase MinBlock does not equal height")
@@ -67,7 +68,7 @@ func verifyBlock(inv InvReader, block Block) error {
 // Checks right child exists, if different from left child.
 // Checks new total vSize is within limit.
 // Checks no overlap between tx sets of children.
-func verifyMerkle(inv InvReader, merkle MerkleNode) error {
+func verifyMerkle(inv InvReader, merkle kern.MerkleNode) error {
 	// Get left child size
 	totalSize := uint64(0)
 	if inv.HasEntity(merkle.LChild) {
@@ -103,7 +104,7 @@ func verifyMerkle(inv InvReader, merkle MerkleNode) error {
 // Checks claimed utxos exist for each tx input.
 // Checks tx public key matches hash on claimed utxo for each tx input.
 // Checks tx input value matches utxo value for each tx input.
-func verifyTx(inv InvReader, tx Tx) error {
+func verifyTx(inv InvReader, tx kern.Tx) error {
 	vSize := tx.VSize()
 	if !tx.SignaturesValid() {
 		return fmt.Errorf("tx signatures invalid")
@@ -135,7 +136,7 @@ func verifyTx(inv InvReader, tx Tx) error {
 			)
 		}
 		origin := inv.GetTxOut(txi.OriginTxId, txi.OriginTxOutInd)
-		if !DHashBytes(txi.PublicKey).Eq(origin.PublicKeyHash) {
+		if !kern.DHashBytes(txi.PublicKey).Eq(origin.PublicKeyHash) {
 			return fmt.Errorf("given public key does not match claimed utxo")
 		}
 		if txi.Value != origin.Value {

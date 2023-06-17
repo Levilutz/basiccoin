@@ -11,7 +11,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/levilutz/basiccoin/src/db"
+	"github.com/levilutz/basiccoin/src/kern"
 	"github.com/levilutz/basiccoin/src/util"
 )
 
@@ -178,7 +178,7 @@ func (pc *PeerConn) TransmitUint64Line(msg uint64) {
 }
 
 // Transmit a hash as a line.
-func (pc *PeerConn) TransmitHashLine(msg db.HashT) {
+func (pc *PeerConn) TransmitHashLine(msg kern.HashT) {
 	if pc.e != nil {
 		return
 	}
@@ -194,7 +194,7 @@ func (pc *PeerConn) TransmitBytesHexLine(msg []byte) {
 }
 
 // Transmit a block header.
-func (pc *PeerConn) TransmitBlockHeader(block db.Block) {
+func (pc *PeerConn) TransmitBlockHeader(block kern.Block) {
 	if pc.e != nil {
 		return
 	}
@@ -206,7 +206,7 @@ func (pc *PeerConn) TransmitBlockHeader(block db.Block) {
 }
 
 // Transmit a merkle node.
-func (pc *PeerConn) TransmitMerkle(merkle db.MerkleNode) {
+func (pc *PeerConn) TransmitMerkle(merkle kern.MerkleNode) {
 	if pc.e != nil {
 		return
 	}
@@ -215,7 +215,7 @@ func (pc *PeerConn) TransmitMerkle(merkle db.MerkleNode) {
 }
 
 // Transmit a transaction.
-func (pc *PeerConn) TransmitTx(tx db.Tx) {
+func (pc *PeerConn) TransmitTx(tx kern.Tx) {
 	if pc.e != nil {
 		return
 	}
@@ -271,18 +271,18 @@ func (pc *PeerConn) RetryReadUint64Line(attempts int) uint64 {
 
 // Retry reading a hash line, exponential wait.
 // See RetryReadLine for more info.
-func (pc *PeerConn) RetryReadHashLine(attempts int) db.HashT {
+func (pc *PeerConn) RetryReadHashLine(attempts int) kern.HashT {
 	if pc.e != nil {
-		return db.HashT{}
+		return kern.HashT{}
 	}
 	raw := pc.RetryReadLine(attempts)
 	if pc.e != nil {
-		return db.HashT{}
+		return kern.HashT{}
 	}
-	out, err := db.NewHashTFromString(string(raw))
+	out, err := kern.NewHashTFromString(string(raw))
 	if err != nil {
 		pc.e = err
-		return db.HashT{}
+		return kern.HashT{}
 	}
 	return out
 }
@@ -306,12 +306,12 @@ func (pc *PeerConn) RetryReadBytesHexLine(attempts int) []byte {
 }
 
 // Retry reading a block header, each line has exponential wait.
-// If expectId is not zero value, verifies block hash is expected.
-func (pc *PeerConn) RetryReadBlockHeader(attemptsPer int, expectId db.HashT) db.Block {
+// If expectId is not zero value, verifies block hash is expected.kern.HashT
+func (pc *PeerConn) RetryReadBlockHeader(attemptsPer int, expectId kern.HashT) kern.Block {
 	if pc.e != nil {
-		return db.Block{}
+		return kern.Block{}
 	}
-	block := db.Block{
+	block := kern.Block{
 		PrevBlockId: pc.RetryReadHashLine(attemptsPer),
 		MerkleRoot:  pc.RetryReadHashLine(attemptsPer),
 		Difficulty:  pc.RetryReadHashLine(attemptsPer),
@@ -320,45 +320,45 @@ func (pc *PeerConn) RetryReadBlockHeader(attemptsPer int, expectId db.HashT) db.
 	}
 	if !expectId.EqZero() && block.Hash() != expectId {
 		pc.e = errors.New("block has unexpected hash")
-		return db.Block{}
+		return kern.Block{}
 	}
 	return block
 }
 
 // Retry reading a merkle node, each line has exponential wait.
-// If expectId is not zero value, verifies merkle hash is expected.
-func (pc *PeerConn) RetryReadMerkle(attemptsPer int, expectId db.HashT) db.MerkleNode {
+// If expectId is not zero value, verifies merkle hash is expekern.HashT
+func (pc *PeerConn) RetryReadMerkle(attemptsPer int, expectId kern.HashT) kern.MerkleNode {
 	if pc.e != nil {
-		return db.MerkleNode{}
+		return kern.MerkleNode{}
 	}
-	merkle := db.MerkleNode{
+	merkle := kern.MerkleNode{
 		LChild: pc.RetryReadHashLine(attemptsPer),
 		RChild: pc.RetryReadHashLine(attemptsPer),
 	}
 	if !expectId.EqZero() && merkle.Hash() != expectId {
 		pc.e = errors.New("merkle has unexpected hash")
-		return db.MerkleNode{}
+		return kern.MerkleNode{}
 	}
 	return merkle
 }
 
 // Retry reading a tx, each line has exponential wait.
-// If expectId is not zero value, verifies tx hash is expected.
-func (pc *PeerConn) RetryReadTx(attemptsPer int, expectId db.HashT) db.Tx {
+// If expectId is not zero value, verifies tx hash is expekern.HashT
+func (pc *PeerConn) RetryReadTx(attemptsPer int, expectId kern.HashT) kern.Tx {
 	if pc.e != nil {
-		return db.Tx{}
+		return kern.Tx{}
 	}
 	// Receive tx base
 	minBlock := pc.RetryReadUint64Line(attemptsPer)
 	numTxIns := pc.RetryReadUint64Line(attemptsPer)
 	numTxOuts := pc.RetryReadUint64Line(attemptsPer)
 	if pc.e != nil {
-		return db.Tx{}
+		return kern.Tx{}
 	}
 	// Receive tx inputs
-	txIns := make([]db.TxIn, numTxIns)
+	txIns := make([]kern.TxIn, numTxIns)
 	for i := uint64(0); i < numTxIns; i++ {
-		txIns[i] = db.TxIn{
+		txIns[i] = kern.TxIn{
 			OriginTxId:     pc.RetryReadHashLine(attemptsPer),
 			OriginTxOutInd: pc.RetryReadUint64Line(attemptsPer),
 			PublicKey:      pc.RetryReadBytesHexLine(attemptsPer),
@@ -367,24 +367,24 @@ func (pc *PeerConn) RetryReadTx(attemptsPer int, expectId db.HashT) db.Tx {
 		}
 	}
 	// Receive tx outputs
-	txOuts := make([]db.TxOut, numTxOuts)
+	txOuts := make([]kern.TxOut, numTxOuts)
 	for i := uint64(0); i < numTxOuts; i++ {
-		txOuts[i] = db.TxOut{
+		txOuts[i] = kern.TxOut{
 			Value:         pc.RetryReadUint64Line(attemptsPer),
 			PublicKeyHash: pc.RetryReadHashLine(attemptsPer),
 		}
 	}
 	if pc.e != nil {
-		return db.Tx{}
+		return kern.Tx{}
 	}
-	tx := db.Tx{
+	tx := kern.Tx{
 		MinBlock: minBlock,
 		Inputs:   txIns,
 		Outputs:  txOuts,
 	}
 	if !expectId.EqZero() && tx.Hash() != expectId {
 		pc.e = errors.New("tx has unexpected hash")
-		return db.Tx{}
+		return kern.Tx{}
 	}
 	return tx
 }

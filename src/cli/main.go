@@ -6,7 +6,7 @@ import (
 	"os"
 	"strconv"
 
-	"github.com/levilutz/basiccoin/src/db"
+	"github.com/levilutz/basiccoin/src/kern"
 	"github.com/levilutz/basiccoin/src/util"
 )
 
@@ -55,7 +55,7 @@ var commands = []Command{
 		HelpText:       "Generate a new address to receive basiccoin.",
 		RequiresClient: false,
 		Handler: func(ctx HandlerContext) error {
-			priv, err := db.NewEcdsa()
+			priv, err := kern.NewEcdsa()
 			if err != nil {
 				return err
 			}
@@ -72,12 +72,12 @@ var commands = []Command{
 		RequiredArgs:   0,
 		RequiresClient: true,
 		Handler: func(ctx HandlerContext) error {
-			var pkhs []db.HashT
+			var pkhs []kern.HashT
 			if len(ctx.Args) > 0 {
-				// Get balance of given addresses
-				pkhs = make([]db.HashT, len(ctx.Args))
+				// Get balancekern.HashTn addresses
+				pkhs = make([]kern.HashT, len(ctx.Args))
 				for i, arg := range ctx.Args {
-					pkh, err := db.NewHashTFromString(arg)
+					pkh, err := kern.NewHashTFromString(arg)
 					if err != nil {
 						return err
 					}
@@ -120,7 +120,7 @@ var commands = []Command{
 		RequiredArgs:   2,
 		RequiresClient: true,
 		Handler: func(ctx HandlerContext) error {
-			destPkh, err := db.NewHashTFromString(ctx.Args[0])
+			destPkh, err := kern.NewHashTFromString(ctx.Args[0])
 			if err != nil {
 				return err
 			}
@@ -128,7 +128,7 @@ var commands = []Command{
 			if err != nil {
 				return err
 			}
-			outputValues := map[db.HashT]uint64{
+			outputValues := map[kern.HashT]uint64{
 				destPkh: amt,
 			}
 			tx, err := ctx.Client.MakeOutboundTx(outputValues)

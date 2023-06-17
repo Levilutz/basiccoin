@@ -9,7 +9,7 @@ import (
 	"sort"
 	"strconv"
 
-	"github.com/levilutz/basiccoin/src/db"
+	"github.com/levilutz/basiccoin/src/kern"
 	"github.com/levilutz/basiccoin/src/util"
 )
 
@@ -20,9 +20,9 @@ type Client struct {
 
 // Data on the balances of several addressses.
 type BalanceData struct {
-	Balances    map[db.HashT]uint64
+	Balances    map[kern.HashT]uint64
 	Total       uint64
-	SortedAddrs []db.HashT // Descending
+	SortedAddrs []kern.HashT // Descending
 }
 
 // Create a new client from the given base url.
@@ -64,7 +64,7 @@ func (c *Client) Check() error {
 }
 
 // Query the node for the balance of the given address.
-func (c *Client) GetBalance(publicKeyHash db.HashT) (uint64, error) {
+func (c *Client) GetBalance(publicKeyHash kern.HashT) (uint64, error) {
 	queryStr := fmt.Sprintf("?publicKeyHash=%s", publicKeyHash)
 	resp, err := http.Get(c.baseUrl + "balance" + queryStr)
 	if err != nil {
@@ -81,8 +81,8 @@ func (c *Client) GetBalance(publicKeyHash db.HashT) (uint64, error) {
 }
 
 // Get balances per provided address and the total balance.
-func (c *Client) GetAllBalances(pkhs []db.HashT) (*BalanceData, error) {
-	out := make(map[db.HashT]uint64, len(pkhs))
+func (c *Client) GetAllBalances(pkhs []kern.HashT) (*BalanceData, error) {
+	out := make(map[kern.HashT]uint64, len(pkhs))
 	total := uint64(0)
 	for _, pkh := range pkhs {
 		bal, err := c.GetBalance(pkh)
@@ -105,7 +105,7 @@ func (c *Client) GetAllBalances(pkhs []db.HashT) (*BalanceData, error) {
 }
 
 // Query the node for the given address's utxos.
-func (c *Client) GetUtxos(publicKeyHash db.HashT) ([]db.Utxo, error) {
+func (c *Client) GetUtxos(publicKeyHash kern.HashT) ([]kern.Utxo, error) {
 	queryStr := fmt.Sprintf("?publicKeyHash=%s", publicKeyHash)
 	resp, err := http.Get(c.baseUrl + "utxos" + queryStr)
 	if err != nil {
@@ -118,7 +118,7 @@ func (c *Client) GetUtxos(publicKeyHash db.HashT) ([]db.Utxo, error) {
 	if err != nil {
 		return nil, err
 	}
-	utxos := []db.Utxo{}
+	utxos := []kern.Utxo{}
 	if err := json.Unmarshal(body, &utxos); err != nil {
 		return nil, err
 	}
@@ -126,9 +126,9 @@ func (c *Client) GetUtxos(publicKeyHash db.HashT) ([]db.Utxo, error) {
 }
 
 // Get utxos of all provided addresses. Return value maps utxos to their pkhs.
-func (c *Client) GetAllUtxos(pkhs []db.HashT) (map[db.Utxo]db.HashT, error) {
-	out := make(map[db.Utxo]db.HashT)
-	coveredPkhs := util.NewSet[db.HashT]()
+func (c *Client) GetAllUtxos(pkhs []kern.HashT) (map[kern.Utxo]kern.HashT, error) {
+	out := make(map[kern.Utxo]kern.HashT)
+	coveredPkhs := util.NewSet[kern.HashT]()
 	for _, pkh := range pkhs {
 		if coveredPkhs.Includes(pkh) {
 			return nil, fmt.Errorf("duplicate pkh: %s", pkh)
@@ -149,51 +149,51 @@ func (c *Client) GetAllUtxos(pkhs []db.HashT) (map[db.Utxo]db.HashT, error) {
 }
 
 // Send a tx to the node, return TxId.
-func (c *Client) SendTx(tx db.Tx) (db.HashT, error) {
+func (c *Client) SendTx(tx kern.Tx) (kern.HashT, error) {
 	txJson, err := json.Marshal(tx)
 	if err != nil {
-		return db.HashT{}, err
+		return kern.HashT{}, err
 	}
 	resp, err := http.Post(c.baseUrl+"tx", "application/json", bytes.NewReader(txJson))
 	if err != nil {
-		return db.HashT{}, err
+		return kern.HashT{}, err
 	}
 	if resp.StatusCode != 200 {
 		content, _ := io.ReadAll(resp.Body)
 		fmt.Println(string(content))
-		return db.HashT{}, fmt.Errorf("tx non-2XX response: %d", resp.StatusCode)
+		return kern.HashT{}, fmt.Errorf("tx non-2XX response: %d", resp.StatusCode)
 	}
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return db.HashT{}, err
+		return kern.HashT{}, err
 	}
-	txId, err := db.NewHashTFromString(string(body))
+	txId, err := kern.NewHashTFromString(string(body))
 	if err != nil {
-		return db.HashT{}, err
+		return kern.HashT{}, err
 	}
 	if txId != tx.Hash() {
-		return db.HashT{}, fmt.Errorf("wrong txId received: %s != %s", txId, tx.Hash())
+		return kern.HashT{}, fmt.Errorf("wrong txId received: %s != %s", txId, tx.Hash())
 	}
 	return txId, nil
 }
 
-func (c *Client) GetHistory(publicKeyHashes ...db.HashT) []db.Tx {
-	return []db.Tx{}
+func (c *Client) GetHistory(publicKeyHashes ...kern.HashT) []kern.Tx {
+	return []kern.Tx{}
 }
 
 // Manufacture an outbound tx that could be sent to the network.
 // TODO: Allow this to be customized, don't use utxos that have unconfirmed spends.
-func (c *Client) MakeOutboundTx(outputValues map[db.HashT]uint64) (db.Tx, error) {
+func (c *Client) MakeOutboundTx(outputValues map[kern.HashT]uint64) (kern.Tx, error) {
 	targetRate := float64(1.0) // Target fee rate in coin / vByte
 	// Get available utxos
 	utxos, err := c.GetAllUtxos(c.config.GetPublicKeyHashes())
 	if err != nil {
-		return db.Tx{}, err
+		return kern.Tx{}, err
 	} else if len(utxos) == 0 {
-		return db.Tx{}, fmt.Errorf("insufficient balance")
+		return kern.Tx{}, fmt.Errorf("insufficient balance")
 	}
 	balance := uint64(0)
-	pkhBalances := make(map[db.HashT]uint64)
+	pkhBalances := make(map[kern.HashT]uint64)
 	for utxo, pkh := range utxos {
 		balance += utxo.Value
 		pkhBalances[pkh] += utxo.Value
@@ -210,7 +210,7 @@ func (c *Client) MakeOutboundTx(outputValues map[db.HashT]uint64) (db.Tx, error)
 		totalOut += val
 	}
 	if totalOut > balance {
-		return db.Tx{}, fmt.Errorf("insufficient balance")
+		return kern.Tx{}, fmt.Errorf("insufficient balance")
 	}
 
 	// Get utxos sorted by value
@@ -221,10 +221,10 @@ func (c *Client) MakeOutboundTx(outputValues map[db.HashT]uint64) (db.Tx, error)
 	})
 
 	// Build base tx with outputs and placeholder change output
-	tx := db.Tx{
+	tx := kern.Tx{
 		MinBlock: 0, // TODO: Query this from node
-		Inputs:   []db.TxIn{},
-		Outputs: []db.TxOut{
+		Inputs:   []kern.TxIn{},
+		Outputs: []kern.TxOut{
 			{
 				Value:         0,
 				PublicKeyHash: sortedPkhs[0],
@@ -232,7 +232,7 @@ func (c *Client) MakeOutboundTx(outputValues map[db.HashT]uint64) (db.Tx, error)
 		},
 	}
 	for pkh, val := range outputValues {
-		tx.Outputs = append(tx.Outputs, db.TxOut{
+		tx.Outputs = append(tx.Outputs, kern.TxOut{
 			Value:         val,
 			PublicKeyHash: pkh,
 		})
@@ -243,21 +243,21 @@ func (c *Client) MakeOutboundTx(outputValues map[db.HashT]uint64) (db.Tx, error)
 	for i, utxo := range utxosSorted {
 		totalIn += utxo.Value
 
-		tx.Inputs = append(tx.Inputs, db.TxIn{
+		tx.Inputs = append(tx.Inputs, kern.TxIn{
 			OriginTxId:     utxo.TxId,
 			OriginTxOutInd: utxo.Ind,
-			PublicKey:      db.ExamplePubDer(),
-			Signature:      db.ExampleMaxSigAsn(),
+			PublicKey:      kern.ExamplePubDer(),
+			Signature:      kern.ExampleMaxSigAsn(),
 			Value:          utxo.Value,
 		})
 		if tx.VSize() > util.Constants.MaxTxVSize {
-			return db.Tx{}, fmt.Errorf("cannot create tx within vsize limits")
+			return kern.Tx{}, fmt.Errorf("cannot create tx within vsize limits")
 		}
 		if totalIn >= totalOut+uint64(targetRate*float64(tx.VSize())) {
 			break
 		}
 		if i == len(utxosSorted)-1 {
-			return db.Tx{}, fmt.Errorf("insufficient balance to pay target fee rate")
+			return kern.Tx{}, fmt.Errorf("insufficient balance to pay target fee rate")
 		}
 	}
 
@@ -268,20 +268,20 @@ func (c *Client) MakeOutboundTx(outputValues map[db.HashT]uint64) (db.Tx, error)
 	tx.Outputs[0].Value = totalIn - totalOut - uint64(targetRate*float64(tx.VSize()))
 
 	// Sign the inputs, replacing placeholders
-	preSigHash := db.TxHashPreSig(tx.MinBlock, tx.Outputs)
+	preSigHash := kern.TxHashPreSig(tx.MinBlock, tx.Outputs)
 	for i := range tx.Inputs {
 		utxo := utxosSorted[i]
 		priv, err := c.config.GetPrivateKey(utxos[utxo])
 		if err != nil {
-			return db.Tx{}, err
+			return kern.Tx{}, err
 		}
-		pub, err := db.MarshalEcdsaPublic(priv)
+		pub, err := kern.MarshalEcdsaPublic(priv)
 		if err != nil {
-			return db.Tx{}, err
+			return kern.Tx{}, err
 		}
-		sig, err := db.EcdsaSign(priv, preSigHash)
+		sig, err := kern.EcdsaSign(priv, preSigHash)
 		if err != nil {
-			return db.Tx{}, err
+			return kern.Tx{}, err
 		}
 		tx.Inputs[i].PublicKey = pub
 		tx.Inputs[i].Signature = sig
@@ -291,19 +291,19 @@ func (c *Client) MakeOutboundTx(outputValues map[db.HashT]uint64) (db.Tx, error)
 }
 
 // Manufacture a tx to consolidate as many of our utxos as possible.
-func (c *Client) MakeConsolidateTx() (db.Tx, error) {
+func (c *Client) MakeConsolidateTx() (kern.Tx, error) {
 	targetRate := float64(1.0) // Target fee rate coin / vByte
 	// Get available utxos
 	utxos, err := c.GetAllUtxos(c.config.GetPublicKeyHashes())
 	if err != nil {
-		return db.Tx{}, err
+		return kern.Tx{}, err
 	} else if len(utxos) == 0 {
-		return db.Tx{}, fmt.Errorf("insufficient balance")
+		return kern.Tx{}, fmt.Errorf("insufficient balance")
 	} else if len(utxos) == 1 {
-		return db.Tx{}, fmt.Errorf("no consolidation possible")
+		return kern.Tx{}, fmt.Errorf("no consolidation possible")
 	}
 	balance := uint64(0)
-	pkhBalances := make(map[db.HashT]uint64)
+	pkhBalances := make(map[kern.HashT]uint64)
 	for utxo, pkh := range utxos {
 		balance += utxo.Value
 		pkhBalances[pkh] += utxo.Value
@@ -322,10 +322,10 @@ func (c *Client) MakeConsolidateTx() (db.Tx, error) {
 	})
 
 	// Build base tx with placeholder output
-	tx := db.Tx{
+	tx := kern.Tx{
 		MinBlock: 0, // TODO: Query this from the node
-		Inputs:   []db.TxIn{},
-		Outputs: []db.TxOut{
+		Inputs:   []kern.TxIn{},
+		Outputs: []kern.TxOut{
 			{
 				Value:         0,
 				PublicKeyHash: sortedPkhs[0],
@@ -336,11 +336,11 @@ func (c *Client) MakeConsolidateTx() (db.Tx, error) {
 	// Add utxos until we reach target (with placeholder sigs)
 	totalIn := uint64(0)
 	for _, utxo := range utxosSorted {
-		newIn := db.TxIn{
+		newIn := kern.TxIn{
 			OriginTxId:     utxo.TxId,
 			OriginTxOutInd: utxo.Ind,
-			PublicKey:      db.ExamplePubDer(),
-			Signature:      db.ExampleMaxSigAsn(),
+			PublicKey:      kern.ExamplePubDer(),
+			Signature:      kern.ExampleMaxSigAsn(),
 			Value:          utxo.Value,
 		}
 		if tx.VSize()+newIn.VSize() > util.Constants.MaxTxVSize {
@@ -354,20 +354,20 @@ func (c *Client) MakeConsolidateTx() (db.Tx, error) {
 	tx.Outputs[0].Value = totalIn - uint64(targetRate*float64(tx.VSize()))
 
 	// Sign the inputs, replacing placeholders
-	preSigHash := db.TxHashPreSig(tx.MinBlock, tx.Outputs)
+	preSigHash := kern.TxHashPreSig(tx.MinBlock, tx.Outputs)
 	for i := range tx.Inputs {
 		utxo := utxosSorted[i]
 		priv, err := c.config.GetPrivateKey(utxos[utxo])
 		if err != nil {
-			return db.Tx{}, err
+			return kern.Tx{}, err
 		}
-		pub, err := db.MarshalEcdsaPublic(priv)
+		pub, err := kern.MarshalEcdsaPublic(priv)
 		if err != nil {
-			return db.Tx{}, err
+			return kern.Tx{}, err
 		}
-		sig, err := db.EcdsaSign(priv, preSigHash)
+		sig, err := kern.EcdsaSign(priv, preSigHash)
 		if err != nil {
-			return db.Tx{}, err
+			return kern.Tx{}, err
 		}
 		tx.Inputs[i].PublicKey = pub
 		tx.Inputs[i].Signature = sig

@@ -6,20 +6,21 @@ import (
 	"time"
 
 	"github.com/levilutz/basiccoin/src/db"
+	"github.com/levilutz/basiccoin/src/kern"
 	"github.com/levilutz/basiccoin/src/util"
 )
 
 type MainEventHandler interface {
 	HandlePeerClosing(runtimeId string)
 	HandleInboundSync(
-		head db.HashT,
-		blocks []db.Block,
-		merkles []db.MerkleNode,
-		txs []db.Tx,
+		head kern.HashT,
+		blocks []kern.Block,
+		merkles []kern.MerkleNode,
+		txs []kern.Tx,
 	)
 	HandlePeersReceived(addrs []string)
 	HandlePeersWanted(runtimeId string)
-	HandleNewTx(tx db.Tx)
+	HandleNewTx(tx kern.Tx)
 }
 
 // Encapsulate a high-level connection to a peer.
@@ -30,7 +31,7 @@ type Peer struct {
 	mainHandler    MainEventHandler
 	weAreInitiator bool
 	inv            db.InvReader
-	head           db.HashT
+	head           kern.HashT
 	shouldClose    bool
 }
 
@@ -46,7 +47,7 @@ func NewPeer(
 	mainHandler MainEventHandler,
 	weAreInitiator bool,
 	inv db.InvReader,
-	head db.HashT,
+	head kern.HashT,
 ) *Peer {
 	return &Peer{
 		Info:           info,
@@ -68,8 +69,8 @@ func (p *Peer) ShouldEnd() {
 	p.queueEvent(shouldEndEvent{})
 }
 
-// Inform this peer of a new chain head.
-func (p *Peer) SyncHead(head db.HashT) {
+// Inform this peer of a new kern.HashTad.
+func (p *Peer) SyncHead(head kern.HashT) {
 	p.queueEvent(syncHeadEvent{
 		head: head,
 	})
@@ -87,7 +88,7 @@ func (p *Peer) PeersWanted() {
 	p.queueEvent(peersWantedEvent{})
 }
 
-func (p *Peer) SendTx(txId db.HashT) {
+func (p *Peer) SendTx(txId kern.HashT) {
 	p.queueEvent(sendTxEvent{
 		txId: txId,
 	})
@@ -318,8 +319,8 @@ func (p *Peer) handleSync() error {
 
 // Send a chain sync.
 func (p *Peer) handleSendSync() error {
-	// Find last common ancestor with peer
-	neededBlockIds := make([]db.HashT, 0)
+	// Find last common anceskern.HashT peer
+	neededBlockIds := make([]kern.HashT, 0)
 	lcaId := p.head
 	p.conn.TransmitHashLine(lcaId)
 	resp := p.conn.RetryReadStringLine(7)
@@ -384,8 +385,8 @@ func (p *Peer) handleSendSync() error {
 
 // Receive a chain sync.
 func (p *Peer) handleReceiveSync() error {
-	// Find last common ancestor with peer
-	neededBlockIds := make([]db.HashT, 0)
+	// Find last common anceskern.HashT peer
+	neededBlockIds := make([]kern.HashT, 0)
 	newHead := p.conn.RetryReadHashLine(7)
 	lcaId := newHead
 	for !p.inv.HasBlock(lcaId) {
@@ -397,8 +398,8 @@ func (p *Peer) handleReceiveSync() error {
 	if len(neededBlockIds) == 0 {
 		return fmt.Errorf("we do not need upgrade, sync should not have run")
 	}
-	// Receive blocks from peer
-	blockMap := make(map[db.HashT]db.Block)
+	// Receive blocks frokern.HashT
+	blockMap := make(map[kern.HashT]kern.Block)
 	for _, blockId := range neededBlockIds {
 		blockMap[blockId] = p.conn.RetryReadBlockHeader(7, blockId)
 		if p.conn.HasErr() {
@@ -419,11 +420,11 @@ func (p *Peer) handleReceiveSync() error {
 		return p.conn.Err()
 	}
 	// Until our inv / local inv is complete, request entities, and add to output
-	newBlocks := make([]db.Block, 0)
-	newMerkles := make([]db.MerkleNode, 0)
-	newTxs := make([]db.Tx, 0)
-	entityQueue := util.NewQueue[db.HashT]()
-	newEntitySet := util.NewSet[db.HashT]()
+	newBlocks := make([]kern.Block, 0)
+	newMerkles := make([]kern.MerkleNode, 0)
+	newTxs := make([]kern.Tx, 0)
+	entityQueue := util.NewQueue[kern.HashT]()
+	newEntitySet := util.NewSet[kern.HashT]()
 	for _, blockId := range neededBlockIds {
 		merkle := blockMap[blockId].MerkleRoot
 		if !p.inv.HasMerkle(merkle) {
@@ -462,7 +463,7 @@ func (p *Peer) handleReceiveSync() error {
 		}
 		newEntitySet.Add(entityId)
 	}
-	p.conn.TransmitHashLine(db.HashT{})
+	p.conn.TransmitHashLine(kern.HashT{})
 	// Send the event to the manager
 	p.mainHandler.HandleInboundSync(newHead, newBlocks, newMerkles, newTxs)
 	return nil
@@ -471,10 +472,10 @@ func (p *Peer) handleReceiveSync() error {
 // Verify a new chain's continuity, expected endpoints, and proof-of-work.
 // Leaves heavier and state-based verification to manager, this just helps prevent ddos.
 func (p *Peer) quickVerifyChain(
-	newHead db.HashT,
-	lcaId db.HashT,
-	neededBlockIds []db.HashT,
-	blockMap map[db.HashT]db.Block,
+	newHead kern.HashT,
+	lcaId kern.HashT,
+	neededBlockIds []kern.HashT,
+	blockMap map[kern.HashT]kern.Block,
 ) error {
 	// Verify chain has expected head
 	if neededBlockIds[0] != newHead {

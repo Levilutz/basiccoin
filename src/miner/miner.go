@@ -4,29 +4,29 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/levilutz/basiccoin/src/db"
+	"github.com/levilutz/basiccoin/src/kern"
 )
 
 type Miner struct {
-	SolutionCh  chan db.Block
-	target      db.Block
-	newTargetCh chan db.Block
+	SolutionCh  chan kern.Block
+	target      kern.Block
+	newTargetCh chan kern.Block
 	killCh      chan struct{}
 	nextNonce   uint64
 }
 
 func NewMiner() *Miner {
 	return &Miner{
-		target:      db.Block{},
-		newTargetCh: make(chan db.Block),
+		target:      kern.Block{},
+		newTargetCh: make(chan kern.Block),
 		killCh:      make(chan struct{}),
-		SolutionCh:  make(chan db.Block),
+		SolutionCh:  make(chan kern.Block),
 		nextNonce:   0,
 	}
 }
 
 // Set a new target to be handled.
-func (m *Miner) SetTarget(block db.Block) {
+func (m *Miner) SetTarget(block kern.Block) {
 	go func() {
 		m.newTargetCh <- block
 	}()
@@ -65,9 +65,9 @@ func (m *Miner) Loop() {
 }
 
 // Keep trying nonces until it hits 2^64-1, then quit.
-func (m *Miner) mine(rounds uint64) (db.Block, bool) {
+func (m *Miner) mine(rounds uint64) (kern.Block, bool) {
 	for i := uint64(0); i < rounds; i++ {
-		target := db.Block{
+		target := kern.Block{
 			PrevBlockId: m.target.PrevBlockId,
 			MerkleRoot:  m.target.MerkleRoot,
 			Difficulty:  m.target.Difficulty,
@@ -82,8 +82,8 @@ func (m *Miner) mine(rounds uint64) (db.Block, bool) {
 			return target, true
 		}
 		if m.nextNonce == 1<<64-1 {
-			return db.Block{}, false
+			return kern.Block{}, false
 		}
 	}
-	return db.Block{}, false
+	return kern.Block{}, false
 }

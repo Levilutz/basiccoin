@@ -4,14 +4,14 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/levilutz/basiccoin/src/db"
+	"github.com/levilutz/basiccoin/src/kern"
 	"github.com/levilutz/basiccoin/src/util"
 )
 
 type MinerSet struct {
 	exists       bool
 	MinersActive atomic.Bool
-	SolutionCh   <-chan db.Block
+	SolutionCh   <-chan kern.Block
 	miners       []*Miner
 }
 
@@ -19,7 +19,7 @@ func StartMinerSet(numMiners int) *MinerSet {
 	if numMiners == 0 {
 		return &MinerSet{}
 	}
-	chs := make([]chan db.Block, numMiners)
+	chs := make([]chan kern.Block, numMiners)
 	miners := make([]*Miner, numMiners)
 	for i := 0; i < numMiners; i++ {
 		miners[i] = NewMiner()
@@ -36,7 +36,7 @@ func StartMinerSet(numMiners int) *MinerSet {
 	return minerSet
 }
 
-func (ms *MinerSet) SetTargets(target db.Block) {
+func (ms *MinerSet) SetTargets(target kern.Block) {
 	if !ms.exists {
 		return
 	}
@@ -58,7 +58,7 @@ func (ms *MinerSet) SetTargets(target db.Block) {
 	// Set each target
 	for i := 0; i < len(ms.miners); i++ {
 		noisedTarget := target
-		noise := db.NewHashTRand()
+		noise := kern.NewHashTRand()
 		noisedTarget.Noise = noise
 		ms.miners[i].SetTarget(noisedTarget)
 	}

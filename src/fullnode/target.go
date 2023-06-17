@@ -2,29 +2,30 @@ package main
 
 import (
 	"github.com/levilutz/basiccoin/src/db"
+	"github.com/levilutz/basiccoin/src/kern"
 	"github.com/levilutz/basiccoin/src/util"
 )
 
 // Create a new mining target block given where to send the reward.
 // If publicKeyHash is zero value, it's changed to a random hash (used for testing).
-func CreateMiningTarget(s *db.State, inv *db.Inv, publicKeyHash db.HashT) db.Block {
+func CreateMiningTarget(s *db.State, inv *db.Inv, publicKeyHash kern.HashT) kern.Block {
 	var err error
 	if publicKeyHash.EqZero() {
-		publicKeyHash = db.NewHashTRand()
+		publicKeyHash = kern.NewHashTRand()
 	}
-	difficulty, err := db.NewHashTFromString(
+	difficulty, err := kern.NewHashTFromString(
 		"000000ffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
 	)
 	if err != nil {
 		panic(err)
 	}
 	// Build tx list until we hit max size
-	outTxs := make([]db.Tx, 1)
-	outTxs[0] = db.Tx{} // Placeholder for coinbase
+	outTxs := make([]kern.Tx, 1)
+	outTxs[0] = kern.Tx{} // Placeholder for coinbase
 	totalFees := uint64(0)
-	sizeLeft := util.Constants.MaxBlockVSize - db.CoinbaseVSize()
+	sizeLeft := util.Constants.MaxBlockVSize - kern.CoinbaseVSize()
 	candidateTxIds := s.GetSortedIncludableMempool()
-	consumedUtxos := util.NewSet[db.Utxo]()
+	consumedUtxos := util.NewSet[kern.Utxo]()
 	for _, txId := range candidateTxIds {
 		tx := inv.GetTx(txId)
 		// Check if tx is too big to fit in space left
@@ -39,7 +40,7 @@ func CreateMiningTarget(s *db.State, inv *db.Inv, publicKeyHash db.HashT) db.Blo
 		totalFees += tx.InputsValue() - tx.OutputsValue()
 		consumedUtxos.Add(tx.GetConsumedUtxos()...)
 		// If we're out of space, break
-		if sizeLeft < db.MinNonCoinbaseVSize() {
+		if sizeLeft < kern.MinNonCoinbaseVSize() {
 			break
 		}
 	}
@@ -48,18 +49,18 @@ func CreateMiningTarget(s *db.State, inv *db.Inv, publicKeyHash db.HashT) db.Blo
 	if err != nil {
 		panic(err)
 	}
-	outTxs[0] = db.Tx{
+	outTxs[0] = kern.Tx{
 		MinBlock: headHeight + 1,
-		Inputs:   make([]db.TxIn, 0),
-		Outputs: []db.TxOut{
+		Inputs:   make([]kern.TxIn, 0),
+		Outputs: []kern.TxOut{
 			{
 				Value:         uint64(totalFees) + util.Constants.BlockReward,
 				PublicKeyHash: publicKeyHash,
 			},
 		},
 	}
-	// Build merkle tree from tx list
-	txIds := make([]db.HashT, len(outTxs))
+	// Build merkle kern.HashTm tx list
+	txIds := make([]kern.HashT, len(outTxs))
 	for i := range txIds {
 		txIds[i] = outTxs[i].Hash()
 	}
@@ -73,7 +74,7 @@ func CreateMiningTarget(s *db.State, inv *db.Inv, publicKeyHash db.HashT) db.Blo
 	}
 	s.AddMempoolTx(coinbaseId)
 	// Store each merkle node
-	merkleMap, merkleIds := db.MerkleFromTxIds(txIds)
+	merkleMap, merkleIds := kern.MerkleFromTxIds(txIds)
 	for _, nodeId := range merkleIds {
 		if inv.HasMerkle(nodeId) {
 			continue
@@ -83,7 +84,7 @@ func CreateMiningTarget(s *db.State, inv *db.Inv, publicKeyHash db.HashT) db.Blo
 			panic(err)
 		}
 	}
-	return db.Block{
+	return kern.Block{
 		PrevBlockId: s.GetHead(),
 		MerkleRoot:  merkleIds[len(merkleIds)-1],
 		Difficulty:  difficulty,

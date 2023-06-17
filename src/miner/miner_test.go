@@ -5,19 +5,19 @@ import (
 	"testing"
 	"time"
 
-	"github.com/levilutz/basiccoin/src/db"
+	"github.com/levilutz/basiccoin/src/kern"
 	. "github.com/levilutz/basiccoin/src/miner"
 	"github.com/levilutz/basiccoin/src/util"
 )
 
 func TestMine(t *testing.T) {
-	difficulty, err := db.NewHashTFromString(
+	difficulty, err := kern.NewHashTFromString(
 		"00000fffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
 	)
 	util.AssertNoErr(t, err)
-	merkle := db.NewHashTRand()
-	target := db.Block{
-		PrevBlockId: db.HashT{},
+	merkle := kern.NewHashTRand()
+	target := kern.Block{
+		PrevBlockId: kern.HashT{},
 		MerkleRoot:  merkle,
 		Difficulty:  difficulty,
 		Nonce:       0,

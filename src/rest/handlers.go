@@ -7,15 +7,15 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/levilutz/basiccoin/src/db"
+	"github.com/levilutz/basiccoin/src/kern"
 	"github.com/levilutz/basiccoin/src/util"
 )
 
 type MainQueryHandler interface {
-	SyncGetBalance(publicKeyHash db.HashT) uint64
-	SyncGetUtxos(publicKeyHash db.HashT) []db.Utxo
-	SyncNewTx(tx db.Tx) error
-	SyncGetConfirms(txId db.HashT) (uint64, bool)
+	SyncGetBalance(publicKeyHash kern.HashT) uint64
+	SyncGetUtxos(publicKeyHash kern.HashT) []kern.Utxo
+	SyncNewTx(tx kern.Tx) error
+	SyncGetConfirms(txId kern.HashT) (uint64, bool)
 }
 
 type Handler struct {
@@ -48,7 +48,7 @@ func (h *Handler) handleGetBalance(w http.ResponseWriter, r *http.Request) {
 		write400(w, r, fmt.Errorf("must provide 1 public key hash"))
 		return
 	}
-	pkh, err := db.NewHashTFromString(publicKeyHashes[0])
+	pkh, err := kern.NewHashTFromString(publicKeyHashes[0])
 	if err != nil {
 		write400(w, r, err)
 		return
@@ -71,7 +71,7 @@ func (h *Handler) handleGetUtxos(w http.ResponseWriter, r *http.Request) {
 		write400(w, r, fmt.Errorf("must provide 1 public key hash"))
 		return
 	}
-	pkh, err := db.NewHashTFromString(publicKeyHashes[0])
+	pkh, err := kern.NewHashTFromString(publicKeyHashes[0])
 	if err != nil {
 		write400(w, r, err)
 		return
@@ -99,7 +99,7 @@ func (h *Handler) handlePostTx(w http.ResponseWriter, r *http.Request) {
 		write400(w, r, err)
 		return
 	}
-	tx := db.Tx{}
+	tx := kern.Tx{}
 	if err = json.Unmarshal(body, &tx); err != nil {
 		write422(w, r, err)
 		return
@@ -129,7 +129,7 @@ func (h *Handler) handleGetTxConfirms(w http.ResponseWriter, r *http.Request) {
 		write400(w, r, fmt.Errorf("must provide one transaction id"))
 		return
 	}
-	txId, err := db.NewHashTFromString(txIds[0])
+	txId, err := kern.NewHashTFromString(txIds[0])
 	if err != nil {
 		write400(w, r, err)
 		return

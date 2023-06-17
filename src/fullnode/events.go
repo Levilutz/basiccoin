@@ -1,6 +1,8 @@
 package main
 
-import "github.com/levilutz/basiccoin/src/db"
+import (
+	"github.com/levilutz/basiccoin/src/kern"
+)
 
 // A Peer is closing its connection, remove from table.
 type peerClosingEvent struct {
@@ -14,10 +16,10 @@ type peersReceivedEvent struct {
 
 // A candidate (unverified) set of blocks to upgrade the ledger to, with needed data.
 type inboundSyncEvent struct {
-	head    db.HashT
-	blocks  []db.Block
-	merkles []db.MerkleNode
-	txs     []db.Tx
+	head    kern.HashT
+	blocks  []kern.Block
+	merkles []kern.MerkleNode
+	txs     []kern.Tx
 }
 
 // Retrieve our currently known peers.
@@ -27,23 +29,23 @@ type peersWantedEvent struct {
 
 // Store a new tx.
 type newTxEvent struct {
-	tx db.Tx
+	tx kern.Tx
 }
 
-// Get the balance of a public key hash.
+// Get the balakern.HashT public key hash.
 type balanceQuery struct {
 	rCh           chan<- uint64
-	publicKeyHash db.HashT
+	publicKeyHash kern.HashT
 }
 
-// Get the utxos available to a given public key hash.
+// Get the utxokern.HashTble to a given public key hash.
 type utxosQuery struct {
-	rCh           chan<- []db.Utxo
-	publicKeyHash db.HashT
+	rCh           chan<- []kern.Utxo
+	publicKeyHash kern.HashT
 }
 
 // Store a new tx, respond with success.
 type newTxQuery struct {
 	rCh chan<- error
-	tx  db.Tx
+	tx  kern.Tx
 }

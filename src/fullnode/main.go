@@ -4,16 +4,16 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/levilutz/basiccoin/src/db"
+	"github.com/levilutz/basiccoin/src/kern"
 	"github.com/levilutz/basiccoin/src/peer"
 	"github.com/levilutz/basiccoin/src/util"
 )
 
 func printComputedConstants() {
-	fmt.Println("CoinbaseVSize:", db.CoinbaseVSize())
-	fmt.Println("MinNonCoinbaseVSize:", db.MinNonCoinbaseVSize())
-	fmt.Println("BlockMaxTxs", db.BlockMaxTxs())
-	fmt.Println("MerkleTreeMaxSize", db.MerkleTreeMaxSize())
+	fmt.Println("CoinbaseVSize:", kern.CoinbaseVSize())
+	fmt.Println("MinNonCoinbaseVSize:", kern.MinNonCoinbaseVSize())
+	fmt.Println("BlockMaxTxs", kern.BlockMaxTxs())
+	fmt.Println("MerkleTreeMaxSize", kern.MerkleTreeMaxSize())
 }
 
 func main() {
