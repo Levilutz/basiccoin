@@ -67,3 +67,15 @@ func TestHashTWorkTargets(t *testing.T) {
 		lastTotal = newTotal
 	}
 }
+
+// Test DHashList
+func TestDHashAnyRec(t *testing.T) {
+	data := []uint64{5, 6, 7}
+	hash := DHashList2(data)
+	hashCorrect := DHashHashes2([]HashT2{
+		DHashUint642(data[0]),
+		DHashUint642(data[1]),
+		DHashUint642(data[2]),
+	})
+	util.Assert(t, hash.Eq(hashCorrect), "hash of list doesn't match")
+}

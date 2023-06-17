@@ -181,3 +181,11 @@ func DHashVarious2(items ...any) HashT2 {
 	}
 	return DHashHashes2(hashes)
 }
+
+func DHashList2[T any](items []T) HashT2 {
+	hashes := make([]HashT2, len(items))
+	for i := range items {
+		hashes[i] = DHashAny2(items[i])
+	}
+	return DHashHashes2(hashes)
+}
