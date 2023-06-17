@@ -1,49 +1,51 @@
 # basiccoin
-Basic blockchain-based cryptocurrency (WIP)
+A basic blockchain-based peer-to-peer cryptocurrency
 
-In the style of early bitcoin, with some simplifications.
+## Requirements
+* [golang](https://go.dev/) >= 1.20
 
-## Running a full node
-
-Build
+## Building
 ```bash
-go build -o basiccoin ./src/fullnode
+bash build.sh
 ```
+
+## Usage
+### Running a full node
 
 To start a node
 ```bash
-./basiccoin
+./bcoin-node
 ```
 
 To start a mining node
 ```bash
-./basiccoin --miners 8 --minerPayoutAddr <address>
+./bcoin-node --miners <num cpu cores> --minerPayoutAddr <address>
 ```
 You can generate a miner payout address with the cli `generate` command.
 
 For more info
 ```bash
-./basiccoin --help
+./bcoin-node --help
 ```
 
-## Using the cli with an existing full node
+### Using the cli to manage a wallet
 
-Build
+To view available commands
 ```bash
-go build -o basiccoin-cli ./src/cli
+./bcoin help
 ```
 
-To generate an address
+To generate a new wallet address
 ```bash
-./basiccoin-cli generate
+./bcoin generate
 ```
 
 To view your balance
 ```bash
-./basiccoin-cli balance
+./bcoin balance
 ```
 
-For more help
+To send money to an address
 ```bash
-./basiccoin-cli help
+./bcoin send <address> <amount>
 ```
