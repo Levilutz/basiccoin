@@ -1,7 +1,6 @@
 package kern
 
 import (
-	"fmt"
 	"math"
 
 	"github.com/levilutz/basiccoin/src/util"
@@ -22,14 +21,6 @@ type Block struct {
 	Difficulty  HashT
 	Noise       HashT
 	Nonce       uint64
-}
-
-// Verify what we can about this block in isolation.
-func (b Block) VerifyIsolated() error {
-	if !b.Hash().Lt(b.Difficulty) {
-		return fmt.Errorf("block fails to beat claimed target difficulty")
-	}
-	return nil
 }
 
 func (b Block) Hash() HashT {

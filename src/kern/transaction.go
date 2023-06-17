@@ -1,11 +1,5 @@
 package kern
 
-import (
-	"fmt"
-
-	"github.com/levilutz/basiccoin/src/util"
-)
-
 // Reference to unspent transaction output.
 // This is just a subset of the fields in a TxIn.
 type Utxo struct {
@@ -67,34 +61,6 @@ type Tx struct {
 	MinBlock   uint64  `json:"minBlock"`
 	Inputs     []TxIn  `json:"inputs"`
 	Outputs    []TxOut `json:"outputs"`
-}
-
-// Verify what we can about this transaction in isolation.
-func (tx Tx) VerifyIsolated() error {
-	preSigHash := TxHashPreSig(tx.MinBlock, tx.Outputs)
-	for _, txi := range tx.Inputs {
-		valid, err := EcdsaVerify(txi.PublicKey, preSigHash, txi.Signature)
-		if err != nil || !valid {
-			return fmt.Errorf("tx signature invalid")
-		}
-	}
-	if tx.VSize() > util.Constants.MaxTxVSize {
-		return fmt.Errorf("tx vSize exceeds limit")
-	}
-	if tx.IsCoinbase {
-		if len(tx.Inputs) > 0 {
-			return fmt.Errorf("coinbase cannot have inputs")
-		} else if len(tx.Outputs) != 1 {
-			return fmt.Errorf("coinbase must have 1 output")
-		} else if tx.OutputsValue() < util.Constants.BlockReward {
-			return fmt.Errorf("coinbase has insufficient block reward")
-		}
-	} else {
-		if tx.OutputsValue() >= tx.InputsValue() {
-			return fmt.Errorf("tx outputs exceed or match inputs")
-		}
-	}
-	return nil
 }
 
 func (tx Tx) Hash() HashT {
