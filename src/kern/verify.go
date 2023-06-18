@@ -47,18 +47,14 @@ func (v Verifier) VerifyTx(tx Tx) error {
 
 	// Verify each input's public key and value match origin
 	for _, txi := range tx.Inputs {
-		if !v.inv.HasTxOut(txi.OriginTxId, txi.OriginTxOutInd) {
-			return fmt.Errorf(
-				"failed to find utxo %s[%d]",
-				txi.OriginTxId,
-				txi.OriginTxOutInd,
-			)
+		if !v.inv.HasTxOut(txi.Utxo.TxId, txi.Utxo.Ind) {
+			return fmt.Errorf("failed to find utxo %s[%d]", txi.Utxo.TxId, txi.Utxo.Ind)
 		}
-		origin := v.inv.GetTxOut(txi.OriginTxId, txi.OriginTxOutInd)
+		origin := v.inv.GetTxOut(txi.Utxo.TxId, txi.Utxo.Ind)
 		if !DHashBytes(txi.PublicKey).Eq(origin.PublicKeyHash) {
 			return fmt.Errorf("given public key does not match claimed utxo")
 		}
-		if txi.Value != origin.Value {
+		if txi.Utxo.Value != origin.Value {
 			return fmt.Errorf("given value does not match claimed utxo")
 		}
 	}

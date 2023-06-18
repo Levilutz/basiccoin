@@ -245,11 +245,9 @@ func (c *Client) MakeOutboundTx(outputValues map[kern.HashT]uint64) (kern.Tx, er
 		totalIn += utxo.Value
 
 		tx.Inputs = append(tx.Inputs, kern.TxIn{
-			OriginTxId:     utxo.TxId,
-			OriginTxOutInd: utxo.Ind,
-			PublicKey:      kern.ExamplePubDer(),
-			Signature:      kern.ExampleMaxSigAsn(),
-			Value:          utxo.Value,
+			Utxo:      utxo,
+			PublicKey: kern.ExamplePubDer(),
+			Signature: kern.ExampleMaxSigAsn(),
 		})
 		if tx.VSize() > kern.DevNetParams().MaxTxVSize {
 			return kern.Tx{}, fmt.Errorf("cannot create tx within vsize limits")
@@ -339,11 +337,9 @@ func (c *Client) MakeConsolidateTx() (kern.Tx, error) {
 	totalIn := uint64(0)
 	for _, utxo := range utxosSorted {
 		newIn := kern.TxIn{
-			OriginTxId:     utxo.TxId,
-			OriginTxOutInd: utxo.Ind,
-			PublicKey:      kern.ExamplePubDer(),
-			Signature:      kern.ExampleMaxSigAsn(),
-			Value:          utxo.Value,
+			Utxo:      utxo,
+			PublicKey: kern.ExamplePubDer(),
+			Signature: kern.ExampleMaxSigAsn(),
 		}
 		if tx.VSize()+newIn.VSize() > kern.DevNetParams().MaxTxVSize {
 			break

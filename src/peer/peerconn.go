@@ -239,11 +239,11 @@ func (pc *PeerConn) TransmitTx(tx kern.Tx) {
 	pc.TransmitUint64Line(uint64(len(tx.Outputs)))
 	// Send tx inputs
 	for _, txi := range tx.Inputs {
-		pc.TransmitHashLine(txi.OriginTxId)
-		pc.TransmitUint64Line(txi.OriginTxOutInd)
+		pc.TransmitHashLine(txi.Utxo.TxId)
+		pc.TransmitUint64Line(txi.Utxo.Ind)
+		pc.TransmitUint64Line(txi.Utxo.Value)
 		pc.TransmitBytesHexLine(txi.PublicKey)
 		pc.TransmitBytesHexLine(txi.Signature)
-		pc.TransmitUint64Line(txi.Value)
 	}
 	// Send tx outputs
 	for _, txo := range tx.Outputs {
@@ -395,11 +395,13 @@ func (pc *PeerConn) RetryReadTx(attemptsPer int, expectId kern.HashT) kern.Tx {
 	txIns := make([]kern.TxIn, numTxIns)
 	for i := uint64(0); i < numTxIns; i++ {
 		txIns[i] = kern.TxIn{
-			OriginTxId:     pc.RetryReadHashLine(attemptsPer),
-			OriginTxOutInd: pc.RetryReadUint64Line(attemptsPer),
-			PublicKey:      pc.RetryReadBytesHexLine(attemptsPer),
-			Signature:      pc.RetryReadBytesHexLine(attemptsPer),
-			Value:          pc.RetryReadUint64Line(attemptsPer),
+			Utxo: kern.Utxo{
+				TxId:  pc.RetryReadHashLine(attemptsPer),
+				Ind:   pc.RetryReadUint64Line(attemptsPer),
+				Value: pc.RetryReadUint64Line(attemptsPer),
+			},
+			PublicKey: pc.RetryReadBytesHexLine(attemptsPer),
+			Signature: pc.RetryReadBytesHexLine(attemptsPer),
 		}
 	}
 	// Receive tx outputs

@@ -1,43 +1,38 @@
 package kern
 
-// Reference to unspent transaction output.
-// This is just a subset of the fields in a TxIn.
+// Reference to supposedly-unspent transaction output.
 type Utxo struct {
 	TxId  HashT  `json:"txId"`
 	Ind   uint64 `json:"ind"`
 	Value uint64 `json:"value"`
 }
 
-func UtxoFromInput(txi TxIn) Utxo {
-	return Utxo{
-		TxId:  txi.OriginTxId,
-		Ind:   txi.OriginTxOutInd,
-		Value: txi.Value,
-	}
+func (utxo Utxo) Hash() HashT {
+	return DHashVarious(utxo.TxId, utxo.Ind, utxo.Value)
+}
+
+func (utxo Utxo) VSize() uint64 {
+	// 32 from TxId, 8 from Ind, 8 from Value
+	return uint64(32 + 8 + 8)
 }
 
 // A transaction input.
 type TxIn struct {
-	OriginTxId     HashT  `json:"originTxId"`
-	OriginTxOutInd uint64 `json:"originTxOutInd"`
-	PublicKey      []byte `json:"publicKey"`
-	Signature      []byte `json:"signature"`
-	Value          uint64 `json:"value"`
+	Utxo      Utxo   `json:"utxo"`
+	PublicKey []byte `json:"publicKey"`
+	Signature []byte `json:"signature"`
 }
 
 func (txi TxIn) Hash() HashT {
 	return DHashVarious(
-		txi.OriginTxId,
-		txi.OriginTxOutInd,
+		txi.Utxo,
 		txi.PublicKey,
 		txi.Signature,
-		txi.Value,
 	)
 }
 
 func (txi TxIn) VSize() uint64 {
-	// 32 from OriginTxId, 8 from OriginTxOutInd, 8 from Value
-	return uint64(32 + 8 + 8 + len(txi.PublicKey) + len(txi.Signature))
+	return txi.Utxo.VSize() + uint64(len(txi.PublicKey)+len(txi.Signature))
 }
 
 // A transaction output.
@@ -72,7 +67,7 @@ func (tx Tx) Hash() HashT {
 func (tx Tx) InputsValue() uint64 {
 	total := uint64(0)
 	for _, txi := range tx.Inputs {
-		total += uint64(txi.Value)
+		total += uint64(txi.Utxo.Value)
 	}
 	return total
 }
@@ -109,7 +104,7 @@ func (tx Tx) HasSurplus() bool {
 func (tx Tx) GetConsumedUtxos() []Utxo {
 	out := make([]Utxo, len(tx.Inputs))
 	for i := range out {
-		out[i] = UtxoFromInput(tx.Inputs[i])
+		out[i] = tx.Inputs[i].Utxo
 	}
 	return out
 }
@@ -123,11 +118,13 @@ func MinNonCoinbaseVSize() uint64 {
 		MinBlock: 0,
 		Inputs: []TxIn{
 			{
-				OriginTxId:     HashT{},
-				OriginTxOutInd: 0,
-				PublicKey:      ExamplePubDer(),
-				Signature:      []byte{}, // No lower bound on signature length
-				Value:          0,
+				Utxo: Utxo{
+					TxId:  HashT{},
+					Ind:   0,
+					Value: 0,
+				},
+				PublicKey: ExamplePubDer(),
+				Signature: []byte{}, // No lower bound on signature length
 			},
 		},
 		Outputs: make([]TxOut, 0),

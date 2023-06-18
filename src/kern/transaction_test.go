@@ -49,16 +49,22 @@ func TestTransactionHash(t *testing.T) {
 	t.Log("sig1", len(sig1Asn))
 	inputs := []TxIn{
 		{
-			OriginTxId:     DHashBytes([]byte("Hello World")),
-			OriginTxOutInd: 2,
-			PublicKey:      inKey1PubDer,
-			Signature:      sig1Asn,
+			Utxo: Utxo{
+				TxId:  DHashBytes([]byte("Hello World")),
+				Ind:   2,
+				Value: 50,
+			},
+			PublicKey: inKey1PubDer,
+			Signature: sig1Asn,
 		},
 		{
-			OriginTxId:     DHashBytes([]byte("Hello World 123")),
-			OriginTxOutInd: 3,
-			PublicKey:      inKey2PubDer,
-			Signature:      sig2Asn,
+			Utxo: Utxo{
+				TxId:  DHashBytes([]byte("Hello World 123")),
+				Ind:   3,
+				Value: 55,
+			},
+			PublicKey: inKey2PubDer,
+			Signature: sig2Asn,
 		},
 	}
 
@@ -83,18 +89,22 @@ func TestTxJson(t *testing.T) {
 		MinBlock:   443,
 		Inputs: []TxIn{
 			{
-				OriginTxId:     originId,
-				OriginTxOutInd: 2,
-				PublicKey:      []byte("abc123"),
-				Signature:      []byte("def456"),
-				Value:          5223,
+				Utxo: Utxo{
+					TxId:  originId,
+					Ind:   2,
+					Value: 5223,
+				},
+				PublicKey: []byte("abc123"),
+				Signature: []byte("def456"),
 			},
 			{
-				OriginTxId:     originId,
-				OriginTxOutInd: 3,
-				PublicKey:      []byte("ghi789"),
-				Signature:      []byte("jkl012"),
-				Value:          3322,
+				Utxo: Utxo{
+					TxId:  originId,
+					Ind:   3,
+					Value: 3322,
+				},
+				PublicKey: []byte("ghi789"),
+				Signature: []byte("jkl012"),
 			},
 		},
 		Outputs: []TxOut{

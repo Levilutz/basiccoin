@@ -54,7 +54,7 @@ func DevNetParams() Params {
 	params := Params{
 		BlockReward:      1000,    // 1000 coin
 		DifficultyPeriod: 8,       // 8 blocks
-		BlockTargetTime:  30,      // 30 seconds
+		BlockTargetTime:  10,      // 10 seconds
 		MaxBlockVSize:    1048576, // 2^20 vBytes
 		MaxTxVSize:       16384,   // 2^14 vBytes
 		MaxTarget: NewHashTFromStringAssert(
