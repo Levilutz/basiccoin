@@ -2,7 +2,7 @@
 
 Libraries meant to be shared between node components and entrypoints.
 
-## `kern`
+## `core`
 The core model and consensus code of basiccoin.
 
 ## `set`

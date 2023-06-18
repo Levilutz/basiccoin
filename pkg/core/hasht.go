@@ -1,4 +1,4 @@
-package kern
+package core
 
 import (
 	"crypto/rand"

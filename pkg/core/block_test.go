@@ -1,9 +1,9 @@
-package kern_test
+package core_test
 
 import (
 	"testing"
 
-	. "github.com/levilutz/basiccoin/pkg/kern"
+	. "github.com/levilutz/basiccoin/pkg/core"
 	"github.com/levilutz/basiccoin/pkg/util"
 )
 
