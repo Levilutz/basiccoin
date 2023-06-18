@@ -90,5 +90,7 @@ func NextTarget(params Params, inv InvTargeter, prevBlockId HashT) HashT {
 		target = maxNext
 	}
 
+	adjustmentPct := 100.0 * float64(actualTime) / float64(desiredTime)
+	fmt.Printf("adjusting target to %f pct of previous - %s\n", adjustmentPct, target)
 	return target
 }

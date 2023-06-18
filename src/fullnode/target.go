@@ -17,12 +17,7 @@ func CreateMiningTarget(
 	if publicKeyHash.EqZero() {
 		publicKeyHash = kern.NewHashTRand()
 	}
-	target, err := kern.NewHashTFromString(
-		"000000ffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
-	)
-	if err != nil {
-		panic(err)
-	}
+	target := kern.NextTarget(params, inv, s.GetHead())
 	// Build tx list until we hit max size
 	outTxs := make([]kern.Tx, 1)
 	outTxs[0] = kern.Tx{} // Placeholder for coinbase
