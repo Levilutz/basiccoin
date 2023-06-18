@@ -186,16 +186,16 @@ func (v Verifier) VerifyBlock(b Block) error {
 	}
 
 	// If last block in period, verify time is ahead of first block in period
-	// This prevents panics in NextTarget
+	// This prevents panics in ExpectedDifficultyAdjustment
 	if newBlockHeight+1%v.params.DifficultyPeriod == 0 {
 		var firstBlockId HashT
 		if newBlockHeight+1 == v.params.DifficultyPeriod {
-			if !v.inv.GetBlockSpecificAncestor(b.PrevBlockId, 6).EqZero() {
+			if !v.inv.GetBlockSpecificAncestor(b.PrevBlockId, int(v.params.DifficultyPeriod-2)).EqZero() {
 				panic("ancestor state unexpected - should be unreachable")
 			}
-			firstBlockId = v.inv.GetBlockSpecificAncestor(b.PrevBlockId, 5)
+			firstBlockId = v.inv.GetBlockSpecificAncestor(b.PrevBlockId, int(v.params.DifficultyPeriod-3))
 		} else {
-			firstBlockId = v.inv.GetBlockSpecificAncestor(b.PrevBlockId, 6)
+			firstBlockId = v.inv.GetBlockSpecificAncestor(b.PrevBlockId, int(v.params.DifficultyPeriod-2))
 		}
 		firstBlockTime := v.inv.GetBlock(firstBlockId).MinedTime
 		if b.MinedTime <= firstBlockTime {

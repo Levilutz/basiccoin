@@ -21,7 +21,12 @@ func (p Params) verify() {
 		"3fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
 	)
 	if maxAllowedMaxTarget.Lt(p.MaxTarget) {
-		panic(fmt.Sprint("Excessive max target:", p.MaxTarget))
+		panic(fmt.Sprint("excessive max target:", p.MaxTarget))
+	}
+	// Verify DifficultyPeriod is at least 4
+	// Lower values break computing difficulty adjustments
+	if p.DifficultyPeriod < 4 {
+		panic("difficulty period must be at least 4")
 	}
 }
 

@@ -153,7 +153,7 @@ func TargetsToTotalWork(targets []HashT) *big.Int {
 	return total
 }
 
-// Compute 2^256 as a big.Int.
+// Compute 2^256-1 as a big.Int.
 func bigInt2_256() *big.Int {
 	out := &big.Int{}
 	out.SetString(
