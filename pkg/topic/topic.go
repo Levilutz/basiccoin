@@ -6,11 +6,11 @@ import (
 )
 
 // A single subscription to a pub-sub topic.
-// The subscriber is obligated to read from the channel often enough to not block writers.
+// The subscriber is obligated to read from the channel before buffer fills.
 // Should only be read from / closed by a single thread.
-// Will only be written to by a single Topic.Pub execution at once.
 type Sub[T any] struct {
-	C       chan T // A channel for the subscriber to read from.
+	C       chan T     // A channel for the subscriber to read from.
+	mu      sync.Mutex // To prevent simultaneous posts
 	stopReq atomic.Bool
 	stopAck atomic.Bool
 }
@@ -24,31 +24,48 @@ func (s *Sub[T]) Close() {
 	}
 }
 
-// Post a message to this subscription. Blocks until successful. Returns whether to close.
-func (s *Sub[T]) post(msg T) bool {
+// Post a message to this subscription. Blocks until successful.
+func (s *Sub[T]) post(msg T) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	if s.stopAck.Load() {
-		// Should be unreachable so long as Topic doesn't post concurrently
-		panic("attempt to post to closed subscription")
-	}
-	if s.stopReq.Load() {
+		return
+	} else if s.stopReq.Load() {
 		close(s.C)
 		s.stopAck.Store(true)
-		return true
+	} else {
+		s.C <- msg
 	}
-	s.C <- msg
-	return false
 }
 
 // A single pub-sub topic.
 type Topic[T any] struct {
-	mu     sync.Mutex
+	mu     sync.RWMutex
 	subs   map[uint64]*Sub[T]
 	nextId uint64
 }
 
 func NewTopic[T any]() *Topic[T] {
-	return &Topic[T]{
+	topic := &Topic[T]{
 		subs: make(map[uint64]*Sub[T]),
+	}
+	// Start garbage collection loop
+	go func() {
+		for {
+			topic.gc()
+		}
+	}()
+	return topic
+}
+
+// Garbage collect the topic's subscriptions.
+func (t *Topic[T]) gc() {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	for id, sub := range t.subs {
+		if sub.stopAck.Load() {
+			delete(t.subs, id)
+		}
 	}
 }
 
@@ -65,13 +82,11 @@ func (t *Topic[T]) Sub() *Sub[T] {
 	return sub
 }
 
-// Publish a message to a topic.
+// Publish a message to a topic. Blocks until successfully written to each channel.
 func (t *Topic[T]) Pub(msg T) {
-	t.mu.Lock()
-	defer t.mu.Unlock()
-	for id, sub := range t.subs {
-		if sub.post(msg) {
-			delete(t.subs, id)
-		}
+	t.mu.RLock()
+	defer t.mu.RUnlock()
+	for _, sub := range t.subs {
+		sub.post(msg)
 	}
 }
