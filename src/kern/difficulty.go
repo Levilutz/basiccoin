@@ -14,12 +14,12 @@ type InvTargeter interface {
 }
 
 // Compute actual and desired time to compute the blocks in this period so far.
-func ExpectedDifficultyAdjustment(params Params, inv InvTargeter, head HashT) (uint64, uint64, error) {
+func ExpectedTargetAdjustment(params Params, inv InvTargeter, head HashT) (uint64, uint64, error) {
 	headHeight := inv.GetBlockHeight(head)
 
 	// Check there exists data to compute adjustment from
 	if headHeight < 2 || headHeight%params.DifficultyPeriod == 0 {
-		return 0, 0, fmt.Errorf("too soon to compute difficulty adjustment")
+		return 0, 0, fmt.Errorf("too soon to compute target adjustment")
 	}
 
 	// Get height of first block in this period and number of hops to it
@@ -37,7 +37,7 @@ func ExpectedDifficultyAdjustment(params Params, inv InvTargeter, head HashT) (u
 	firstMinedTime := inv.GetBlock(periodFirstId).MinedTime
 	if firstMinedTime >= headMinedTime {
 		// Should be protected from happening on last block by VerifyBlock
-		return 0, 0, fmt.Errorf("cannot adjust difficulty - head was mined 'before' first block")
+		return 0, 0, fmt.Errorf("cannot adjust target - head was mined 'before' first block")
 	}
 	actualTime := headMinedTime - firstMinedTime
 	desiredTime := params.BlockTargetTime * numBlocksMeasured
@@ -57,8 +57,8 @@ func NextTarget(params Params, inv InvTargeter, prevBlockId HashT) HashT {
 		return inv.GetBlock(prevBlockId).Target
 	}
 
-	// Actually adjust difficulty
-	actualTime, desiredTime, err := ExpectedDifficultyAdjustment(params, inv, prevBlockId)
+	// Actually adjust target
+	actualTime, desiredTime, err := ExpectedTargetAdjustment(params, inv, prevBlockId)
 	if err != nil {
 		// Should be guarded against by VerifyBlock and params.verify
 		panic(err)

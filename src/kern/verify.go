@@ -186,7 +186,7 @@ func (v Verifier) VerifyBlock(b Block) error {
 	}
 
 	// If last block in period, verify time is ahead of first block in period
-	// This prevents panics in ExpectedDifficultyAdjustment
+	// This prevents panics in ExpectedTargetAdjustment
 	if newBlockHeight+1%v.params.DifficultyPeriod == 0 {
 		var firstBlockId HashT
 		if newBlockHeight+1 == v.params.DifficultyPeriod {
@@ -208,30 +208,30 @@ func (v Verifier) VerifyBlock(b Block) error {
 		return fmt.Errorf("block mined time more than one hour in the future")
 	}
 
-	// Verify block difficulty adjustment correct
+	// Verify block target adjustment correct
 	if !b.PrevBlockId.EqZero() {
-		prevDifficulty := v.inv.GetBlock(b.PrevBlockId).Target
+		prevTarget := v.inv.GetBlock(b.PrevBlockId).Target
 		if newBlockHeight%v.params.DifficultyPeriod == 0 {
-			// Verify new difficulty isn't too hard compared to the last
-			if b.Target.Lt(prevDifficulty.MinNextTarget()) {
+			// Verify new target isn't too hard compared to the last
+			if b.Target.Lt(prevTarget.MinNextTarget()) {
 				return fmt.Errorf("block target reduced more than 4x")
 			}
 
-			// Verify new difficulty isn't too easy compared to the last
-			if prevDifficulty.MaxNextTarget(v.params).Lt(b.Target) {
+			// Verify new target isn't too easy compared to the last
+			if prevTarget.MaxNextTarget(v.params).Lt(b.Target) {
 				return fmt.Errorf("block target increased more than 4x")
 			}
 
 		} else {
-			// Verify difficulty unchanged
-			if !b.Target.Eq(prevDifficulty) {
+			// Verify target unchanged
+			if !b.Target.Eq(prevTarget) {
 				return fmt.Errorf("block altering target from parent out of period")
 			}
 		}
 	} else {
-		// This is first block - verify difficulty correct
+		// This is first block - verify target correct
 		if !b.Target.Eq(v.params.OriginalTarget) {
-			return fmt.Errorf("first block does not have required difficulty")
+			return fmt.Errorf("first block does not have required target")
 		}
 	}
 	return nil
@@ -280,9 +280,9 @@ func (v Verifier) VerifyTxIsolated(tx Tx) error {
 
 // Verify what we can about this block in isolation.
 func (v Verifier) VerifyBlockIsolated(b Block) error {
-	// Verify block hash beats claimed difficulty
+	// Verify block hash beats claimed target
 	if !b.Hash().Lt(b.Target) {
-		return fmt.Errorf("block fails to beat claimed target difficulty")
+		return fmt.Errorf("block fails to beat claimed target target")
 	}
 	return nil
 }

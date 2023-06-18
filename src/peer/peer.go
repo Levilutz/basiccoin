@@ -499,10 +499,10 @@ func (p *Peer) quickVerifyChain(
 	if !p.inv.GetBlockTotalWork(p.head).Lt(newWork) {
 		return fmt.Errorf("received chain is not actually higher work than ours")
 	}
-	// Verify each block actually beats claimed difficulty
+	// Verify each block actually beats claimed target
 	for _, blockId := range neededBlockIds {
 		if !blockId.Lt(blockMap[blockId].Target) {
-			return fmt.Errorf("received block does not actually beat difficulty")
+			return fmt.Errorf("received block does not actually beat target")
 		}
 	}
 	return nil

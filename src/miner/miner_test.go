@@ -11,19 +11,19 @@ import (
 )
 
 func TestMine(t *testing.T) {
-	difficulty, err := kern.NewHashTFromString(
+	target, err := kern.NewHashTFromString(
 		"00000fffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
 	)
 	util.AssertNoErr(t, err)
 	merkle := kern.NewHashTRand()
-	target := kern.Block{
+	targetBlock := kern.Block{
 		PrevBlockId: kern.HashT{},
 		MerkleRoot:  merkle,
-		Target:      difficulty,
+		Target:      target,
 		Nonce:       0,
 	}
 	m := NewMiner()
-	m.SetTarget(target)
+	m.SetTarget(targetBlock)
 	go m.Loop()
 	timer := time.NewTimer(time.Second * 10)
 	select {

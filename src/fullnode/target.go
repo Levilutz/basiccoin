@@ -17,7 +17,7 @@ func CreateMiningTarget(
 	if publicKeyHash.EqZero() {
 		publicKeyHash = kern.NewHashTRand()
 	}
-	difficulty, err := kern.NewHashTFromString(
+	target, err := kern.NewHashTFromString(
 		"000000ffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
 	)
 	if err != nil {
@@ -92,7 +92,7 @@ func CreateMiningTarget(
 	return kern.Block{
 		PrevBlockId: s.GetHead(),
 		MerkleRoot:  merkleIds[len(merkleIds)-1],
-		Target:      difficulty,
+		Target:      target,
 		MinedTime:   uint64(time.Now().Unix()),
 	}
 }
