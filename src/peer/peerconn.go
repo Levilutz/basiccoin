@@ -212,7 +212,7 @@ func (pc *PeerConn) TransmitBlockHeader(block kern.Block) {
 	}
 	pc.TransmitHashLine(block.PrevBlockId)
 	pc.TransmitHashLine(block.MerkleRoot)
-	pc.TransmitHashLine(block.Difficulty)
+	pc.TransmitHashLine(block.Target)
 	pc.TransmitHashLine(block.Noise)
 	pc.TransmitUint64Line(block.Nonce)
 	pc.TransmitUint64Line(block.MinedTime)
@@ -348,7 +348,7 @@ func (pc *PeerConn) RetryReadBlockHeader(attemptsPer int, expectId kern.HashT) k
 	block := kern.Block{
 		PrevBlockId: pc.RetryReadHashLine(attemptsPer),
 		MerkleRoot:  pc.RetryReadHashLine(attemptsPer),
-		Difficulty:  pc.RetryReadHashLine(attemptsPer),
+		Target:      pc.RetryReadHashLine(attemptsPer),
 		Noise:       pc.RetryReadHashLine(attemptsPer),
 		Nonce:       pc.RetryReadUint64Line(attemptsPer),
 		MinedTime:   pc.RetryReadUint64Line(attemptsPer),

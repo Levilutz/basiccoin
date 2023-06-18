@@ -92,7 +92,7 @@ func CreateMiningTarget(
 	return kern.Block{
 		PrevBlockId: s.GetHead(),
 		MerkleRoot:  merkleIds[len(merkleIds)-1],
-		Difficulty:  difficulty,
+		Target:      difficulty,
 		MinedTime:   uint64(time.Now().Unix()),
 	}
 }

@@ -54,7 +54,7 @@ func NextTarget(params Params, inv InvTargeter, prevBlockId HashT) HashT {
 
 	// Most common case - no adjustment
 	if (inv.GetBlockHeight(prevBlockId)+1)%params.DifficultyPeriod != 0 {
-		return inv.GetBlock(prevBlockId).Difficulty
+		return inv.GetBlock(prevBlockId).Target
 	}
 
 	// Actually adjust difficulty
@@ -65,7 +65,7 @@ func NextTarget(params Params, inv InvTargeter, prevBlockId HashT) HashT {
 	}
 
 	// target = prevTarget * actualTime / desiredTime
-	prevTarget := inv.GetBlock(prevBlockId).Difficulty
+	prevTarget := inv.GetBlock(prevBlockId).Target
 	targetInt := prevTarget.BigInt()
 	actualInt := &big.Int{}
 	actualInt.SetUint64(actualTime)

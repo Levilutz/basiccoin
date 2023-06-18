@@ -210,27 +210,27 @@ func (v Verifier) VerifyBlock(b Block) error {
 
 	// Verify block difficulty adjustment correct
 	if !b.PrevBlockId.EqZero() {
-		prevDifficulty := v.inv.GetBlock(b.PrevBlockId).Difficulty
+		prevDifficulty := v.inv.GetBlock(b.PrevBlockId).Target
 		if newBlockHeight%v.params.DifficultyPeriod == 0 {
 			// Verify new difficulty isn't too hard compared to the last
-			if b.Difficulty.Lt(prevDifficulty.MinNextTarget()) {
+			if b.Target.Lt(prevDifficulty.MinNextTarget()) {
 				return fmt.Errorf("block target reduced more than 4x")
 			}
 
 			// Verify new difficulty isn't too easy compared to the last
-			if prevDifficulty.MaxNextTarget(v.params).Lt(b.Difficulty) {
+			if prevDifficulty.MaxNextTarget(v.params).Lt(b.Target) {
 				return fmt.Errorf("block target increased more than 4x")
 			}
 
 		} else {
 			// Verify difficulty unchanged
-			if !b.Difficulty.Eq(prevDifficulty) {
+			if !b.Target.Eq(prevDifficulty) {
 				return fmt.Errorf("block altering target from parent out of period")
 			}
 		}
 	} else {
 		// This is first block - verify difficulty correct
-		if !b.Difficulty.Eq(v.params.OriginalTarget) {
+		if !b.Target.Eq(v.params.OriginalTarget) {
 			return fmt.Errorf("first block does not have required difficulty")
 		}
 	}
@@ -281,7 +281,7 @@ func (v Verifier) VerifyTxIsolated(tx Tx) error {
 // Verify what we can about this block in isolation.
 func (v Verifier) VerifyBlockIsolated(b Block) error {
 	// Verify block hash beats claimed difficulty
-	if !b.Hash().Lt(b.Difficulty) {
+	if !b.Hash().Lt(b.Target) {
 		return fmt.Errorf("block fails to beat claimed target difficulty")
 	}
 	return nil

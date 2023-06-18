@@ -305,7 +305,7 @@ func (inv *Inv) StoreBlock(block kern.Block) error {
 	inv.blocks.Store(blockId, blockRecord{
 		block:     block,
 		height:    inv.GetBlockHeight(block.PrevBlockId) + 1,
-		totalWork: prevWork.WorkAppendTarget(block.Difficulty),
+		totalWork: prevWork.WorkAppendTarget(block.Target),
 	})
 	return nil
 }

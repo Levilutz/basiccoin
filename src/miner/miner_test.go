@@ -19,7 +19,7 @@ func TestMine(t *testing.T) {
 	target := kern.Block{
 		PrevBlockId: kern.HashT{},
 		MerkleRoot:  merkle,
-		Difficulty:  difficulty,
+		Target:      difficulty,
 		Nonce:       0,
 	}
 	m := NewMiner()
@@ -30,7 +30,7 @@ func TestMine(t *testing.T) {
 	case sol := <-m.SolutionCh:
 		fmt.Println(sol.Nonce)
 		fmt.Println(sol.Hash())
-		util.Assert(t, sol.Hash().Lt(sol.Difficulty), "not below target")
+		util.Assert(t, sol.Hash().Lt(sol.Target), "not below target")
 
 	case <-timer.C:
 		util.Assert(t, false, "timed out mining")

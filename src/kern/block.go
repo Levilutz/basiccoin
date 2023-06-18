@@ -18,14 +18,14 @@ func (node MerkleNode) Hash() HashT {
 type Block struct {
 	PrevBlockId HashT
 	MerkleRoot  HashT
-	Difficulty  HashT
+	Target      HashT
 	Noise       HashT
 	Nonce       uint64
 	MinedTime   uint64
 }
 
 func (b Block) Hash() HashT {
-	return DHashVarious(b.PrevBlockId, b.MerkleRoot, b.Difficulty, b.Noise, b.Nonce)
+	return DHashVarious(b.PrevBlockId, b.MerkleRoot, b.Target, b.Noise, b.Nonce)
 }
 
 // The maximum number of txs that could theoretically be in a block, including coinbase.

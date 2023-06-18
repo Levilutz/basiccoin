@@ -70,7 +70,7 @@ func (m *Miner) mine(rounds uint64) (kern.Block, bool) {
 		target := kern.Block{
 			PrevBlockId: m.target.PrevBlockId,
 			MerkleRoot:  m.target.MerkleRoot,
-			Difficulty:  m.target.Difficulty,
+			Target:      m.target.Target,
 			Noise:       m.target.Noise,
 			Nonce:       m.nextNonce,
 			MinedTime:   m.target.MinedTime,
@@ -79,7 +79,7 @@ func (m *Miner) mine(rounds uint64) (kern.Block, bool) {
 		if m.nextNonce != 1<<64-1 {
 			m.nextNonce += 1
 		}
-		if hash.Lt(m.target.Difficulty) {
+		if hash.Lt(m.target.Target) {
 			return target, true
 		}
 		if m.nextNonce == 1<<64-1 {
