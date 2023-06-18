@@ -13,15 +13,13 @@ type Params struct {
 	OriginalTarget   HashT  `json:"originalTarget"`   // First block's required target difficulty
 }
 
-// Verify the MaxTarget isn't too high.
-func (p Params) verifyMaxTarget() {
+// Verify the parameters don't exceed limits.
+func (p Params) verify() {
+	// Verify MaxTarget below 3fff...
 	// This ensures we can multiply by 4 safely
-	maxAllowedMaxTarget, err := NewHashTFromString(
+	maxAllowedMaxTarget := NewHashTFromStringAssert(
 		"3fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
 	)
-	if err != nil {
-		panic(err)
-	}
 	if maxAllowedMaxTarget.Lt(p.MaxTarget) {
 		panic(fmt.Sprint("Excessive max target:", p.MaxTarget))
 	}
@@ -42,7 +40,7 @@ func ProdNetParams() Params {
 			"0000000fffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
 		), // 28 bits of 0s
 	}
-	params.verifyMaxTarget()
+	params.verify()
 	return params
 }
 
@@ -61,6 +59,6 @@ func DevNetParams() Params {
 			"000000ffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
 		), // 24 bits of 0s
 	}
-	params.verifyMaxTarget()
+	params.verify()
 	return params
 }

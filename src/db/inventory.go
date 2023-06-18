@@ -20,6 +20,7 @@ type InvReader interface {
 	GetBlockTotalWork(blockId kern.HashT) kern.HashT
 	GetBlockParentId(blockId kern.HashT) kern.HashT
 	GetBlockAncestors(blockId kern.HashT, maxLen int) []kern.HashT
+	GetBlockSpecificAncestor(blockId kern.HashT, depth int) kern.HashT
 	GetBlockAncestorDepth(blockId, ancestorId kern.HashT) (uint64, bool)
 	GetBlockLCA(blockId, otherBlockId kern.HashT) kern.HashT
 	HasMerkle(nodeId kern.HashT) bool
@@ -116,6 +117,9 @@ func (inv *Inv) GetBlockParentId(blockId kern.HashT) kern.HashT {
 // Get up to maxLen of this block's ancestors. Does not include the given block.
 // Includes the zero block if within maxLen ancestors.
 func (inv *Inv) GetBlockAncestors(blockId kern.HashT, maxLen int) []kern.HashT {
+	if blockId.EqZero() {
+		panic("Cannot get ancestors of root block")
+	}
 	out := make([]kern.HashT, 0)
 	next := blockId
 	for i := 0; i < maxLen; i++ {
@@ -126,6 +130,17 @@ func (inv *Inv) GetBlockAncestors(blockId kern.HashT, maxLen int) []kern.HashT {
 		}
 	}
 	return out
+}
+
+// Get the blockId that's `depth` hops up from here, or the zero block we hit chain start first.
+func (inv *Inv) GetBlockSpecificAncestor(blockId kern.HashT, depth int) kern.HashT {
+	// If no hops or we're already at zero, return this block
+	if depth == 0 || blockId.EqZero() {
+		return blockId
+	}
+	ancestorIds := inv.GetBlockAncestors(blockId, depth)
+	// Since blockId != 0, we know we have at least one ancestor
+	return ancestorIds[len(ancestorIds)-1]
 }
 
 // Returns how many blocks deep the ancestor is, and whether we have this ancestor.

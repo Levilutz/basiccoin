@@ -14,6 +14,7 @@ type InvVerifier interface {
 	GetBlock(blockId HashT) Block
 	GetBlockHeight(blockId HashT) uint64
 	GetBlockAncestors(blockId HashT, maxLen int) []HashT
+	GetBlockSpecificAncestor(blockId HashT, depth int) HashT
 	HasMerkle(nodeId HashT) bool
 	GetMerkleTxIds(root HashT) []HashT
 	GetMerkleTxs(root HashT) []Tx
@@ -155,11 +156,11 @@ func (v Verifier) VerifyBlock(b Block) error {
 		return fmt.Errorf("block exceeds max vSize")
 	}
 
-	// Verify block mined time is above median of previous 11 (if not the first)
+	// Verify block mined time is above median of previous 5 (if not the first)
 	if !b.PrevBlockId.EqZero() {
 		// Get last 11 blocks, dropping the zero block if appropriate
 		ancestorIds := []HashT{b.PrevBlockId}
-		ancestorIds = append(ancestorIds, v.inv.GetBlockAncestors(b.PrevBlockId, 10)...)
+		ancestorIds = append(ancestorIds, v.inv.GetBlockAncestors(b.PrevBlockId, 4)...)
 		if ancestorIds[len(ancestorIds)-1].EqZero() {
 			ancestorIds = ancestorIds[:len(ancestorIds)-1]
 		}
@@ -180,7 +181,25 @@ func (v Verifier) VerifyBlock(b Block) error {
 		// Verify
 		if b.MinedTime <= median {
 			fmt.Println(uint64(time.Now().Unix()), times, b.MinedTime)
-			return fmt.Errorf("block mined time not above median of previous 11")
+			return fmt.Errorf("block mined time not above median of previous 5")
+		}
+	}
+
+	// If last block in period, verify time is ahead of first block in period
+	// This prevents panics in NextTarget
+	if newBlockHeight+1%v.params.DifficultyPeriod == 0 {
+		var firstBlockId HashT
+		if newBlockHeight+1 == v.params.DifficultyPeriod {
+			if !v.inv.GetBlockSpecificAncestor(b.PrevBlockId, 6).EqZero() {
+				panic("ancestor state unexpected - should be unreachable")
+			}
+			firstBlockId = v.inv.GetBlockSpecificAncestor(b.PrevBlockId, 5)
+		} else {
+			firstBlockId = v.inv.GetBlockSpecificAncestor(b.PrevBlockId, 6)
+		}
+		firstBlockTime := v.inv.GetBlock(firstBlockId).MinedTime
+		if b.MinedTime <= firstBlockTime {
+			return fmt.Errorf("block is last in period, yet was mined before first in period")
 		}
 	}
 
