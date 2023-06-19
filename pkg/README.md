@@ -5,6 +5,9 @@ Libraries meant to be shared between node components and entrypoints.
 ## `core`
 The core model and consensus code of basiccoin.
 
+## `prot`
+The peer-to-peer protocol for network nodes.
+
 ## `queue`
 A generic queue.
 
