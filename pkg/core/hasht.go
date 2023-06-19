@@ -59,6 +59,14 @@ func NewHashTFromBigInt(data *big.Int) HashT {
 	return out
 }
 
+// Create a hash from a byte slice, panic if failure.
+func NewHashTFromBytes(data []byte) HashT {
+	if len(data) != 32 {
+		panic(fmt.Sprintf("cannot create hash from %d bytes", len(data)))
+	}
+	return HashT{data: [32]byte(data)}
+}
+
 // Retrieve the underlying byte array from the HashT.
 func (h HashT) Data() [32]byte {
 	return h.data
