@@ -55,6 +55,7 @@ func (c *Conn) readRawTimeout(numBytes uint16, timeout time.Duration) []byte {
 }
 
 // Write the given bytes to the conn with the given timeout.
+// The receiver should know exactly many bytes will be sent.
 func (c *Conn) writeRawTimeout(data []byte, timeout time.Duration) {
 	if c.err != nil {
 		return
@@ -71,7 +72,8 @@ func (c *Conn) writeRawTimeout(data []byte, timeout time.Duration) {
 	}
 }
 
-// Read data from the conn with the given timeout for the size bytes, then the default.
+// Read variable-length data from the conn.
+// Uses the given timeout for the size bytes, then the default for the data bytes.
 func (c *Conn) ReadTimeout(timeout time.Duration) []byte {
 	if c.err != nil {
 		return nil
@@ -84,7 +86,7 @@ func (c *Conn) ReadTimeout(timeout time.Duration) []byte {
 	return c.readRawTimeout(size, defaultTimeout)
 }
 
-// Read data from the conn with the default timeout for each read.
+// Read variable-length data from the conn with the default timeout for each read.
 func (c *Conn) Read() []byte {
 	if c.err != nil {
 		return nil
@@ -92,7 +94,7 @@ func (c *Conn) Read() []byte {
 	return c.ReadTimeout(defaultTimeout)
 }
 
-// Write data to the conn with the default timeout for each write.
+// Write variable-length data to the conn with the default timeout for each write.
 func (c *Conn) Write(data []byte) {
 	if c.err != nil {
 		return
