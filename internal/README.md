@@ -2,6 +2,9 @@
 
 The independent components of a basiccoin node.
 
+## `pubsub`
+The main pub-sub event bus all components share.
+
 ## `chain`
 A local blockchain instance.
 
