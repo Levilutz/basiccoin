@@ -5,17 +5,20 @@ Libraries meant to be shared between node components and entrypoints.
 ## `core`
 The core model and consensus code of basiccoin.
 
-## `set`
-A generic set.
-
 ## `queue`
 A generic queue.
 
-## `topic`
-A generic pub-sub topic.
+## `set`
+A generic set.
 
 ## `syncmap`
 A generic async-safe map.
+
+## `syncqueue`
+A generic async-safe queue.
+
+## `topic`
+A generic pub-sub topic.
 
 ## `util`
 Various utility functions.
