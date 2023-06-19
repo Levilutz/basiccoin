@@ -27,6 +27,14 @@ func (q *Queue[K]) Pop() (key K, ok bool) {
 	return key, true
 }
 
+// Peek an item from the front of the queue, if available.
+func (q *Queue[K]) Peek() (key K, ok bool) {
+	if len(q.q) == 0 {
+		return key, false
+	}
+	return q.q[0], true
+}
+
 // Get how many items are currently in the queue.
 func (q *Queue[K]) Size() int {
 	return len(q.q)

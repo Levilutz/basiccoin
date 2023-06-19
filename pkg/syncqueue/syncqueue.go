@@ -30,6 +30,16 @@ func (q *SyncQueue[K]) Push(keys ...K) {
 	q.q.Push(keys...)
 }
 
+// Peek an item from the front of the queue, if available.
+func (q *SyncQueue[K]) Peek() (key K, ok bool) {
+	q.mu.Lock()
+	defer q.mu.Unlock()
+	if q.closed {
+		return key, false
+	}
+	return q.q.Peek()
+}
+
 // Pop an item off the front of the queue, if available.
 func (q *SyncQueue[K]) Pop() (key K, ok bool) {
 	q.mu.Lock()
