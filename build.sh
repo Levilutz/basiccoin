@@ -2,6 +2,4 @@
 
 set -ex
 
-go build -o bcoin-node ./src/fullnode
-
-go build -o bcoin ./src/cli
+go build -o bcnode ./cmd/bcnode

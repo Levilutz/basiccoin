@@ -72,7 +72,7 @@ func (t *Topic[T]) Pub(msgs ...T) {
 // Subscribe to the topic, return a subscription channel.
 func (t *Topic[T]) SubCh() *SubCh[T] {
 	subCh := &SubCh[T]{
-		Sub:      make(chan T),
+		C:        make(chan T),
 		subQueue: t.Sub(),
 		close:    make(chan struct{}),
 	}
@@ -82,7 +82,7 @@ func (t *Topic[T]) SubCh() *SubCh[T] {
 
 // A subscription channel.
 type SubCh[T any] struct {
-	Sub      chan T
+	C        chan T
 	subQueue Sub[T]
 	close    chan struct{}
 }
@@ -96,9 +96,9 @@ func (s *SubCh[T]) Close() {
 		done.Store(true)
 	}()
 	for !done.Load() {
-		<-s.Sub
+		<-s.C
 	}
-	close(s.Sub)
+	close(s.C)
 	s.subQueue.Close()
 }
 
@@ -112,7 +112,7 @@ func (s *SubCh[T]) loop() {
 		default:
 			msg, ok := s.subQueue.Pop()
 			for ok {
-				s.Sub <- msg
+				s.C <- msg
 				msg, ok = s.subQueue.Pop()
 			}
 			time.Sleep(time.Millisecond * 25)

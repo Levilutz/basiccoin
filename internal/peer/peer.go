@@ -54,8 +54,9 @@ func (p *Peer) Loop() {
 	// Loop
 	for {
 		select {
-		case validatedHeadEvent := <-p.subs.ValidatedHead.Sub:
+		case validatedHeadEvent := <-p.subs.ValidatedHead.C:
 			fmt.Println("new validated head:", validatedHeadEvent.Head)
+
 		default:
 			data := p.conn.ReadTimeout(time.Millisecond * 100)
 			if err := p.conn.Err(); err != nil {
