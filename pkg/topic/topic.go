@@ -89,7 +89,7 @@ type SubCh[T any] struct {
 
 // Close this subscription channel.
 func (s *SubCh[T]) Close() {
-	// Pull items off the channel until our close is processed.
+	// Pull items off the channel until our close is processed by the loop.
 	done := atomic.Bool{}
 	go func() {
 		s.close <- struct{}{}
@@ -99,6 +99,7 @@ func (s *SubCh[T]) Close() {
 		<-s.Sub
 	}
 	close(s.Sub)
+	s.subQueue.Close()
 }
 
 // Loop taking items from the queue and pushing them to the channel.
