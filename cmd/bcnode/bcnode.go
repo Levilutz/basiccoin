@@ -3,15 +3,18 @@ package main
 import (
 	"github.com/levilutz/basiccoin/internal/peerfactory"
 	"github.com/levilutz/basiccoin/internal/pubsub"
+	"github.com/levilutz/basiccoin/src/kern"
 )
 
 func main() {
+	runtimeId := kern.NewHashTRand().String()
+
 	// Create params for each component
 	var peerFactoryParams peerfactory.Params
 	if false {
-		peerFactoryParams = peerfactory.ProdParams(true)
+		peerFactoryParams = peerfactory.ProdParams(true, runtimeId)
 	} else {
-		peerFactoryParams = peerfactory.DevParams(true)
+		peerFactoryParams = peerfactory.DevParams(true, runtimeId)
 	}
 
 	// Make the event bus

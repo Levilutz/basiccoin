@@ -72,6 +72,11 @@ func (c *Conn) PeerRuntimeId() string {
 	return c.peerRuntimeId
 }
 
+// Get whether we initiated the connection.
+func (c *Conn) WeAreInitiator() bool {
+	return c.params.WeAreInitiator
+}
+
 // Get our local address as seen by the peer.
 func (c *Conn) LocalAddr() *net.TCPAddr {
 	return c.tc.LocalAddr().(*net.TCPAddr)

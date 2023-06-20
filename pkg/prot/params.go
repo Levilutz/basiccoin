@@ -1,13 +1,15 @@
 package prot
 
-import "github.com/levilutz/basiccoin/pkg/core"
-
+// Params to configure a connection to a peer.
 type Params struct {
-	RuntimeID string `json:"runtimeId"` // An id to uniquely identify this node.
+	RuntimeID      string `json:"runtimeId"`      // An id to uniquely identify this node.
+	WeAreInitiator bool   `json:"weAreInitiator"` // Whether this peer initiated the connection.
 }
 
-func NewParams() Params {
+// Generate params from the given arguments.
+func NewParams(runtimeId string, weAreInitiator bool) Params {
 	return Params{
-		RuntimeID: core.NewHashTRand().String(),
+		RuntimeID:      runtimeId,
+		WeAreInitiator: weAreInitiator,
 	}
 }
