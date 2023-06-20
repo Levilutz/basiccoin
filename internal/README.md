@@ -8,14 +8,14 @@ A local blockchain instance.
 ## `ctlapi`
 An instance of the node management HTTP server.
 
-## `listen`
-A tcp listener to add new inbound peer connections.
-
 ## `miner`
 A single-threaded miner.
 
 ## `peer`
-A connection to a single peer.
+A routine which manages a connection to a single peer.
+
+## `peerfactory`
+The peer factory listens for inbound connections, seeks new peers when appropriate, and tracks how many peers we have.
 
 ## `pubsub`
 The main pub-sub event bus all components share.
