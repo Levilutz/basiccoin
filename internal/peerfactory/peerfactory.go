@@ -147,11 +147,23 @@ func (pf *PeerFactory) addConn(conn *prot.Conn) {
 		conn.CloseIfPossible()
 		return
 	}
-	if pf.knownPeers.Size() < pf.params.MaxPeers ||
-		pf.knownPeers.Includes(conn.PeerRuntimeId()) {
+	runtimeId := conn.PeerRuntimeId()
+	if pf.knownPeers.Size() < pf.params.MaxPeers &&
+		!pf.knownPeers.Includes(runtimeId) {
 		// Upgrade to peer
 		go peer.NewPeer(pf.pubSub, conn).Loop()
-		pf.knownPeers.Add(conn.PeerRuntimeId())
+		pf.knownPeers.Add(runtimeId)
+		// Set our localaddr if we want to listen but it's not set
+		if pf.params.Listen && pf.params.LocalAddr == "" {
+			pf.params.LocalAddr = conn.LocalAddr().IP.String() + ":21720"
+		}
+		// Broadcast our localaddr if we want to listen
+		if pf.params.Listen {
+			pf.pubSub.ShouldAnnounceAddr.Pub(pubsub.ShouldAnnounceAddrEvent{
+				TargetRuntimeId: runtimeId,
+				Addr:            pf.params.LocalAddr,
+			})
+		}
 	} else {
 		// Try to inform them we're closing, ignore any errs
 		conn.CloseIfPossible()
