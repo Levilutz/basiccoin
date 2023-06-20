@@ -12,7 +12,8 @@ import (
 
 // The peer's subscriptions.
 type subscriptions struct {
-	ValidatedHead *topic.SubCh[pubsub.ValidatedHeadEvent]
+	ShouldRequestPeers *topic.SubCh[pubsub.ShouldRequestPeersEvent]
+	ValidatedHead      *topic.SubCh[pubsub.ValidatedHeadEvent]
 }
 
 // Close our subscriptions as we close.
@@ -54,6 +55,12 @@ func (p *Peer) Loop() {
 	// Loop
 	for {
 		select {
+		case shouldRequestPeersEvent := <-p.subs.ShouldRequestPeers.C:
+			if shouldRequestPeersEvent.PeerRuntimeId != p.conn.PeerRuntimeId() {
+				continue
+			}
+			fmt.Println("should request their peers")
+
 		case validatedHeadEvent := <-p.subs.ValidatedHead.C:
 			fmt.Println("new validated head:", validatedHeadEvent.Head)
 

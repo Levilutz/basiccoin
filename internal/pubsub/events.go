@@ -8,7 +8,7 @@ type PeerClosingEvent struct {
 }
 
 // We should request the given peer id for their peers.
-type PeerShouldRequestPeersEvent struct {
+type ShouldRequestPeersEvent struct {
 	PeerRuntimeId string
 }
 

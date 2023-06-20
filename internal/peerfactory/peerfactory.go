@@ -117,7 +117,7 @@ func (pf *PeerFactory) seekNewPeers() {
 	// TODO: Request a random peer to send over their peers
 	peerInd := rand.Intn(pf.knownPeers.Size())
 	peerRuntimeId := pf.knownPeers.ToList()[peerInd]
-	pf.pubSub.PeerShouldRequestPeers.Pub(pubsub.PeerShouldRequestPeersEvent{
+	pf.pubSub.ShouldRequestPeers.Pub(pubsub.ShouldRequestPeersEvent{
 		PeerRuntimeId: peerRuntimeId,
 	})
 }
