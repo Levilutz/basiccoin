@@ -176,3 +176,12 @@ func (c *Conn) Err() error {
 	defer func() { c.err = nil }()
 	return c.err
 }
+
+// Pop the stored error, and panic if it wasn't a timeout.
+func (c *Conn) TimeoutErrOrPanic() error {
+	err := c.Err()
+	if err != nil && !os.IsTimeout(err) {
+		panic(err)
+	}
+	return err
+}

@@ -1,8 +1,8 @@
 package peer
 
 import (
+	"bytes"
 	"fmt"
-	"os"
 	"time"
 
 	"github.com/levilutz/basiccoin/internal/pubsub"
@@ -23,9 +23,10 @@ func (s subscriptions) Close() {
 
 // A connection to a single peer.
 type Peer struct {
-	pubSub *pubsub.PubSub
-	subs   *subscriptions
-	conn   *prot.Conn
+	pubSub      *pubsub.PubSub
+	subs        *subscriptions
+	conn        *prot.Conn
+	shouldClose bool
 }
 
 // Create a new peer given a message bus instance.
@@ -42,7 +43,7 @@ func NewPeer(pubSub *pubsub.PubSub, conn *prot.Conn) *Peer {
 
 // Start the peer's loop.
 func (p *Peer) Loop() {
-	// Handle panics and unsubscribe.
+	// Handle panics and unsubscribe
 	defer func() {
 		if r := recover(); r != nil {
 			fmt.Println("peer closed from panic:", r)
@@ -65,15 +66,38 @@ func (p *Peer) Loop() {
 			fmt.Println("new validated head:", validatedHeadEvent.Head)
 
 		default:
-			data := p.conn.ReadTimeout(time.Millisecond * 100)
-			if err := p.conn.Err(); err != nil {
-				if os.IsTimeout(err) {
-					continue
-				} else {
-					panic(err)
-				}
+			msg := p.conn.ReadTimeout(time.Millisecond * 100)
+			if p.conn.TimeoutErrOrPanic() != nil {
+				continue
 			}
-			fmt.Println("received data:", data)
+			if err := p.handleReceivedMessage(msg); err != nil {
+				fmt.Printf("error handling '%s': %s\n", msg, err.Error())
+			}
 		}
+		if p.shouldClose {
+			return
+		}
+	}
+}
+
+// Handle a message received from a peer.
+func (p *Peer) handleReceivedMessage(msg []byte) error {
+	if !bytes.HasPrefix(msg, []byte("cmd:")) {
+		return fmt.Errorf("unrecognized msg: %s", msg)
+	} else if bytes.Equal(msg, []byte("cmd:close")) {
+		p.shouldClose = true
+		return fmt.Errorf("peer requested close")
+	}
+	command := string(msg)[4:]
+	p.conn.WriteString("ack:" + command)
+	if p.conn.HasErr() {
+		return p.conn.TimeoutErrOrPanic()
+	}
+
+	if command == "ping" {
+		return nil
+
+	} else {
+		return fmt.Errorf("unrecognized command: %s", command)
 	}
 }
