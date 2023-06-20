@@ -31,6 +31,18 @@ func NewConn(params Params, tcpConn *net.TCPConn) *Conn {
 	return conn
 }
 
+func ResolveConn(params Params, addr string) (*Conn, error) {
+	tcpAddr, err := net.ResolveTCPAddr("tcp", addr)
+	if err != nil {
+		return nil, err
+	}
+	tcpConn, err := net.DialTCP("tcp", nil, tcpAddr)
+	if err != nil {
+		return nil, err
+	}
+	return NewConn(params, tcpConn), nil
+}
+
 // Initial handshake for an incompletely-initialized conn.
 func (c *Conn) handshake() {
 	if c.err != nil {
@@ -164,6 +176,15 @@ func (c *Conn) Write(data []byte) {
 // Close the connection.
 func (c *Conn) Close() error {
 	return c.tc.Close()
+}
+
+// Try to close the connection, but don't care if it fails.
+func (c *Conn) CloseIfPossible() {
+	go func() {
+		defer func() { recover() }()
+		c.WriteString("cmd:close")
+		c.Close()
+	}()
 }
 
 // Check whether we have a stored error.

@@ -110,10 +110,8 @@ func (s *SubCh[T]) loop() {
 			s.subQueue.Close()
 			return
 		default:
-			msg, ok := s.subQueue.Pop()
-			for ok {
+			for msg, ok := s.subQueue.Pop(); ok; msg, ok = s.subQueue.Pop() {
 				s.C <- msg
-				msg, ok = s.subQueue.Pop()
 			}
 			time.Sleep(time.Millisecond * 25)
 		}
