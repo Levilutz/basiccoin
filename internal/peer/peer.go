@@ -10,6 +10,8 @@ import (
 	"github.com/levilutz/basiccoin/pkg/topic"
 )
 
+var errPeerClosed = fmt.Errorf("peer requested close")
+
 // The peer's subscriptions.
 type subscriptions struct {
 	ShouldRequestPeers *topic.SubCh[pubsub.ShouldRequestPeersEvent]
@@ -55,12 +57,15 @@ func (p *Peer) Loop() {
 
 	// Loop
 	for {
+		if p.shouldClose {
+			return
+		}
 		select {
 		case shouldRequestPeersEvent := <-p.subs.ShouldRequestPeers.C:
 			if shouldRequestPeersEvent.PeerRuntimeId != p.conn.PeerRuntimeId() {
 				continue
 			}
-			fmt.Println("should request their peers")
+			p.issueCommand("addrs-request", p.handleWriteAddrsRequest)
 
 		case validatedHeadEvent := <-p.subs.ValidatedHead.C:
 			fmt.Println("new validated head:", validatedHeadEvent.Head)
@@ -74,9 +79,6 @@ func (p *Peer) Loop() {
 				fmt.Printf("error handling '%s': %s\n", msg, err.Error())
 			}
 		}
-		if p.shouldClose {
-			return
-		}
 	}
 }
 
@@ -86,18 +88,68 @@ func (p *Peer) handleReceivedMessage(msg []byte) error {
 		return fmt.Errorf("unrecognized msg: %s", msg)
 	} else if bytes.Equal(msg, []byte("cmd:close")) {
 		p.shouldClose = true
-		return fmt.Errorf("peer requested close")
+		return errPeerClosed
 	}
 	command := string(msg)[4:]
 	p.conn.WriteString("ack:" + command)
 	if p.conn.HasErr() {
-		return p.conn.TimeoutErrOrPanic()
+		return p.conn.Err()
 	}
 
 	if command == "ping" {
 		return nil
 
+	} else if command == "addrs-request" {
+		return p.handleReadAddrsRequest()
+
 	} else {
 		return fmt.Errorf("unrecognized command: %s", command)
 	}
+}
+
+// Issue an outbound command with the given handler.
+func (p *Peer) issueCommand(command string, handler func() error) error {
+	p.conn.WriteString("cmd:" + command)
+	// Expect to receive either 'ack:ourCommand' or 'cmd:theirCommand'
+	resp := p.conn.Read()
+	if p.conn.HasErr() {
+		return p.conn.Err()
+	} else if bytes.Equal(resp, []byte("cmd:close")) {
+		p.shouldClose = true
+		return errPeerClosed
+	}
+	// Happy path - they acknowledged us
+	if string(resp) == "ack:"+command {
+		return handler()
+	}
+	// Other path - we sent commands simultaneously
+	if bytes.HasPrefix(resp, []byte("cmd:")) {
+		if p.conn.WeAreInitiator() {
+			// If we initiated the original connection, honor their command first
+			if err := p.handleReceivedMessage(resp); err != nil {
+				return err
+			} else if p.shouldClose {
+				return errPeerClosed
+			}
+			p.conn.ReadStringExpected("ack:" + command)
+			if p.conn.HasErr() {
+				return p.conn.Err()
+			}
+			return handler()
+		} else {
+			// If they initiated the original connnection, honor our command first
+			p.conn.ReadStringExpected("ack" + command)
+			if p.conn.HasErr() {
+				return p.conn.Err()
+			}
+			if err := handler(); err != nil {
+				return err
+			} else if p.shouldClose {
+				return errPeerClosed
+			}
+			return p.handleReceivedMessage(resp)
+		}
+	}
+	// Neither
+	return fmt.Errorf("unrecognized msg: %s", resp)
 }
