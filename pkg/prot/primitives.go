@@ -17,6 +17,20 @@ func (c *Conn) ReadString() string {
 	return string(raw)
 }
 
+// Read an expected string from the conn, err if read string was different.
+func (c *Conn) ReadStringExpected(expected string) {
+	if c.err != nil {
+		return
+	}
+	actual := c.ReadString()
+	if c.err != nil {
+		return
+	}
+	if actual != expected {
+		c.err = fmt.Errorf("received incorrect string: %s != %s", actual, expected)
+	}
+}
+
 // Write a string to the conn.
 func (c *Conn) WriteString(data string) {
 	if c.err != nil {

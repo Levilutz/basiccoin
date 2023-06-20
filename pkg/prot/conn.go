@@ -11,16 +11,20 @@ const defaultTimeout = time.Second * 30
 
 // A low-level connection to a peer.
 type Conn struct {
-	tc  *net.TCPConn
-	err error
+	params        Params
+	tc            *net.TCPConn
+	peerRuntimeId string
+	err           error
 }
 
 // Create a new connection from an existing TCP Connection.
 // The returned conn might have an err set, but this won't return one directly.
-func NewConn(tcpConn *net.TCPConn) *Conn {
+func NewConn(params Params, tcpConn *net.TCPConn) *Conn {
 	conn := &Conn{
-		tc:  tcpConn,
-		err: nil,
+		params: params,
+		tc:     tcpConn,
+		err:    nil,
+		// peerRuntimeId is initialized by handshake
 	}
 	conn.handshake()
 	return conn
@@ -31,6 +35,41 @@ func (c *Conn) handshake() {
 	if c.err != nil {
 		return
 	}
+	// Transmit handshake
+	c.WriteString("levilutz/basiccoin")
+	c.WriteString("v0.0.0") // If protocol is ever versioned this'll matter
+	c.WriteString(c.params.RuntimeID)
+	// Receive handshake
+	c.ReadStringExpected("levilutz/basiccoin")
+	c.ReadStringExpected("v0.0.0")
+	peerRuntimeId := c.ReadString()
+	// Cancel or continue the connection
+	if c.err != nil {
+		return
+	}
+	if peerRuntimeId == c.params.RuntimeID {
+		c.WriteString("cancel")
+		if c.err == nil {
+			c.err = fmt.Errorf("will not connect to self")
+		}
+		return
+	}
+	c.WriteString("continue")
+	c.peerRuntimeId = peerRuntimeId
+	// Handle the peer's desire to cancel or continue
+	peerWants := c.ReadString()
+	if c.err != nil || peerWants == "continue" {
+		return
+	} else if peerWants == "cancel" {
+		c.err = fmt.Errorf("peer does not want connection")
+	} else {
+		c.err = fmt.Errorf("unrecognized response: %s", peerWants)
+	}
+}
+
+// Get the runtime id of the peer.
+func (c *Conn) PeerRuntimeId() string {
+	return c.peerRuntimeId
 }
 
 // Get our local address as seen by the peer.
