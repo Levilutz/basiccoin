@@ -8,6 +8,7 @@ type PubSub struct {
 	PeerClosing        *topic.Topic[PeerClosingEvent]
 	PeersReceived      *topic.Topic[PeersReceivedEvent]
 	PeersRequested     *topic.Topic[PeersRequestedEvent]
+	PrintUpdate        *topic.Topic[PrintUpdateEvent]
 	SendPeers          *topic.Topic[SendPeersEvent]
 	ShouldAnnounceAddr *topic.Topic[ShouldAnnounceAddrEvent]
 	ShouldRequestPeers *topic.Topic[ShouldRequestPeersEvent]
@@ -20,6 +21,7 @@ func NewPubSub() *PubSub {
 		PeerClosing:        topic.NewTopic[PeerClosingEvent](),
 		PeersReceived:      topic.NewTopic[PeersReceivedEvent](),
 		PeersRequested:     topic.NewTopic[PeersRequestedEvent](),
+		PrintUpdate:        topic.NewTopic[PrintUpdateEvent](),
 		SendPeers:          topic.NewTopic[SendPeersEvent](),
 		ShouldAnnounceAddr: topic.NewTopic[ShouldAnnounceAddrEvent](),
 		ShouldRequestPeers: topic.NewTopic[ShouldRequestPeersEvent](),

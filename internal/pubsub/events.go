@@ -23,6 +23,12 @@ type PeersRequestedEvent struct {
 	PeerRuntimeId string
 }
 
+// The specified components should print an update.
+type PrintUpdateEvent struct {
+	Peer        bool
+	PeerFactory bool
+}
+
 // Send the given peers address list to the specified peer.
 type SendPeersEvent struct {
 	TargetRuntimeId string

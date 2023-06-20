@@ -1,8 +1,10 @@
 package peerfactory
 
 import (
+	"fmt"
 	"math/rand"
 	"net"
+	"sync/atomic"
 	"time"
 
 	"github.com/levilutz/basiccoin/internal/peer"
@@ -21,6 +23,7 @@ type subcriptions struct {
 	PeerClosing       *topic.SubCh[pubsub.PeerClosingEvent]
 	PeersReceived     *topic.SubCh[pubsub.PeersReceivedEvent]
 	PeersRequested    *topic.SubCh[pubsub.PeersRequestedEvent]
+	PrintUpdate       *topic.SubCh[pubsub.PrintUpdateEvent]
 }
 
 // A peer factory. Does not manage the peers after creation.
@@ -34,6 +37,7 @@ type PeerFactory struct {
 	newAddrs       *syncqueue.SyncQueue[string]
 	knownPeers     *set.Set[string]
 	knownPeerAddrs map[string]string // Not all knownPeers appear here
+	listenStarted  atomic.Bool
 }
 
 // Create a new peer factory given a message bus instance.
@@ -43,6 +47,7 @@ func NewPeerFactory(params Params, pubSub *pubsub.PubSub) *PeerFactory {
 		PeerClosing:       pubSub.PeerClosing.SubCh(),
 		PeersReceived:     pubSub.PeersReceived.SubCh(),
 		PeersRequested:    pubSub.PeersRequested.SubCh(),
+		PrintUpdate:       pubSub.PrintUpdate.SubCh(),
 	}
 	return &PeerFactory{
 		params:         params,
@@ -60,7 +65,7 @@ func (pf *PeerFactory) Loop() {
 	go pf.tryNewAddrs()
 
 	// Start listener if desired
-	if pf.params.Listen {
+	if pf.params.Listen && pf.params.LocalAddr != "" {
 		go pf.listen()
 	}
 
@@ -90,6 +95,12 @@ func (pf *PeerFactory) Loop() {
 				PeerAddrs:       util.CopyMap(pf.knownPeerAddrs),
 			})
 
+		case event := <-pf.subs.PrintUpdate.C:
+			if !event.PeerFactory {
+				continue
+			}
+			fmt.Printf("peers: %d\n", pf.knownPeers.Size())
+
 		case <-seekPeersTicker.C:
 			pf.seekNewPeers()
 		}
@@ -103,13 +114,14 @@ func (pf *PeerFactory) tryNewAddrs() {
 			protParams := prot.NewParams(pf.params.RuntimeId, true)
 			conn, err := prot.ResolveConn(protParams, addr)
 			if err != nil {
+				fmt.Printf("failed to resolve addr %s: %s\n", addr, err.Error())
 				continue
 			} else if conn.HasErr() {
+				fmt.Printf("failed to resolve addr %s: %s\n", addr, conn.Err().Error())
 				conn.CloseIfPossible()
 				continue
 			}
 			pf.newConns <- conn
-
 		}
 		time.Sleep(time.Millisecond * 25)
 	}
@@ -117,7 +129,17 @@ func (pf *PeerFactory) tryNewAddrs() {
 
 // Routine to start listening for new connections.
 func (pf *PeerFactory) listen() {
-	addr, err := net.ResolveTCPAddr("tcp", "localhost:21720")
+	// Guard against multiple simultaneous litens. This isn't perfect but it's just-in-case.
+	if pf.listenStarted.Load() {
+		return
+	}
+	pf.listenStarted.Store(true)
+
+	// Get the listener
+	if pf.params.LocalAddr == "" {
+		panic("cannot listen without local addr set")
+	}
+	addr, err := net.ResolveTCPAddr("tcp", pf.params.LocalAddr)
 	if err != nil {
 		panic(err)
 	}
@@ -126,6 +148,8 @@ func (pf *PeerFactory) listen() {
 		panic(err)
 	}
 	defer listen.Close()
+
+	// Loop accepting new connections
 	for {
 		tcpConn, err := listen.AcceptTCP()
 		if err != nil {
@@ -153,11 +177,12 @@ func (pf *PeerFactory) addConn(conn *prot.Conn) {
 		// Upgrade to peer
 		go peer.NewPeer(pf.pubSub, conn).Loop()
 		pf.knownPeers.Add(runtimeId)
-		// Set our localaddr if we want to listen but it's not set
+		// Set our localaddr and start listen if we only now can
 		if pf.params.Listen && pf.params.LocalAddr == "" {
 			pf.params.LocalAddr = conn.LocalAddr().IP.String() + ":21720"
+			go pf.listen()
 		}
-		// Broadcast our localaddr if we want to listen
+		// Broadcast our localaddr to the peer if we want to listen
 		if pf.params.Listen {
 			pf.pubSub.ShouldAnnounceAddr.Pub(pubsub.ShouldAnnounceAddrEvent{
 				TargetRuntimeId: runtimeId,
@@ -165,6 +190,7 @@ func (pf *PeerFactory) addConn(conn *prot.Conn) {
 			})
 		}
 	} else {
+		fmt.Printf("will not connect to peer %s", conn.PeerRuntimeId())
 		// Try to inform them we're closing, ignore any errs
 		conn.CloseIfPossible()
 	}

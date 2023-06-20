@@ -15,6 +15,7 @@ var errPeerClosed = fmt.Errorf("peer requested close")
 // The peer's subscriptions.
 // Ensure each of these is initialized in NewPeer.
 type subscriptions struct {
+	PrintUpdate        *topic.SubCh[pubsub.PrintUpdateEvent]
 	SendPeers          *topic.SubCh[pubsub.SendPeersEvent]
 	ShouldAnnounceAddr *topic.SubCh[pubsub.ShouldAnnounceAddrEvent]
 	ShouldRequestPeers *topic.SubCh[pubsub.ShouldRequestPeersEvent]
@@ -37,6 +38,7 @@ type Peer struct {
 // Create a new peer given a message bus instance.
 func NewPeer(pubSub *pubsub.PubSub, conn *prot.Conn) *Peer {
 	subs := &subscriptions{
+		PrintUpdate:        pubSub.PrintUpdate.SubCh(),
 		SendPeers:          pubSub.SendPeers.SubCh(),
 		ShouldAnnounceAddr: pubSub.ShouldAnnounceAddr.SubCh(),
 		ShouldRequestPeers: pubSub.ShouldRequestPeers.SubCh(),
@@ -54,7 +56,9 @@ func (p *Peer) Loop() {
 	// Handle panics and unsubscribe
 	defer func() {
 		if r := recover(); r != nil {
-			fmt.Println("peer closed from panic:", r)
+			fmt.Printf("peer %s closed from panic: %s\n", p.conn.PeerRuntimeId(), r)
+		} else {
+			fmt.Printf("peer %s closed\n", p.conn.PeerRuntimeId())
 		}
 		p.pubSub.PeerClosing.Pub(pubsub.PeerClosingEvent{
 			PeerRuntimeId: p.conn.PeerRuntimeId(),
@@ -91,6 +95,12 @@ func (p *Peer) Loop() {
 
 		case event := <-p.subs.ValidatedHead.C:
 			fmt.Println("new validated head:", event.Head)
+
+		case event := <-p.subs.PrintUpdate.C:
+			if !event.Peer {
+				continue
+			}
+			fmt.Printf("peer connected: %s\n", p.conn.PeerRuntimeId())
 
 		default:
 			msg := p.conn.ReadTimeout(time.Millisecond * 100)
