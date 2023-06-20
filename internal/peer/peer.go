@@ -58,7 +58,7 @@ func (p *Peer) Loop() {
 			fmt.Println("new validated head:", validatedHeadEvent.Head)
 		default:
 			data := p.conn.ReadTimeout(time.Millisecond * 100)
-			if err := p.conn.Err(); !os.IsTimeout(err) {
+			if err := p.conn.Err(); err != nil && !os.IsTimeout(err) {
 				panic(err)
 			}
 			fmt.Println("received data:", data)
