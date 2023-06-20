@@ -87,3 +87,8 @@ func (s *Set[K]) HasIntersection(other *Set[K]) bool {
 	}
 	return false
 }
+
+// Get the current size of the set.
+func (s *Set[K]) Size() int {
+	return len(s.s)
+}

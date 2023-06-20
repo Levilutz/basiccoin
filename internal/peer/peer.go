@@ -24,11 +24,11 @@ func (s subscriptions) Close() {
 type Peer struct {
 	pubSub *pubsub.PubSub
 	subs   *subscriptions
-	conn   prot.Conn
+	conn   *prot.Conn
 }
 
 // Create a new peer given a message bus instance.
-func NewPeer(pubSub *pubsub.PubSub, conn prot.Conn) *Peer {
+func NewPeer(pubSub *pubsub.PubSub, conn *prot.Conn) *Peer {
 	subs := &subscriptions{
 		ValidatedHead: pubSub.ValidatedHead.SubCh(),
 	}

@@ -5,8 +5,10 @@ import (
 	"net"
 	"time"
 
+	"github.com/levilutz/basiccoin/internal/peer"
 	"github.com/levilutz/basiccoin/internal/pubsub"
 	"github.com/levilutz/basiccoin/pkg/prot"
+	"github.com/levilutz/basiccoin/pkg/set"
 	"github.com/levilutz/basiccoin/pkg/topic"
 )
 
@@ -19,9 +21,11 @@ type subcriptions struct {
 // May listen for inbound connections and/or seek new outbound connections.
 // Keeps track of what peers exist.
 type PeerFactory struct {
-	params Params
-	pubSub *pubsub.PubSub
-	subs   *subcriptions
+	params     Params
+	pubSub     *pubsub.PubSub
+	subs       *subcriptions
+	newConns   chan *prot.Conn
+	knownPeers set.Set[string] // Not sync-safe, should only access from main routine
 }
 
 // Create a new peer factory given a message bus instance.
@@ -30,9 +34,10 @@ func NewPeerFactory(params Params, pubSub *pubsub.PubSub) *PeerFactory {
 		PeerClosing: pubSub.PeerClosing.SubCh(),
 	}
 	return &PeerFactory{
-		params: params,
-		pubSub: pubSub,
-		subs:   subs,
+		params:   params,
+		pubSub:   pubSub,
+		subs:     subs,
+		newConns: make(chan *prot.Conn, 256),
 	}
 }
 
@@ -47,6 +52,8 @@ func (pf *PeerFactory) Loop() {
 	seekPeersTicker := time.NewTicker(pf.params.SeekNewPeersFreq)
 	for {
 		select {
+		case conn := <-pf.newConns:
+			pf.AddConn(conn)
 		case peerClosingEvent := <-pf.subs.PeerClosing.C:
 			fmt.Println("peer closing received:", peerClosingEvent.PeerRuntimeId)
 		case <-seekPeersTicker.C:
@@ -76,6 +83,28 @@ func (pf *PeerFactory) listen() {
 		if conn.HasErr() {
 			continue
 		}
-		// Push conn to channel
+		pf.newConns <- conn
+	}
+}
+
+// Upgrade a connection to peer, if appropriate.
+func (pf *PeerFactory) AddConn(conn *prot.Conn) {
+	if conn.HasErr() {
+		return
+	}
+	if pf.knownPeers.Size() < pf.params.MaxPeers ||
+		pf.knownPeers.Includes(conn.PeerRuntimeId()) {
+		// Upgrade to peer
+		go peer.NewPeer(pf.pubSub, conn).Loop()
+		pf.knownPeers.Add(conn.PeerRuntimeId())
+	} else {
+		// Try to inform them we're closing, ignore any errs
+		go func() {
+			defer func() {
+				recover()
+			}()
+			conn.WriteString("cmd:close")
+			conn.Close()
+		}()
 	}
 }

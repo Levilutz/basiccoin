@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"net"
+	"os"
 	"time"
 )
 
@@ -52,18 +53,25 @@ func (c *Conn) handshake() {
 		if c.err == nil {
 			c.err = fmt.Errorf("will not connect to self")
 		}
+		c.Close()
 		return
 	}
 	c.WriteString("continue")
 	c.peerRuntimeId = peerRuntimeId
 	// Handle the peer's desire to cancel or continue
 	peerWants := c.ReadString()
-	if c.err != nil || peerWants == "continue" {
+	if c.err != nil {
+		if os.IsTimeout(c.err) {
+			c.Close()
+		}
+	} else if peerWants == "continue" {
 		return
 	} else if peerWants == "cancel" {
 		c.err = fmt.Errorf("peer does not want connection")
+		c.Close()
 	} else {
 		c.err = fmt.Errorf("unrecognized response: %s", peerWants)
+		c.Close()
 	}
 }
 
