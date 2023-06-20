@@ -13,7 +13,9 @@ import (
 var errPeerClosed = fmt.Errorf("peer requested close")
 
 // The peer's subscriptions.
+// Ensure each of these is initialized in NewPeer.
 type subscriptions struct {
+	SendPeers          *topic.SubCh[pubsub.SendPeersEvent]
 	ShouldRequestPeers *topic.SubCh[pubsub.ShouldRequestPeersEvent]
 	ValidatedHead      *topic.SubCh[pubsub.ValidatedHeadEvent]
 }
@@ -34,7 +36,9 @@ type Peer struct {
 // Create a new peer given a message bus instance.
 func NewPeer(pubSub *pubsub.PubSub, conn *prot.Conn) *Peer {
 	subs := &subscriptions{
-		ValidatedHead: pubSub.ValidatedHead.SubCh(),
+		SendPeers:          pubSub.SendPeers.SubCh(),
+		ShouldRequestPeers: pubSub.ShouldRequestPeers.SubCh(),
+		ValidatedHead:      pubSub.ValidatedHead.SubCh(),
 	}
 	return &Peer{
 		pubSub: pubSub,
@@ -61,14 +65,22 @@ func (p *Peer) Loop() {
 			return
 		}
 		select {
-		case shouldRequestPeersEvent := <-p.subs.ShouldRequestPeers.C:
-			if shouldRequestPeersEvent.PeerRuntimeId != p.conn.PeerRuntimeId() {
+		case event := <-p.subs.ShouldRequestPeers.C:
+			if event.PeerRuntimeId != p.conn.PeerRuntimeId() {
 				continue
 			}
-			p.issueCommand("addrs-request", p.handleWriteAddrsRequest)
+			p.issueCommand(addrsRequestCmd, p.handleWriteAddrsRequest)
 
-		case validatedHeadEvent := <-p.subs.ValidatedHead.C:
-			fmt.Println("new validated head:", validatedHeadEvent.Head)
+		case event := <-p.subs.SendPeers.C:
+			if event.PeerRuntimeId != p.conn.PeerRuntimeId() {
+				continue
+			}
+			p.issueCommand(peerAddrsCmd, func() error {
+				return p.handleWritePeerAddrs(event)
+			})
+
+		case event := <-p.subs.ValidatedHead.C:
+			fmt.Println("new validated head:", event.Head)
 
 		default:
 			msg := p.conn.ReadTimeout(time.Millisecond * 100)
@@ -99,8 +111,11 @@ func (p *Peer) handleReceivedMessage(msg []byte) error {
 	if command == "ping" {
 		return nil
 
-	} else if command == "addrs-request" {
+	} else if command == addrsRequestCmd {
 		return p.handleReadAddrsRequest()
+
+	} else if command == peerAddrsCmd {
+		return p.handleReadPeerAddrs()
 
 	} else {
 		return fmt.Errorf("unrecognized command: %s", command)

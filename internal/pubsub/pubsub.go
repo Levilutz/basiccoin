@@ -6,6 +6,7 @@ import "github.com/levilutz/basiccoin/pkg/topic"
 type PubSub struct {
 	PeerClosing        *topic.Topic[PeerClosingEvent]
 	PeersRequested     *topic.Topic[PeersRequestedEvent]
+	SendPeers          *topic.Topic[SendPeersEvent]
 	ShouldRequestPeers *topic.Topic[ShouldRequestPeersEvent]
 	ValidatedHead      *topic.Topic[ValidatedHeadEvent]
 }
@@ -14,7 +15,8 @@ func NewPubSub() *PubSub {
 	return &PubSub{
 		PeerClosing:        topic.NewTopic[PeerClosingEvent](),
 		PeersRequested:     topic.NewTopic[PeersRequestedEvent](),
-		ValidatedHead:      topic.NewTopic[ValidatedHeadEvent](),
+		SendPeers:          topic.NewTopic[SendPeersEvent](),
 		ShouldRequestPeers: topic.NewTopic[ShouldRequestPeersEvent](),
+		ValidatedHead:      topic.NewTopic[ValidatedHeadEvent](),
 	}
 }

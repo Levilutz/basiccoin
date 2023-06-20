@@ -7,9 +7,20 @@ type PeerClosingEvent struct {
 	PeerRuntimeId string
 }
 
+// We have received the addresses of other peers.
+type PeersReceivedEvent struct {
+	PeerAddrs map[string]string
+}
+
 // The specified peer has requested a list of our peers.
 type PeersRequestedEvent struct {
 	PeerRuntimeId string
+}
+
+// Send the given peers address list to the specified peer.
+type SendPeersEvent struct {
+	PeerRuntimeId string
+	PeerAddrs     map[string]string
 }
 
 // We should request the given peer id for their peers.
