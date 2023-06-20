@@ -1,7 +1,12 @@
 package peer
 
 import (
+	"fmt"
+	"os"
+	"time"
+
 	"github.com/levilutz/basiccoin/internal/pubsub"
+	"github.com/levilutz/basiccoin/pkg/prot"
 	"github.com/levilutz/basiccoin/pkg/topic"
 )
 
@@ -19,14 +24,44 @@ func (s subscriptions) Close() {
 type Peer struct {
 	pubSub *pubsub.PubSub
 	subs   *subscriptions
+	conn   prot.Conn
 }
 
 // Create a new peer given a message bus instance.
-func NewPeer(pubSub *pubsub.PubSub) *Peer {
+func NewPeer(pubSub *pubsub.PubSub, conn prot.Conn) *Peer {
+	subs := &subscriptions{
+		ValidatedHead: pubSub.ValidatedHead.SubCh(),
+	}
 	return &Peer{
 		pubSub: pubSub,
-		subs: &subscriptions{
-			ValidatedHead: pubSub.ValidatedHead.SubCh(),
-		},
+		subs:   subs,
+		conn:   conn,
+	}
+}
+
+// Start the peer's loop.
+func (p *Peer) Loop() {
+	// Handle panics and unsubscribe.
+	defer func() {
+		if r := recover(); r != nil {
+			fmt.Println("peer closed from panic:", r)
+		}
+		p.pubSub.PeerClosing.Pub(pubsub.PeerClosingEvent{
+			PeerRuntimeId: p.conn.PeerRuntimeId(),
+		})
+	}()
+
+	// Loop
+	for {
+		select {
+		case validatedHeadEvent := <-p.subs.ValidatedHead.Sub:
+			fmt.Println("new validated head:", validatedHeadEvent.Head)
+		default:
+			data := p.conn.ReadTimeout(time.Millisecond * 100)
+			if err := p.conn.Err(); !os.IsTimeout(err) {
+				panic(err)
+			}
+			fmt.Println("received data:", data)
+		}
 	}
 }

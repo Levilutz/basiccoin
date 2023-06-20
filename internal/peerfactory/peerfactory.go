@@ -20,10 +20,11 @@ type PeerFactory struct {
 
 // Create a new peer factory given a message bus instance.
 func NewPeerFactory(pubSub *pubsub.PubSub) *PeerFactory {
+	subs := &subcriptions{
+		PeerClosing: pubSub.PeerClosing.SubCh(),
+	}
 	return &PeerFactory{
 		pubSub: pubSub,
-		subs: &subcriptions{
-			PeerClosing: pubSub.PeerClosing.SubCh(),
-		},
+		subs:   subs,
 	}
 }
