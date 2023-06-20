@@ -2,6 +2,12 @@ package pubsub
 
 import "github.com/levilutz/basiccoin/pkg/core"
 
+// A peer has announced its listen address.
+type PeerAnnouncedAddrEvent struct {
+	PeerRuntimeId string
+	Addr          string
+}
+
 // Emitted by a peer as it closes.
 type PeerClosingEvent struct {
 	PeerRuntimeId string
@@ -19,13 +25,19 @@ type PeersRequestedEvent struct {
 
 // Send the given peers address list to the specified peer.
 type SendPeersEvent struct {
-	PeerRuntimeId string
-	PeerAddrs     map[string]string
+	TargetRuntimeId string
+	PeerAddrs       map[string]string
+}
+
+// We should announce our address to a peer.
+type ShouldAnnounceAddrEvent struct {
+	TargetRuntimeId string
+	Addr            string
 }
 
 // We should request the given peer id for their peers.
 type ShouldRequestPeersEvent struct {
-	PeerRuntimeId string
+	TargetRuntimeId string
 }
 
 // Emitted by the chain when we advance to a new head.

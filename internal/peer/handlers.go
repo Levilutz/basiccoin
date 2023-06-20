@@ -2,6 +2,25 @@ package peer
 
 import "github.com/levilutz/basiccoin/internal/pubsub"
 
+var announceAddrCmd = "announce-addr"
+
+func (p *Peer) handleReadAnnounceAddr() error {
+	addr := p.conn.ReadString()
+	if p.conn.HasErr() {
+		return p.conn.Err()
+	}
+	p.pubSub.PeerAnnouncedAddr.Pub(pubsub.PeerAnnouncedAddrEvent{
+		PeerRuntimeId: p.conn.PeerRuntimeId(),
+		Addr:          addr,
+	})
+	return nil
+}
+
+func (p *Peer) handleWriteAnnounceAddr(event pubsub.ShouldAnnounceAddrEvent) error {
+	p.conn.WriteString(event.Addr)
+	return p.conn.Err()
+}
+
 var addrsRequestCmd = "addrs-request"
 
 func (p *Peer) handleReadAddrsRequest() error {

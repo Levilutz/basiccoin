@@ -16,6 +16,7 @@ var errPeerClosed = fmt.Errorf("peer requested close")
 // Ensure each of these is initialized in NewPeer.
 type subscriptions struct {
 	SendPeers          *topic.SubCh[pubsub.SendPeersEvent]
+	ShouldAnnounceAddr *topic.SubCh[pubsub.ShouldAnnounceAddrEvent]
 	ShouldRequestPeers *topic.SubCh[pubsub.ShouldRequestPeersEvent]
 	ValidatedHead      *topic.SubCh[pubsub.ValidatedHeadEvent]
 }
@@ -37,6 +38,7 @@ type Peer struct {
 func NewPeer(pubSub *pubsub.PubSub, conn *prot.Conn) *Peer {
 	subs := &subscriptions{
 		SendPeers:          pubSub.SendPeers.SubCh(),
+		ShouldAnnounceAddr: pubSub.ShouldAnnounceAddr.SubCh(),
 		ShouldRequestPeers: pubSub.ShouldRequestPeers.SubCh(),
 		ValidatedHead:      pubSub.ValidatedHead.SubCh(),
 	}
@@ -66,17 +68,25 @@ func (p *Peer) Loop() {
 		}
 		select {
 		case event := <-p.subs.ShouldRequestPeers.C:
-			if event.PeerRuntimeId != p.conn.PeerRuntimeId() {
+			if event.TargetRuntimeId != p.conn.PeerRuntimeId() {
 				continue
 			}
 			p.issueCommand(addrsRequestCmd, p.handleWriteAddrsRequest)
 
 		case event := <-p.subs.SendPeers.C:
-			if event.PeerRuntimeId != p.conn.PeerRuntimeId() {
+			if event.TargetRuntimeId != p.conn.PeerRuntimeId() {
 				continue
 			}
 			p.issueCommand(peerAddrsCmd, func() error {
 				return p.handleWritePeerAddrs(event)
+			})
+
+		case event := <-p.subs.ShouldAnnounceAddr.C:
+			if event.TargetRuntimeId != p.conn.PeerRuntimeId() {
+				continue
+			}
+			p.issueCommand(announceAddrCmd, func() error {
+				return p.handleWriteAnnounceAddr(event)
 			})
 
 		case event := <-p.subs.ValidatedHead.C:
@@ -116,6 +126,9 @@ func (p *Peer) handleReceivedMessage(msg []byte) error {
 
 	} else if command == peerAddrsCmd {
 		return p.handleReadPeerAddrs()
+
+	} else if command == announceAddrCmd {
+		return p.handleReadAnnounceAddr()
 
 	} else {
 		return fmt.Errorf("unrecognized command: %s", command)

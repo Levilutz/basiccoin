@@ -25,7 +25,8 @@ type PeerFactory struct {
 	pubSub     *pubsub.PubSub
 	subs       *subcriptions
 	newConns   chan *prot.Conn
-	knownPeers set.Set[string] // Not sync-safe, should only access from main routine
+	knownPeers set.Set[string]
+	// knownPeerAddrs map[string]string // Not all knownPeers appear here
 }
 
 // Create a new peer factory given a message bus instance.
@@ -114,10 +115,9 @@ func (pf *PeerFactory) seekNewPeers() {
 	if pf.knownPeers.Size() == 0 || pf.knownPeers.Size() >= pf.params.MinPeers {
 		return
 	}
-	// TODO: Request a random peer to send over their peers
-	peerInd := rand.Intn(pf.knownPeers.Size())
-	peerRuntimeId := pf.knownPeers.ToList()[peerInd]
+	targetInd := rand.Intn(pf.knownPeers.Size())
+	targetRuntimeId := pf.knownPeers.ToList()[targetInd]
 	pf.pubSub.ShouldRequestPeers.Pub(pubsub.ShouldRequestPeersEvent{
-		PeerRuntimeId: peerRuntimeId,
+		TargetRuntimeId: targetRuntimeId,
 	})
 }
