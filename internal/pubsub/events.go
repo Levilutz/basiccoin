@@ -7,6 +7,11 @@ type PeerClosingEvent struct {
 	PeerRuntimeId string
 }
 
+// We should request the given peer id for their peers.
+type PeerShouldRequestPeersEvent struct {
+	PeerRuntimeId string
+}
+
 // Emitted by the chain when we advance to a new head.
 type ValidatedHeadEvent struct {
 	Head core.HashT

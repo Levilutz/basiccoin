@@ -1,7 +1,7 @@
 package peerfactory
 
 import (
-	"fmt"
+	"math/rand"
 	"net"
 	"time"
 
@@ -53,11 +53,11 @@ func (pf *PeerFactory) Loop() {
 	for {
 		select {
 		case conn := <-pf.newConns:
-			pf.AddConn(conn)
+			pf.addConn(conn)
 		case peerClosingEvent := <-pf.subs.PeerClosing.C:
-			fmt.Println("peer closing received:", peerClosingEvent.PeerRuntimeId)
+			pf.knownPeers.Remove(peerClosingEvent.PeerRuntimeId)
 		case <-seekPeersTicker.C:
-			fmt.Println("check if we need new peers")
+			pf.seekNewPeers()
 		}
 	}
 }
@@ -88,7 +88,7 @@ func (pf *PeerFactory) listen() {
 }
 
 // Upgrade a connection to peer, if appropriate.
-func (pf *PeerFactory) AddConn(conn *prot.Conn) {
+func (pf *PeerFactory) addConn(conn *prot.Conn) {
 	if conn.HasErr() {
 		return
 	}
@@ -107,4 +107,17 @@ func (pf *PeerFactory) AddConn(conn *prot.Conn) {
 			conn.Close()
 		}()
 	}
+}
+
+// Check if we should and can seek new peers, then do so.
+func (pf *PeerFactory) seekNewPeers() {
+	if pf.knownPeers.Size() == 0 || pf.knownPeers.Size() >= pf.params.MinPeers {
+		return
+	}
+	// TODO: Request a random peer to send over their peers
+	peerInd := rand.Intn(pf.knownPeers.Size())
+	peerRuntimeId := pf.knownPeers.ToList()[peerInd]
+	pf.pubSub.PeerShouldRequestPeers.Pub(pubsub.PeerShouldRequestPeersEvent{
+		PeerRuntimeId: peerRuntimeId,
+	})
 }
