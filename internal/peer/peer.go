@@ -107,6 +107,11 @@ func (p *Peer) Loop() {
 				return p.handleWriteAnnounceAddr(event)
 			})
 
+		case event := <-p.subs.ValidatedTx.C:
+			p.issueCommandPrintErr(newTxCmd, func() error {
+				return p.handleWriteNewTx(event)
+			})
+
 		case event := <-p.subs.ValidatedHead.C:
 			p.curHead = event.Head
 			p.issueCommandPrintErr(syncChainCmd, p.handleSyncChain)
@@ -157,6 +162,9 @@ func (p *Peer) handleReceivedMessage(msg []byte) error {
 
 	} else if command == announceAddrCmd {
 		return p.handleReadAnnounceAddr()
+
+	} else if command == newTxCmd {
+		return p.handleReadNewTx()
 
 	} else if command == syncChainCmd {
 		return p.handleSyncChain()

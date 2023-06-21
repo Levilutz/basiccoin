@@ -61,3 +61,36 @@ func (p *Peer) handleWritePeerAddrs(event pubsub.SendPeersEvent) error {
 	}
 	return p.conn.Err()
 }
+
+var newTxCmd = "new-tx"
+
+func (p *Peer) handleReadNewTx() error {
+	txId := p.conn.ReadHashT()
+	if p.conn.HasErr() {
+		return p.conn.Err()
+	} else if p.inv.HasTx(txId) {
+		p.conn.WriteBool(false)
+		return p.conn.Err()
+	}
+	p.conn.WriteBool(true)
+	tx := p.conn.ReadTx(txId)
+	if p.conn.HasErr() {
+		return p.conn.Err()
+	}
+	p.pubSub.CandidateTx.Pub(pubsub.CandidateTxEvent{
+		Tx: tx,
+	})
+	return nil
+}
+
+func (p *Peer) handleWriteNewTx(event pubsub.ValidatedTxEvent) error {
+	p.conn.WriteHashT(event.TxId)
+	wanted := p.conn.ReadBool()
+	if p.conn.HasErr() {
+		return p.conn.Err()
+	} else if wanted {
+		p.conn.WriteTx(p.inv.GetTx(event.TxId))
+		return p.conn.Err()
+	}
+	return nil
+}
