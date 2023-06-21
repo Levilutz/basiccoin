@@ -7,6 +7,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/levilutz/basiccoin/internal/inv"
 	"github.com/levilutz/basiccoin/internal/peer"
 	"github.com/levilutz/basiccoin/internal/pubsub"
 	"github.com/levilutz/basiccoin/pkg/prot"
@@ -32,6 +33,7 @@ type subcriptions struct {
 type PeerFactory struct {
 	params         Params
 	pubSub         *pubsub.PubSub
+	inv            inv.InvReader
 	subs           *subcriptions
 	newConns       chan *prot.Conn
 	newAddrs       *syncqueue.SyncQueue[string]
@@ -42,7 +44,7 @@ type PeerFactory struct {
 }
 
 // Create a new peer factory given a message bus instance.
-func NewPeerFactory(params Params, pubSub *pubsub.PubSub) *PeerFactory {
+func NewPeerFactory(params Params, pubSub *pubsub.PubSub, inv inv.InvReader) *PeerFactory {
 	subs := &subcriptions{
 		PeerAnnouncedAddr: pubSub.PeerAnnouncedAddr.SubCh(),
 		PeerClosing:       pubSub.PeerClosing.SubCh(),
@@ -53,6 +55,7 @@ func NewPeerFactory(params Params, pubSub *pubsub.PubSub) *PeerFactory {
 	return &PeerFactory{
 		params:         params,
 		pubSub:         pubSub,
+		inv:            inv,
 		subs:           subs,
 		newConns:       make(chan *prot.Conn, 256),
 		newAddrs:       syncqueue.NewSyncQueue[string](),
@@ -208,7 +211,7 @@ func (pf *PeerFactory) addConn(conn *prot.Conn) {
 	if pf.knownPeers.Size() < pf.params.MaxPeers &&
 		!pf.knownPeers.Includes(runtimeId) {
 		// Upgrade to peer
-		go peer.NewPeer(pf.pubSub, conn).Loop()
+		go peer.NewPeer(pf.pubSub, pf.inv, conn).Loop()
 		pf.knownPeers.Add(runtimeId)
 		// Set our localaddr and start listen if we only now can
 		if pf.params.Listen && pf.params.LocalAddr == "" {

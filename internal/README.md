@@ -8,6 +8,9 @@ A local blockchain instance.
 ## `ctlapi`
 An instance of the node management HTTP server.
 
+## `inv`
+The shared inventory of known blocks, merkle nodes, and transactions.
+
 ## `miner`
 A single-threaded miner.
 

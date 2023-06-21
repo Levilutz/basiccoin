@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/levilutz/basiccoin/internal/inv"
 	"github.com/levilutz/basiccoin/internal/pubsub"
 	"github.com/levilutz/basiccoin/pkg/prot"
 	"github.com/levilutz/basiccoin/pkg/topic"
@@ -30,13 +31,14 @@ func (s subscriptions) Close() {
 // A connection to a single peer.
 type Peer struct {
 	pubSub      *pubsub.PubSub
+	inv         inv.InvReader
 	subs        *subscriptions
 	conn        *prot.Conn
 	shouldClose bool
 }
 
 // Create a new peer given a message bus instance.
-func NewPeer(pubSub *pubsub.PubSub, conn *prot.Conn) *Peer {
+func NewPeer(pubSub *pubsub.PubSub, inv inv.InvReader, conn *prot.Conn) *Peer {
 	subs := &subscriptions{
 		PrintUpdate:        pubSub.PrintUpdate.SubCh(),
 		SendPeers:          pubSub.SendPeers.SubCh(),
@@ -46,6 +48,7 @@ func NewPeer(pubSub *pubsub.PubSub, conn *prot.Conn) *Peer {
 	}
 	return &Peer{
 		pubSub: pubSub,
+		inv:    inv,
 		subs:   subs,
 		conn:   conn,
 	}
