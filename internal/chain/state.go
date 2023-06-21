@@ -2,6 +2,7 @@ package chain
 
 import (
 	"fmt"
+	"sort"
 
 	"github.com/levilutz/basiccoin/internal/inv"
 	"github.com/levilutz/basiccoin/pkg/core"
@@ -194,6 +195,20 @@ func (s *State) VerifyTxIncludable(txId core.HashT) error {
 		}
 	}
 	return nil
+}
+
+// Get includable mempool txs sorted be fee rate, descending.
+func (s *State) GetSortedIncludableMempool() []core.HashT {
+	mem := s.mempool.Copy()
+	mem.Filter(func(txId core.HashT) bool {
+		return s.VerifyTxIncludable(txId) == nil && s.inv.GetTx(txId).HasSurplus()
+	})
+	memL := mem.ToList()
+	sort.Slice(memL, func(i, j int) bool {
+		// > instead of < because we want descending.
+		return s.mempoolRates[memL[i]] > s.mempoolRates[memL[j]]
+	})
+	return memL
 }
 
 // Add a tx to the mempool.

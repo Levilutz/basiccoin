@@ -123,8 +123,7 @@ func (c *Chain) handleCandidateHead(event pubsub.CandidateHeadEvent) error {
 		Head: event.Head,
 	})
 	if c.supportMiners {
-		// TODO: Create mining target
-		fmt.Println("would create miner target")
+		c.CreateMiningTarget()
 	}
 	return nil
 }

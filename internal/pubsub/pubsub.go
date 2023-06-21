@@ -6,6 +6,7 @@ import "github.com/levilutz/basiccoin/pkg/topic"
 type PubSub struct {
 	CandidateHead      *topic.Topic[CandidateHeadEvent]
 	CandidateTx        *topic.Topic[CandidateTxEvent]
+	MinerTarget        *topic.Topic[MinerTargetEvent]
 	PeerAnnouncedAddr  *topic.Topic[PeerAnnouncedAddrEvent]
 	PeerClosing        *topic.Topic[PeerClosingEvent]
 	PeersReceived      *topic.Topic[PeersReceivedEvent]
@@ -22,6 +23,7 @@ func NewPubSub() *PubSub {
 	return &PubSub{
 		CandidateHead:      topic.NewTopic[CandidateHeadEvent](),
 		CandidateTx:        topic.NewTopic[CandidateTxEvent](),
+		MinerTarget:        topic.NewTopic[MinerTargetEvent](),
 		PeerAnnouncedAddr:  topic.NewTopic[PeerAnnouncedAddrEvent](),
 		PeerClosing:        topic.NewTopic[PeerClosingEvent](),
 		PeersReceived:      topic.NewTopic[PeersReceivedEvent](),

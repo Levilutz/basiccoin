@@ -90,7 +90,12 @@ func NextTarget(params Params, inv InvTargeter, prevBlockId HashT) HashT {
 		target = maxNext
 	}
 
-	adjustmentPct := 100.0 * float64(actualTime) / float64(desiredTime)
-	fmt.Printf("adjusting target to %f pct of previous - %s\n", adjustmentPct, target)
+	adjustmentPct := 100.0*float64(actualTime)/float64(desiredTime) - 100.0
+	if adjustmentPct > 4.0 {
+		adjustmentPct = 4.0
+	} else if adjustmentPct < -4.0 {
+		adjustmentPct = -4.0
+	}
+	fmt.Printf("adjusting target by %f pct to %s\n", adjustmentPct, target)
 	return target
 }

@@ -15,6 +15,14 @@ type CandidateTxEvent struct {
 	Tx core.Tx
 }
 
+// Emitted alongside ValidatedHeatEvent, if miners are running.
+// Informs the miners of what set of Txs is most profitable to include now.
+type MinerTargetEvent struct {
+	Head   core.HashT
+	Target core.HashT
+	Txs    []core.Tx
+}
+
 // A peer has announced its listen address.
 type PeerAnnouncedAddrEvent struct {
 	PeerRuntimeId string

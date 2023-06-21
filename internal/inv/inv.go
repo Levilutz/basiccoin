@@ -19,6 +19,7 @@ type InvReader interface {
 	GetBlockParentId(blockId core.HashT) core.HashT
 	GetBlockSpecificAncestor(blockId core.HashT, depth int) core.HashT
 	GetBlockTotalWork(blockId core.HashT) core.HashT
+	GetCoreParams() core.Params
 	GetEntityVSize(entityId core.HashT) uint64
 	GetMerkle(merkleId core.HashT) core.MerkleNode
 	GetMerkleTxIds(root core.HashT) []core.HashT
@@ -54,7 +55,8 @@ type txRecord struct {
 // A shared inventory of various entities.
 // Only one goroutine should be allowed to make writes at a time.
 type Inv struct {
-	verifier *core.Verifier
+	coreParams core.Params
+	verifier   *core.Verifier
 	// Main inventory
 	blocks  *syncmap.SyncMap[core.HashT, blockRecord]
 	merkles *syncmap.SyncMap[core.HashT, merkleRecord]
@@ -63,9 +65,10 @@ type Inv struct {
 
 func NewInv(coreParams core.Params) *Inv {
 	inv := &Inv{
-		blocks:  syncmap.NewSyncMap[core.HashT, blockRecord](),
-		merkles: syncmap.NewSyncMap[core.HashT, merkleRecord](),
-		txs:     syncmap.NewSyncMap[core.HashT, txRecord](),
+		coreParams: coreParams,
+		blocks:     syncmap.NewSyncMap[core.HashT, blockRecord](),
+		merkles:    syncmap.NewSyncMap[core.HashT, merkleRecord](),
+		txs:        syncmap.NewSyncMap[core.HashT, txRecord](),
 	}
 	inv.verifier = core.NewVerifier(coreParams, inv)
 	inv.blocks.Store(core.HashT{}, blockRecord{
@@ -74,6 +77,11 @@ func NewInv(coreParams core.Params) *Inv {
 		totalWork: core.HashT{},
 	})
 	return inv
+}
+
+// Get the stored core params.
+func (inv *Inv) GetCoreParams() core.Params {
+	return inv.coreParams
 }
 
 // Return whether the given block id exists.
