@@ -1,13 +1,17 @@
 package peerfactory
 
 import (
+	"fmt"
 	"time"
 
-	"github.com/levilutz/basiccoin/src/kern"
+	"github.com/levilutz/basiccoin/pkg/core"
 )
 
 // Params to configure how we maintain our peer network.
 type Params struct {
+	// Whether to setup the debug flag on all new connections.
+	DebugConns bool
+
 	// Whether to listen for inbound connections
 	Listen bool
 
@@ -28,14 +32,22 @@ type Params struct {
 	SeekNewPeersFreq time.Duration
 }
 
+// Generate a random runtime id.
+func NewRuntimeId() string {
+	runtimeId := core.NewHashTRand().String()
+	fmt.Println("RuntimeId:", runtimeId)
+	return runtimeId
+}
+
 // Generate new production network params.
 func ProdParams(listen bool, localAddr string) Params {
 	return Params{
+		DebugConns:       false,
 		Listen:           listen,
 		LocalAddr:        localAddr,
 		MinPeers:         8,
 		MaxPeers:         32,
-		RuntimeId:        kern.NewHashTRand().String(),
+		RuntimeId:        NewRuntimeId(),
 		SeekNewPeersFreq: 15 * time.Second,
 	}
 }
@@ -43,11 +55,12 @@ func ProdParams(listen bool, localAddr string) Params {
 // Generate new local dev network params.
 func DevParams(listen bool, localAddr string) Params {
 	return Params{
+		DebugConns:       false,
 		Listen:           listen,
 		LocalAddr:        localAddr,
 		MinPeers:         3,
 		MaxPeers:         5,
-		RuntimeId:        kern.NewHashTRand().String(),
+		RuntimeId:        NewRuntimeId(),
 		SeekNewPeersFreq: 5 * time.Second,
 	}
 }

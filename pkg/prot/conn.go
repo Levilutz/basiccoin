@@ -115,6 +115,9 @@ func (c *Conn) readRawTimeout(numBytes uint16, timeout time.Duration) []byte {
 		c.err = err
 		return nil
 	}
+	if c.params.Debug {
+		fmt.Printf("net_read %d: %s\n", len(data), data)
+	}
 	return data
 }
 
@@ -128,8 +131,11 @@ func (c *Conn) writeRawTimeout(data []byte, timeout time.Duration) {
 		c.err = fmt.Errorf("too many bytes to write: %d > 65536", len(data))
 		return
 	}
-	c.tc.SetReadDeadline(time.Now().Add(timeout))
-	defer c.tc.SetReadDeadline(time.Time{})
+	if c.params.Debug {
+		fmt.Printf("net_write %d: %s\n", len(data), data)
+	}
+	c.tc.SetWriteDeadline(time.Now().Add(timeout))
+	defer c.tc.SetWriteDeadline(time.Time{})
 	_, err := c.tc.Write(data)
 	if err != nil {
 		c.err = err

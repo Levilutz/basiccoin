@@ -75,13 +75,13 @@ func (p *Peer) Loop() {
 			if event.TargetRuntimeId != p.conn.PeerRuntimeId() {
 				continue
 			}
-			p.issueCommand(addrsRequestCmd, p.handleWriteAddrsRequest)
+			p.issueCommandPrintErr(addrsRequestCmd, p.handleWriteAddrsRequest)
 
 		case event := <-p.subs.SendPeers.C:
 			if event.TargetRuntimeId != p.conn.PeerRuntimeId() {
 				continue
 			}
-			p.issueCommand(peerAddrsCmd, func() error {
+			p.issueCommandPrintErr(peerAddrsCmd, func() error {
 				return p.handleWritePeerAddrs(event)
 			})
 
@@ -89,7 +89,7 @@ func (p *Peer) Loop() {
 			if event.TargetRuntimeId != p.conn.PeerRuntimeId() {
 				continue
 			}
-			p.issueCommand(announceAddrCmd, func() error {
+			p.issueCommandPrintErr(announceAddrCmd, func() error {
 				return p.handleWriteAnnounceAddr(event)
 			})
 
@@ -100,7 +100,7 @@ func (p *Peer) Loop() {
 			if !event.Peer {
 				continue
 			}
-			fmt.Printf("peer connected: %s\n", p.conn.PeerRuntimeId())
+			fmt.Printf("peer exists: %s\n", p.conn.PeerRuntimeId())
 
 		default:
 			msg := p.conn.ReadTimeout(time.Millisecond * 100)
@@ -145,6 +145,14 @@ func (p *Peer) handleReceivedMessage(msg []byte) error {
 	}
 }
 
+// Issue an outbound command with the given handler, print err instead of returning.
+func (p *Peer) issueCommandPrintErr(command string, handler func() error) {
+	err := p.issueCommand(command, handler)
+	if err != nil {
+		fmt.Printf("error issuing %s: %s\n", command, err.Error())
+	}
+}
+
 // Issue an outbound command with the given handler.
 func (p *Peer) issueCommand(command string, handler func() error) error {
 	p.conn.WriteString("cmd:" + command)
@@ -176,7 +184,7 @@ func (p *Peer) issueCommand(command string, handler func() error) error {
 			return handler()
 		} else {
 			// If they initiated the original connnection, honor our command first
-			p.conn.ReadStringExpected("ack" + command)
+			p.conn.ReadStringExpected("ack:" + command)
 			if p.conn.HasErr() {
 				return p.conn.Err()
 			}

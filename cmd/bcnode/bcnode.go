@@ -27,17 +27,13 @@ func main() {
 	// Create app components
 	peerFactory := peerfactory.NewPeerFactory(peerFactoryParams, pubSub)
 
+	// Set seed peer
+	if flags.SeedAddr != "" {
+		peerFactory.SetSeed(flags.SeedAddr)
+	}
+
 	// Start app components
 	go peerFactory.Loop()
-
-	// Initialize connection to seed peer
-	if flags.SeedAddr != "" {
-		pubSub.PeersReceived.Pub(pubsub.PeersReceivedEvent{
-			PeerAddrs: map[string]string{
-				"": flags.SeedAddr,
-			},
-		})
-	}
 
 	// Trigger updates forever
 	for {

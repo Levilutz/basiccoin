@@ -38,6 +38,7 @@ type PeerFactory struct {
 	knownPeers     *set.Set[string]
 	knownPeerAddrs map[string]string // Not all knownPeers appear here
 	listenStarted  atomic.Bool
+	seedAddr       string
 }
 
 // Create a new peer factory given a message bus instance.
@@ -57,12 +58,36 @@ func NewPeerFactory(params Params, pubSub *pubsub.PubSub) *PeerFactory {
 		newAddrs:       syncqueue.NewSyncQueue[string](),
 		knownPeers:     set.NewSet[string](),
 		knownPeerAddrs: make(map[string]string),
+		seedAddr:       "",
 	}
+}
+
+// Set our seed peer. Must run before Loop.
+func (pf *PeerFactory) SetSeed(seedAddr string) {
+	pf.seedAddr = seedAddr
 }
 
 // Start the peer factory's loop.
 func (pf *PeerFactory) Loop() {
 	go pf.tryNewAddrs()
+
+	// Connect to seed peer
+	if pf.seedAddr != "" {
+		numTries := 15
+		for i := 0; i < numTries; i++ {
+			conn, err := pf.tryConn(pf.seedAddr)
+			if err == nil {
+				pf.newConns <- conn
+				break
+			} else {
+				fmt.Printf("failed to connect to seed peer: %s", err.Error())
+			}
+			if i == numTries-1 {
+				panic(fmt.Sprintf("failed to reach seed peer after %d tries", numTries))
+			}
+			time.Sleep(time.Second)
+		}
+	}
 
 	// Start listener if desired
 	if pf.params.Listen && pf.params.LocalAddr != "" {
@@ -84,7 +109,7 @@ func (pf *PeerFactory) Loop() {
 
 		case event := <-pf.subs.PeersReceived.C:
 			for runtimeId, addr := range event.PeerAddrs {
-				if !pf.knownPeers.Includes(runtimeId) {
+				if runtimeId != pf.params.RuntimeId && !pf.knownPeers.Includes(runtimeId) {
 					pf.newAddrs.Push(addr)
 				}
 			}
@@ -111,20 +136,28 @@ func (pf *PeerFactory) Loop() {
 func (pf *PeerFactory) tryNewAddrs() {
 	for {
 		for addr, ok := pf.newAddrs.Pop(); ok; addr, ok = pf.newAddrs.Pop() {
-			protParams := prot.NewParams(pf.params.RuntimeId, true)
-			conn, err := prot.ResolveConn(protParams, addr)
+			conn, err := pf.tryConn(addr)
 			if err != nil {
 				fmt.Printf("failed to resolve addr %s: %s\n", addr, err.Error())
-				continue
-			} else if conn.HasErr() {
-				fmt.Printf("failed to resolve addr %s: %s\n", addr, conn.Err().Error())
-				conn.CloseIfPossible()
 				continue
 			}
 			pf.newConns <- conn
 		}
 		time.Sleep(time.Millisecond * 25)
 	}
+}
+
+// Try to connect to the given addr.
+func (pf *PeerFactory) tryConn(addr string) (*prot.Conn, error) {
+	protParams := prot.NewParams(pf.params.RuntimeId, true, pf.params.DebugConns)
+	conn, err := prot.ResolveConn(protParams, addr)
+	if err != nil {
+		return nil, err
+	} else if conn.HasErr() {
+		conn.CloseIfPossible()
+		return nil, conn.Err()
+	}
+	return conn, nil
 }
 
 // Routine to start listening for new connections.
@@ -155,7 +188,7 @@ func (pf *PeerFactory) listen() {
 		if err != nil {
 			continue
 		}
-		protParams := prot.NewParams(pf.params.RuntimeId, false)
+		protParams := prot.NewParams(pf.params.RuntimeId, false, pf.params.DebugConns)
 		conn := prot.NewConn(protParams, tcpConn)
 		if conn.HasErr() {
 			conn.CloseIfPossible()
