@@ -2,6 +2,19 @@ package pubsub
 
 import "github.com/levilutz/basiccoin/pkg/core"
 
+// When we have a new potential head for the chain to validate.
+type CandidateHeadEvent struct {
+	Head    core.HashT
+	Blocks  []core.Block
+	Merkles []core.MerkleNode
+	Txs     []core.Tx
+}
+
+// When we have a new potential tx for the chain to validate.
+type CandidateTxEvent struct {
+	Tx core.Tx
+}
+
 // A peer has announced its listen address.
 type PeerAnnouncedAddrEvent struct {
 	PeerRuntimeId string
@@ -49,4 +62,9 @@ type ShouldRequestPeersEvent struct {
 // Emitted by the chain when we advance to a new head.
 type ValidatedHeadEvent struct {
 	Head core.HashT
+}
+
+// Emitted by the chain when we validate a new tx.
+type ValidatedTxEvent struct {
+	TxId core.HashT
 }
