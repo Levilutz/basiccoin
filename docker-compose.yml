@@ -36,3 +36,31 @@ services:
       - "/bcnode"
       - "--dev"
       - "--seed=node1:21720"
+  
+  node5:
+    image: bcnode:latest
+    command:
+      - "/bcnode"
+      - "--dev"
+      - "--seed=node1:21720"
+    
+  node6:
+    image: bcnode:latest
+    command:
+      - "/bcnode"
+      - "--dev"
+      - "--seed=node1:21720"
+  
+  node7:
+    image: bcnode:latest
+    command:
+      - "/bcnode"
+      - "--dev"
+      - "--seed=node1:21720"
+  
+  node8:
+    image: bcnode:latest
+    command:
+      - "/bcnode"
+      - "--dev"
+      - "--seed=node1:21720"

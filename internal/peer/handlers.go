@@ -53,6 +53,7 @@ func (p *Peer) handleReadPeerAddrs() error {
 }
 
 func (p *Peer) handleWritePeerAddrs(event pubsub.SendPeersEvent) error {
+	// Don't change this func without also changing Conn.CloseIfPossible to match.
 	p.conn.WriteUint64(uint64(len(event.PeerAddrs)))
 	for runtimeId, addr := range event.PeerAddrs {
 		p.conn.WriteString(runtimeId)

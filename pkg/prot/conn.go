@@ -185,9 +185,21 @@ func (c *Conn) Close() error {
 }
 
 // Try to close the connection, but don't care if it fails.
-func (c *Conn) CloseIfPossible() {
+// If the caller wants, it can provide the peer with a map of alternative addresses.
+// Alternatives provided as map from RuntimeId to Addr.
+// Mirrors Peer.handleWritePeerAddrs.
+// Kinda hacky but this is the only thorn in the otherwise-nice Peer-Conn layering.
+func (c *Conn) CloseIfPossible(alternatives map[string]string) {
 	go func() {
 		defer func() { recover() }()
+		if len(alternatives) > 0 {
+			c.WriteString("cmd:peer-addrs")
+			c.WriteUint64(uint64(len(alternatives)))
+			for runtimeId, addr := range alternatives {
+				c.WriteString(runtimeId)
+				c.WriteString(addr)
+			}
+		}
 		c.WriteString("cmd:close")
 		c.Close()
 	}()

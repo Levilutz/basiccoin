@@ -154,7 +154,7 @@ func (pf *PeerFactory) tryConn(addr string) (*prot.Conn, error) {
 	if err != nil {
 		return nil, err
 	} else if conn.HasErr() {
-		conn.CloseIfPossible()
+		conn.CloseIfPossible(nil)
 		return nil, conn.Err()
 	}
 	return conn, nil
@@ -191,7 +191,7 @@ func (pf *PeerFactory) listen() {
 		protParams := prot.NewParams(pf.params.RuntimeId, false, pf.params.DebugConns)
 		conn := prot.NewConn(protParams, tcpConn)
 		if conn.HasErr() {
-			conn.CloseIfPossible()
+			conn.CloseIfPossible(nil)
 			continue
 		}
 		pf.newConns <- conn
@@ -201,7 +201,7 @@ func (pf *PeerFactory) listen() {
 // Upgrade a connection to peer, if appropriate.
 func (pf *PeerFactory) addConn(conn *prot.Conn) {
 	if conn.HasErr() {
-		conn.CloseIfPossible()
+		conn.CloseIfPossible(nil)
 		return
 	}
 	runtimeId := conn.PeerRuntimeId()
@@ -225,7 +225,7 @@ func (pf *PeerFactory) addConn(conn *prot.Conn) {
 	} else {
 		fmt.Printf("will not connect to peer %s\n", conn.PeerRuntimeId())
 		// Try to inform them we're closing, ignore any errs
-		conn.CloseIfPossible()
+		conn.CloseIfPossible(util.CopyMap(pf.knownPeerAddrs))
 	}
 }
 
