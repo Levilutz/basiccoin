@@ -3,6 +3,7 @@ package main
 import (
 	"time"
 
+	"github.com/levilutz/basiccoin/internal/chain"
 	"github.com/levilutz/basiccoin/internal/inv"
 	"github.com/levilutz/basiccoin/internal/peerfactory"
 	"github.com/levilutz/basiccoin/internal/pubsub"
@@ -31,6 +32,7 @@ func main() {
 	inv := inv.NewInv(coreParams)
 
 	// Create app components
+	chain := chain.NewChain(pubSub, inv, false)
 	peerFactory := peerfactory.NewPeerFactory(peerFactoryParams, pubSub, inv)
 
 	// Set seed peer
@@ -39,7 +41,8 @@ func main() {
 	}
 
 	// Start app components
-	go peerFactory.Loop()
+	go chain.Loop()
+	go peerFactory.Loop() // This one last
 
 	// Trigger updates forever
 	for {

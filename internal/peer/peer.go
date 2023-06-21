@@ -25,6 +25,10 @@ type subscriptions struct {
 
 // Close our subscriptions as we close.
 func (s subscriptions) Close() {
+	s.PrintUpdate.Close()
+	s.SendPeers.Close()
+	s.ShouldAnnounceAddr.Close()
+	s.ShouldRequestPeers.Close()
 	s.ValidatedHead.Close()
 }
 
