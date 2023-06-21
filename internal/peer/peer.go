@@ -7,6 +7,7 @@ import (
 
 	"github.com/levilutz/basiccoin/internal/inv"
 	"github.com/levilutz/basiccoin/internal/pubsub"
+	"github.com/levilutz/basiccoin/pkg/core"
 	"github.com/levilutz/basiccoin/pkg/prot"
 	"github.com/levilutz/basiccoin/pkg/topic"
 )
@@ -21,6 +22,7 @@ type subscriptions struct {
 	ShouldAnnounceAddr *topic.SubCh[pubsub.ShouldAnnounceAddrEvent]
 	ShouldRequestPeers *topic.SubCh[pubsub.ShouldRequestPeersEvent]
 	ValidatedHead      *topic.SubCh[pubsub.ValidatedHeadEvent]
+	ValidatedTx        *topic.SubCh[pubsub.ValidatedTxEvent]
 }
 
 // Close our subscriptions as we close.
@@ -30,6 +32,7 @@ func (s subscriptions) Close() {
 	s.ShouldAnnounceAddr.Close()
 	s.ShouldRequestPeers.Close()
 	s.ValidatedHead.Close()
+	s.ValidatedTx.Close()
 }
 
 // A connection to a single peer.
@@ -39,22 +42,26 @@ type Peer struct {
 	subs        *subscriptions
 	conn        *prot.Conn
 	shouldClose bool
+	curHead     core.HashT
 }
 
 // Create a new peer given a message bus instance.
-func NewPeer(pubSub *pubsub.PubSub, inv inv.InvReader, conn *prot.Conn) *Peer {
+func NewPeer(pubSub *pubsub.PubSub, inv inv.InvReader, conn *prot.Conn, curHead core.HashT) *Peer {
 	subs := &subscriptions{
 		PrintUpdate:        pubSub.PrintUpdate.SubCh(),
 		SendPeers:          pubSub.SendPeers.SubCh(),
 		ShouldAnnounceAddr: pubSub.ShouldAnnounceAddr.SubCh(),
 		ShouldRequestPeers: pubSub.ShouldRequestPeers.SubCh(),
 		ValidatedHead:      pubSub.ValidatedHead.SubCh(),
+		ValidatedTx:        pubSub.ValidatedTx.SubCh(),
 	}
 	return &Peer{
-		pubSub: pubSub,
-		inv:    inv,
-		subs:   subs,
-		conn:   conn,
+		pubSub:      pubSub,
+		inv:         inv,
+		subs:        subs,
+		conn:        conn,
+		shouldClose: false,
+		curHead:     curHead,
 	}
 }
 
@@ -101,7 +108,11 @@ func (p *Peer) Loop() {
 			})
 
 		case event := <-p.subs.ValidatedHead.C:
-			fmt.Println("new validated head:", event.Head)
+			p.curHead = event.Head
+			// TODO: sync
+
+		case event := <-p.subs.ValidatedTx.C:
+			fmt.Println("new validated tx", event.TxId)
 
 		case event := <-p.subs.PrintUpdate.C:
 			if !event.Peer {

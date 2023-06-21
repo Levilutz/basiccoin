@@ -10,6 +10,7 @@ import (
 	"github.com/levilutz/basiccoin/internal/inv"
 	"github.com/levilutz/basiccoin/internal/peer"
 	"github.com/levilutz/basiccoin/internal/pubsub"
+	"github.com/levilutz/basiccoin/pkg/core"
 	"github.com/levilutz/basiccoin/pkg/prot"
 	"github.com/levilutz/basiccoin/pkg/set"
 	"github.com/levilutz/basiccoin/pkg/syncqueue"
@@ -25,6 +26,7 @@ type subcriptions struct {
 	PeersReceived     *topic.SubCh[pubsub.PeersReceivedEvent]
 	PeersRequested    *topic.SubCh[pubsub.PeersRequestedEvent]
 	PrintUpdate       *topic.SubCh[pubsub.PrintUpdateEvent]
+	ValidatedHead     *topic.SubCh[pubsub.ValidatedHeadEvent]
 }
 
 // A peer factory. Does not manage the peers after creation.
@@ -41,6 +43,7 @@ type PeerFactory struct {
 	knownPeerAddrs map[string]string // Not all knownPeers appear here
 	listenStarted  atomic.Bool
 	seedAddr       string
+	curHead        core.HashT
 }
 
 // Create a new peer factory given a message bus instance.
@@ -51,6 +54,7 @@ func NewPeerFactory(params Params, pubSub *pubsub.PubSub, inv inv.InvReader) *Pe
 		PeersReceived:     pubSub.PeersReceived.SubCh(),
 		PeersRequested:    pubSub.PeersRequested.SubCh(),
 		PrintUpdate:       pubSub.PrintUpdate.SubCh(),
+		ValidatedHead:     pubSub.ValidatedHead.SubCh(),
 	}
 	return &PeerFactory{
 		params:         params,
@@ -62,6 +66,7 @@ func NewPeerFactory(params Params, pubSub *pubsub.PubSub, inv inv.InvReader) *Pe
 		knownPeers:     set.NewSet[string](),
 		knownPeerAddrs: make(map[string]string),
 		seedAddr:       "",
+		curHead:        core.HashT{},
 	}
 }
 
@@ -122,6 +127,9 @@ func (pf *PeerFactory) Loop() {
 				TargetRuntimeId: event.PeerRuntimeId,
 				PeerAddrs:       util.CopyMap(pf.knownPeerAddrs),
 			})
+
+		case event := <-pf.subs.ValidatedHead.C:
+			pf.curHead = event.Head
 
 		case event := <-pf.subs.PrintUpdate.C:
 			if !event.PeerFactory {
@@ -211,7 +219,7 @@ func (pf *PeerFactory) addConn(conn *prot.Conn) {
 	if pf.knownPeers.Size() < pf.params.MaxPeers &&
 		!pf.knownPeers.Includes(runtimeId) {
 		// Upgrade to peer
-		go peer.NewPeer(pf.pubSub, pf.inv, conn).Loop()
+		go peer.NewPeer(pf.pubSub, pf.inv, conn, pf.curHead).Loop()
 		pf.knownPeers.Add(runtimeId)
 		// Set our localaddr and start listen if we only now can
 		if pf.params.Listen && pf.params.LocalAddr == "" {
