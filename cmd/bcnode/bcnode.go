@@ -38,7 +38,7 @@ func main() {
 	// Trigger updates forever
 	for {
 		pubSub.PrintUpdate.Pub(pubsub.PrintUpdateEvent{
-			Peer:        flags.Dev,
+			Peer:        false,
 			PeerFactory: true,
 		})
 		time.Sleep(printUpdateFreq)

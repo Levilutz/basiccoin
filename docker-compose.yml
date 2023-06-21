@@ -22,3 +22,17 @@ services:
       - "/bcnode"
       - "--dev"
       - "--seed=node1:21720"
+    
+  node3:
+    image: bcnode:latest
+    command:
+      - "/bcnode"
+      - "--dev"
+      - "--seed=node1:21720"
+  
+  node4:
+    image: bcnode:latest
+    command:
+      - "/bcnode"
+      - "--dev"
+      - "--seed=node1:21720"

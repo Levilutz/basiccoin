@@ -80,7 +80,7 @@ func (pf *PeerFactory) Loop() {
 				pf.newConns <- conn
 				break
 			} else {
-				fmt.Printf("failed to connect to seed peer: %s", err.Error())
+				fmt.Printf("failed to connect to seed peer: %s\n", err.Error())
 			}
 			if i == numTries-1 {
 				panic(fmt.Sprintf("failed to reach seed peer after %d tries", numTries))
@@ -223,7 +223,7 @@ func (pf *PeerFactory) addConn(conn *prot.Conn) {
 			})
 		}
 	} else {
-		fmt.Printf("will not connect to peer %s", conn.PeerRuntimeId())
+		fmt.Printf("will not connect to peer %s\n", conn.PeerRuntimeId())
 		// Try to inform them we're closing, ignore any errs
 		conn.CloseIfPossible()
 	}
