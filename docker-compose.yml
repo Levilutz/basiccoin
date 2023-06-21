@@ -42,25 +42,25 @@ services:
     command:
       - "/bcnode"
       - "--dev"
-      - "--seed=node1:21720"
+      - "--seed=node4:21720"
     
   node6:
     image: bcnode:latest
     command:
       - "/bcnode"
       - "--dev"
-      - "--seed=node1:21720"
+      - "--seed=node4:21720"
   
   node7:
     image: bcnode:latest
     command:
       - "/bcnode"
       - "--dev"
-      - "--seed=node1:21720"
+      - "--seed=node4:21720"
   
   node8:
     image: bcnode:latest
     command:
       - "/bcnode"
       - "--dev"
-      - "--seed=node1:21720"
+      - "--seed=node7:21720"

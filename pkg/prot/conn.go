@@ -201,6 +201,7 @@ func (c *Conn) CloseIfPossible(alternatives map[string]string) {
 			}
 		}
 		c.WriteString("cmd:close")
+		time.Sleep(time.Second)
 		c.Close()
 	}()
 }
