@@ -116,9 +116,6 @@ func (p *Peer) Loop() {
 			p.curHead = event.Head
 			p.issueCommandPrintErr(syncChainCmd, p.handleSyncChain)
 
-		case event := <-p.subs.ValidatedTx.C:
-			fmt.Println("new validated tx", event.TxId)
-
 		case event := <-p.subs.PrintUpdate.C:
 			if !event.Peer {
 				continue
