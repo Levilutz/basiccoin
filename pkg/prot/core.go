@@ -1,6 +1,10 @@
 package prot
 
-import "github.com/levilutz/basiccoin/pkg/core"
+import (
+	"fmt"
+
+	"github.com/levilutz/basiccoin/pkg/core"
+)
 
 // Read a HashT from the conn.
 func (c *Conn) ReadHashT() core.HashT {
@@ -24,11 +28,11 @@ func (c *Conn) WriteHashT(data core.HashT) {
 }
 
 // Read a Block from the conn.
-func (c *Conn) ReadBlock() core.Block {
+func (c *Conn) ReadBlock(expectId core.HashT) core.Block {
 	if c.err != nil {
 		return core.Block{}
 	}
-	return core.Block{
+	block := core.Block{
 		PrevBlockId: c.ReadHashT(),
 		MerkleRoot:  c.ReadHashT(),
 		Target:      c.ReadHashT(),
@@ -36,6 +40,13 @@ func (c *Conn) ReadBlock() core.Block {
 		Nonce:       c.ReadUint64(),
 		MinedTime:   c.ReadUint64(),
 	}
+	if block.Hash() != expectId {
+		c.err = fmt.Errorf(
+			"block does not match expected id: %s != %s", block.Hash(), expectId,
+		)
+		return core.Block{}
+	}
+	return block
 }
 
 // Write a Block to the conn.
@@ -52,14 +63,21 @@ func (c *Conn) WriteBlock(data core.Block) {
 }
 
 // Read a Merkle Node from the conn.
-func (c *Conn) ReadMerkle() core.MerkleNode {
+func (c *Conn) ReadMerkle(expectId core.HashT) core.MerkleNode {
 	if c.err != nil {
 		return core.MerkleNode{}
 	}
-	return core.MerkleNode{
+	merkle := core.MerkleNode{
 		LChild: c.ReadHashT(),
 		RChild: c.ReadHashT(),
 	}
+	if merkle.Hash() != expectId {
+		c.err = fmt.Errorf(
+			"merkle does not match expected id: %s != %s", merkle.Hash(), expectId,
+		)
+		return core.MerkleNode{}
+	}
+	return merkle
 }
 
 // Write a Merkle Node to the conn.
@@ -72,7 +90,7 @@ func (c *Conn) WriteMerkle(data core.MerkleNode) {
 }
 
 // Read a Tx from the conn.
-func (c *Conn) ReadTx() core.Tx {
+func (c *Conn) ReadTx(expectId core.HashT) core.Tx {
 	if c.err != nil {
 		return core.Tx{}
 	}
@@ -101,6 +119,12 @@ func (c *Conn) ReadTx() core.Tx {
 			Value:         c.ReadUint64(),
 			PublicKeyHash: c.ReadHashT(),
 		}
+	}
+	if tx.Hash() != expectId {
+		c.err = fmt.Errorf(
+			"tx does not match expected id: %s != %s", tx.Hash(), expectId,
+		)
+		return core.Tx{}
 	}
 	return tx
 }

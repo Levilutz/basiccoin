@@ -25,6 +25,15 @@ func Prepend[K any](ls []K, items ...K) []K {
 	return ls
 }
 
+// Reverse a slice. Does not modify in-place, returns a new one.
+func Reverse[K any](ls []K) []K {
+	out := make([]K, len(ls))
+	for i, item := range ls {
+		out[len(ls)-i-1] = item
+	}
+	return out
+}
+
 // Shallow copy a map.
 func CopyMap[K comparable, V any](m map[K]V) map[K]V {
 	out := make(map[K]V, len(m))

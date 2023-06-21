@@ -109,7 +109,7 @@ func (p *Peer) Loop() {
 
 		case event := <-p.subs.ValidatedHead.C:
 			p.curHead = event.Head
-			p.issueCommandPrintErr(syncCmd, p.handleSync)
+			p.issueCommandPrintErr(syncChainCmd, p.handleSyncChain)
 
 		case event := <-p.subs.ValidatedTx.C:
 			fmt.Println("new validated tx", event.TxId)
@@ -158,8 +158,8 @@ func (p *Peer) handleReceivedMessage(msg []byte) error {
 	} else if command == announceAddrCmd {
 		return p.handleReadAnnounceAddr()
 
-	} else if command == syncCmd {
-		return p.handleSync()
+	} else if command == syncChainCmd {
+		return p.handleSyncChain()
 
 	} else {
 		return fmt.Errorf("unrecognized command: %s", command)
