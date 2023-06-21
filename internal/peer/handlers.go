@@ -1,6 +1,9 @@
 package peer
 
-import "github.com/levilutz/basiccoin/internal/pubsub"
+import (
+	"github.com/levilutz/basiccoin/internal/pubsub"
+	"github.com/levilutz/basiccoin/pkg/core"
+)
 
 var announceAddrCmd = "announce-addr"
 
@@ -16,8 +19,8 @@ func (p *Peer) handleReadAnnounceAddr() error {
 	return nil
 }
 
-func (p *Peer) handleWriteAnnounceAddr(event pubsub.ShouldAnnounceAddrEvent) error {
-	p.conn.WriteString(event.Addr)
+func (p *Peer) handleWriteAnnounceAddr(addr string) error {
+	p.conn.WriteString(addr)
 	return p.conn.Err()
 }
 
@@ -52,10 +55,10 @@ func (p *Peer) handleReadPeerAddrs() error {
 	return nil
 }
 
-func (p *Peer) handleWritePeerAddrs(event pubsub.SendPeersEvent) error {
+func (p *Peer) handleWritePeerAddrs(peerAddrs map[string]string) error {
 	// Don't change this func without also changing Conn.CloseIfPossible to match.
-	p.conn.WriteUint64(uint64(len(event.PeerAddrs)))
-	for runtimeId, addr := range event.PeerAddrs {
+	p.conn.WriteUint64(uint64(len(peerAddrs)))
+	for runtimeId, addr := range peerAddrs {
 		p.conn.WriteString(runtimeId)
 		p.conn.WriteString(addr)
 	}
@@ -83,13 +86,13 @@ func (p *Peer) handleReadNewTx() error {
 	return nil
 }
 
-func (p *Peer) handleWriteNewTx(event pubsub.ValidatedTxEvent) error {
-	p.conn.WriteHashT(event.TxId)
+func (p *Peer) handleWriteNewTx(txId core.HashT) error {
+	p.conn.WriteHashT(txId)
 	wanted := p.conn.ReadBool()
 	if p.conn.HasErr() {
 		return p.conn.Err()
 	} else if wanted {
-		p.conn.WriteTx(p.inv.GetTx(event.TxId))
+		p.conn.WriteTx(p.inv.GetTx(txId))
 		return p.conn.Err()
 	}
 	return nil

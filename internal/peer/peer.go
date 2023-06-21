@@ -96,7 +96,7 @@ func (p *Peer) Loop() {
 				continue
 			}
 			p.issueCommandPrintErr(peerAddrsCmd, func() error {
-				return p.handleWritePeerAddrs(event)
+				return p.handleWritePeerAddrs(event.PeerAddrs)
 			})
 
 		case event := <-p.subs.ShouldAnnounceAddr.C:
@@ -104,12 +104,12 @@ func (p *Peer) Loop() {
 				continue
 			}
 			p.issueCommandPrintErr(announceAddrCmd, func() error {
-				return p.handleWriteAnnounceAddr(event)
+				return p.handleWriteAnnounceAddr(event.Addr)
 			})
 
 		case event := <-p.subs.ValidatedTx.C:
 			p.issueCommandPrintErr(newTxCmd, func() error {
-				return p.handleWriteNewTx(event)
+				return p.handleWriteNewTx(event.TxId)
 			})
 
 		case event := <-p.subs.ValidatedHead.C:
