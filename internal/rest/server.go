@@ -34,15 +34,13 @@ func (s *Server) Start() {
 
 	if s.params.EnableAdmin {
 		s.mountHandlers(true, adminPrefix+"/terminate", map[string]HttpHandler{
-			"POST": func(w http.ResponseWriter, r *http.Request) {
-				s.pubSub.Terminate.Pub(pubsub.TerminateCommand{})
-			},
+			"POST": s.handleAdminPostTerminate,
 		})
 	}
 
 	if s.params.EnableWallet {
 		s.mountHandlers(false, walletPrefix+"/balance", map[string]HttpHandler{
-			"GET": func(w http.ResponseWriter, r *http.Request) {},
+			"GET": s.handleWalletGetBalance,
 		})
 	}
 
