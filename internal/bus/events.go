@@ -12,7 +12,8 @@ type CandidateHeadEvent struct {
 
 // When we have a new potential tx for the chain to validate.
 type CandidateTxEvent struct {
-	Tx core.Tx
+	Ret chan error // May be nil if emitter doesn't care about success
+	Tx  core.Tx
 }
 
 // Emitted alongside ValidatedHeatEvent, if miners are running.

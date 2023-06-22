@@ -27,10 +27,10 @@ func write401(w http.ResponseWriter) {
 	io.WriteString(w, "unauthorized")
 }
 
-// func write422(w http.ResponseWriter) {
-// 	w.WriteHeader(422)
-// 	io.WriteString(w, "failed to parse: "+err.Error())
-// }
+func write422(w http.ResponseWriter, err error) {
+	w.WriteHeader(422)
+	io.WriteString(w, "failed to parse: "+err.Error())
+}
 
 func write405(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(405)

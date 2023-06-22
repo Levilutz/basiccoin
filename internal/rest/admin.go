@@ -5,5 +5,5 @@ import (
 )
 
 func (s *Server) handleAdminPostTerminate(w http.ResponseWriter, r *http.Request) {
-	s.psClient.TerminateCommand()
+	s.busClient.TerminateCommand()
 }

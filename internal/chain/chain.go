@@ -61,8 +61,12 @@ func (c *Chain) Loop() {
 			}
 
 		case event := <-c.subs.CandidateTx.C:
-			if err := c.handleCandidateTx(event); err != nil {
+			err := c.handleCandidateTx(event)
+			if err != nil {
 				fmt.Printf("failed to verify new tx: %s\n", err.Error())
+			}
+			if event.Ret != nil {
+				util.WriteChIfPossible(event.Ret, err)
 			}
 
 		case <-c.subs.PrintUpdate.C:
