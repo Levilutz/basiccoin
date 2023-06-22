@@ -43,6 +43,13 @@ func CopyMap[K comparable, V any](m map[K]V) map[K]V {
 	return out
 }
 
+// Shallow copy a list.
+func CopyList[K any](ls []K) []K {
+	out := make([]K, len(ls))
+	copy(out, ls)
+	return out
+}
+
 // Flatten a double list.
 func FlattenLists[K comparable](in [][]K) []K {
 	out := make([]K, 0)

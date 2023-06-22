@@ -278,7 +278,7 @@ func (v Verifier) VerifyTxIsolated(tx Tx) error {
 func (v Verifier) VerifyBlockIsolated(b Block) error {
 	// Verify block hash beats claimed target
 	if !b.Hash().Lt(b.Target) {
-		return fmt.Errorf("block fails to beat claimed target target")
+		return fmt.Errorf("block fails to beat claimed target: %s >= %s", b.Hash(), b.Target)
 	}
 	return nil
 }

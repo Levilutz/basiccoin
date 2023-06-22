@@ -3,6 +3,7 @@ package peer
 import (
 	"bytes"
 	"fmt"
+	"runtime/debug"
 	"time"
 
 	"github.com/levilutz/basiccoin/internal/inv"
@@ -71,9 +72,11 @@ func (p *Peer) Loop() {
 	defer func() {
 		if r := recover(); r != nil {
 			fmt.Printf("peer %s closed from panic: %s\n", p.conn.PeerRuntimeId(), r)
+			debug.PrintStack()
 		} else {
 			fmt.Printf("peer %s closed\n", p.conn.PeerRuntimeId())
 		}
+		p.subs.Close()
 		p.pubSub.PeerClosing.Pub(pubsub.PeerClosingEvent{
 			PeerRuntimeId: p.conn.PeerRuntimeId(),
 		})

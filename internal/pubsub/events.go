@@ -20,7 +20,7 @@ type CandidateTxEvent struct {
 type MinerTargetEvent struct {
 	Head   core.HashT
 	Target core.HashT
-	Txs    []core.Tx
+	TxIds  []core.HashT
 }
 
 // A peer has announced its listen address.

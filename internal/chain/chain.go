@@ -43,6 +43,9 @@ func NewChain(pubSub *pubsub.PubSub, inv *inv.Inv, supportMiners bool) *Chain {
 
 // Start the chain's loop.
 func (c *Chain) Loop() {
+	if c.supportMiners {
+		c.CreateMiningTarget()
+	}
 	for {
 		select {
 		case event := <-c.subs.CandidateHead.C:

@@ -4,7 +4,6 @@ import (
 	"github.com/levilutz/basiccoin/internal/pubsub"
 	"github.com/levilutz/basiccoin/pkg/core"
 	"github.com/levilutz/basiccoin/pkg/set"
-	"github.com/levilutz/basiccoin/src/kern"
 )
 
 // Create a new mining target and broadcast it.
@@ -12,9 +11,9 @@ func (c *Chain) CreateMiningTarget() {
 	// Get candidate txs
 	candidateTxIds := c.state.GetSortedIncludableMempool()
 	// Build a tx list until we hit max size
-	totalSize := kern.CoinbaseVSize()
+	totalSize := core.CoinbaseVSize()
 	consumedUtxos := set.NewSet[core.Utxo]()
-	txs := make([]core.Tx, 0)
+	txIds := make([]core.HashT, 0)
 	for _, txId := range candidateTxIds {
 		tx := c.inv.GetTx(txId)
 		// Check if tx is too big to fit in remaining space
@@ -28,7 +27,7 @@ func (c *Chain) CreateMiningTarget() {
 			continue
 		}
 		// Include tx in out set
-		txs = append(txs, tx)
+		txIds = append(txIds, txId)
 		totalSize += vSize
 		consumedUtxos.Add(txUtxos...)
 		// If we couldn't possibly store more txs, stop searching
@@ -39,6 +38,6 @@ func (c *Chain) CreateMiningTarget() {
 	c.pubSub.MinerTarget.Pub(pubsub.MinerTargetEvent{
 		Head:   c.state.head,
 		Target: core.NextTarget(c.inv.GetCoreParams(), c.inv, c.state.head),
-		Txs:    txs,
+		TxIds:  txIds,
 	})
 }
