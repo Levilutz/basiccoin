@@ -55,7 +55,7 @@ func (s *Server) mountHandlers(admin bool, endpoint string, handlers map[string]
 			givenPw := r.Header.Get("Pw")
 			if givenPw != s.params.Password {
 				fmt.Println(givenPw)
-				write401(w, r)
+				write401(w)
 				return
 			}
 		}
