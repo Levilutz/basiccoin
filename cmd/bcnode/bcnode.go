@@ -8,6 +8,7 @@ import (
 	"github.com/levilutz/basiccoin/internal/miner"
 	"github.com/levilutz/basiccoin/internal/peerfactory"
 	"github.com/levilutz/basiccoin/internal/pubsub"
+	"github.com/levilutz/basiccoin/internal/rest"
 	"github.com/levilutz/basiccoin/pkg/core"
 )
 
@@ -18,6 +19,7 @@ func main() {
 	var coreParams core.Params
 	var minerParams miner.Params
 	var peerFactoryParams peerfactory.Params
+	var restParams rest.Params
 	var printUpdateFreq time.Duration
 	if flags.Dev {
 		coreParams = core.DevNetParams()
@@ -30,6 +32,9 @@ func main() {
 		peerFactoryParams = peerfactory.ProdParams(flags.Listen, flags.LocalAddr)
 		printUpdateFreq = time.Second * 60
 	}
+	if flags.HttpEnabled {
+		restParams = rest.NewParams(false, false, "")
+	}
 
 	// Make the event bus and shared inventory
 	pubSub := pubsub.NewPubSub()
@@ -41,6 +46,10 @@ func main() {
 	miners := make([]*miner.Miner, flags.Miners)
 	for i := 0; i < flags.Miners; i++ {
 		miners[i] = miner.NewMiner(minerParams, pubSub, inv)
+	}
+	var restServer *rest.Server
+	if flags.HttpEnabled {
+		restServer = rest.NewServer(restParams, pubSub)
 	}
 
 	// Set seed peer
@@ -56,6 +65,9 @@ func main() {
 	go chain.Loop()
 	time.Sleep(time.Millisecond * 250)
 	go peerFactory.Loop()
+	if flags.HttpEnabled {
+		go restServer.Start()
+	}
 
 	// Trigger updates forever
 	for {

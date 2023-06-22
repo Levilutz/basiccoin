@@ -5,9 +5,6 @@ The independent components of a basiccoin node.
 ## `chain`
 A local blockchain instance.
 
-## `ctlapi`
-An instance of the node management HTTP server.
-
 ## `inv`
 The shared inventory of known blocks, merkle nodes, and transactions.
 
@@ -23,5 +20,5 @@ The peer factory listens for inbound connections, seeks new peers when appropria
 ## `pubsub`
 The main pub-sub event bus all components share.
 
-## `walletapi`
-An instance of the wallet HTTP server.
+## `rest`
+The wallet / node management HTTP server.

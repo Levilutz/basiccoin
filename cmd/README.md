@@ -1,6 +1,6 @@
 # Primary Applications
 
-The primary entrypoints to the software.
+The primary entrypoints to the basiccoin software.
 
 ## `bcctl`
 A cli to manage a basiccoin node.
