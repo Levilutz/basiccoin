@@ -58,3 +58,12 @@ func FlattenLists[K comparable](in [][]K) []K {
 	}
 	return out
 }
+
+// Write to a channel, don't care if it fails.
+func WriteChIfPossible[K any](ch chan<- K, val K) {
+	go func() {
+		defer func() { recover() }()
+		ch <- val
+		close(ch)
+	}()
+}

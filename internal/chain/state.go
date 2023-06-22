@@ -242,6 +242,33 @@ func (s *State) debitBalance(publicKeyHash core.HashT, debit core.Utxo) {
 	utxos.Remove(debit)
 }
 
+// Get the utxos of a public key hash.
+func (s *State) GetPkhUtxos(publicKeyHash core.HashT) []core.Utxo {
+	if s.pkhUtxos == nil {
+		panic("balance tracking was not enabled")
+	}
+	utxos, ok := s.pkhUtxos[publicKeyHash]
+	if !ok {
+		return []core.Utxo{}
+	}
+	return utxos.ToList()
+}
+
+func (s *State) GetPkhBalance(publicKeyHash core.HashT) uint64 {
+	if s.pkhUtxos == nil {
+		panic("balance tracking was not enabled")
+	}
+	utxos, ok := s.pkhUtxos[publicKeyHash]
+	if !ok {
+		return 0
+	}
+	total := uint64(0)
+	for _, utxo := range utxos.ToList() {
+		total += utxo.Value
+	}
+	return total
+}
+
 func (s *State) GetIncludedTxBlock(txId core.HashT) (core.HashT, bool) {
 	blockId, ok := s.includedTxBlocks[txId]
 	return blockId, ok

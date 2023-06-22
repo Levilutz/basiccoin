@@ -1,11 +1,11 @@
 package rest
 
 import (
-	"fmt"
 	"io"
 	"net/http"
 	"strconv"
 
+	"github.com/levilutz/basiccoin/internal/pubsub"
 	"github.com/levilutz/basiccoin/pkg/core"
 )
 
@@ -20,7 +20,11 @@ func (s *Server) handleWalletGetBalance(w http.ResponseWriter, r *http.Request) 
 		write400(w, err)
 		return
 	}
-	fmt.Println(pkh)
-	balance := uint64(10)
+	ret := make(chan uint64)
+	s.pubSub.PkhBalance.Pub(pubsub.PkhBalanceQuery{
+		Ret:           ret,
+		PublicKeyHash: pkh,
+	})
+	balance := <-ret
 	io.WriteString(w, strconv.FormatUint(balance, 10))
 }

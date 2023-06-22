@@ -6,14 +6,18 @@ import (
 	"github.com/levilutz/basiccoin/internal/inv"
 	"github.com/levilutz/basiccoin/internal/pubsub"
 	"github.com/levilutz/basiccoin/pkg/topic"
+	"github.com/levilutz/basiccoin/pkg/util"
 )
 
 // The chain's subscriptions.
 // Ensure each of these is initialized in NewChain.
 type subscriptions struct {
+	// Events
 	CandidateHead *topic.SubCh[pubsub.CandidateHeadEvent]
 	CandidateTx   *topic.SubCh[pubsub.CandidateTxEvent]
 	PrintUpdate   *topic.SubCh[pubsub.PrintUpdateEvent]
+	// Queries
+	PkhBalance *topic.SubCh[pubsub.PkhBalanceQuery]
 }
 
 // A routine to manage our blockchain state and updates to it.
@@ -31,6 +35,7 @@ func NewChain(pubSub *pubsub.PubSub, inv *inv.Inv, supportMiners bool) *Chain {
 		CandidateHead: pubSub.CandidateHead.SubCh(),
 		CandidateTx:   pubSub.CandidateTx.SubCh(),
 		PrintUpdate:   pubSub.PrintUpdate.SubCh(),
+		PkhBalance:    pubSub.PkhBalance.SubCh(),
 	}
 	return &Chain{
 		pubSub:        pubSub,
@@ -60,6 +65,9 @@ func (c *Chain) Loop() {
 
 		case <-c.subs.PrintUpdate.C:
 			fmt.Printf("chain height: %d\n", c.inv.GetBlockHeight(c.state.head))
+
+		case query := <-c.subs.PkhBalance.C:
+			util.WriteChIfPossible(query.Ret, c.state.GetPkhBalance(query.PublicKeyHash))
 		}
 	}
 }

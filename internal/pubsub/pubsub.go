@@ -4,6 +4,7 @@ import "github.com/levilutz/basiccoin/pkg/topic"
 
 // The set of pub sub topics any component needs.
 type PubSub struct {
+	// Events
 	CandidateHead      *topic.Topic[CandidateHeadEvent]
 	CandidateTx        *topic.Topic[CandidateTxEvent]
 	MinerTarget        *topic.Topic[MinerTargetEvent]
@@ -15,13 +16,17 @@ type PubSub struct {
 	SendPeers          *topic.Topic[SendPeersEvent]
 	ShouldAnnounceAddr *topic.Topic[ShouldAnnounceAddrEvent]
 	ShouldRequestPeers *topic.Topic[ShouldRequestPeersEvent]
-	Terminate          *topic.Topic[TerminateCommand]
 	ValidatedHead      *topic.Topic[ValidatedHeadEvent]
 	ValidatedTx        *topic.Topic[ValidatedTxEvent]
+	// Commands
+	Terminate *topic.Topic[TerminateCommand]
+	// Queries
+	PkhBalance *topic.Topic[PkhBalanceQuery]
 }
 
 func NewPubSub() *PubSub {
 	return &PubSub{
+		// Events
 		CandidateHead:      topic.NewTopic[CandidateHeadEvent](),
 		CandidateTx:        topic.NewTopic[CandidateTxEvent](),
 		MinerTarget:        topic.NewTopic[MinerTargetEvent](),
@@ -33,8 +38,11 @@ func NewPubSub() *PubSub {
 		SendPeers:          topic.NewTopic[SendPeersEvent](),
 		ShouldAnnounceAddr: topic.NewTopic[ShouldAnnounceAddrEvent](),
 		ShouldRequestPeers: topic.NewTopic[ShouldRequestPeersEvent](),
-		Terminate:          topic.NewTopic[TerminateCommand](),
 		ValidatedHead:      topic.NewTopic[ValidatedHeadEvent](),
 		ValidatedTx:        topic.NewTopic[ValidatedTxEvent](),
+		// Commands
+		Terminate: topic.NewTopic[TerminateCommand](),
+		// Queries
+		PkhBalance: topic.NewTopic[PkhBalanceQuery](),
 	}
 }
