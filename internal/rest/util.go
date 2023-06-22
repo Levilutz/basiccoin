@@ -37,7 +37,7 @@ func write405(w http.ResponseWriter, r *http.Request) {
 	io.WriteString(w, "method not allowed: "+r.Method)
 }
 
-// func write500(w http.ResponseWriter, err error) {
-// 	w.WriteHeader(500)
-// 	io.WriteString(w, "server error: "+err.Error())
-// }
+func write500(w http.ResponseWriter, err error) {
+	w.WriteHeader(500)
+	io.WriteString(w, "server error: "+err.Error())
+}

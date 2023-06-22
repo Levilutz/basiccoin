@@ -18,6 +18,7 @@ type subscriptions struct {
 	PrintUpdate   *topic.SubCh[pubsub.PrintUpdateEvent]
 	// Queries
 	PkhBalance *topic.SubCh[pubsub.PkhBalanceQuery]
+	PkhUtxos   *topic.SubCh[pubsub.PkhUtxosQuery]
 }
 
 // A routine to manage our blockchain state and updates to it.
@@ -36,6 +37,7 @@ func NewChain(pubSub *pubsub.PubSub, inv *inv.Inv, supportMiners bool) *Chain {
 		CandidateTx:   pubSub.CandidateTx.SubCh(),
 		PrintUpdate:   pubSub.PrintUpdate.SubCh(),
 		PkhBalance:    pubSub.PkhBalance.SubCh(),
+		PkhUtxos:      pubSub.PkhUtxos.SubCh(),
 	}
 	return &Chain{
 		pubSub:        pubSub,
@@ -68,6 +70,9 @@ func (c *Chain) Loop() {
 
 		case query := <-c.subs.PkhBalance.C:
 			util.WriteChIfPossible(query.Ret, c.state.GetPkhBalance(query.PublicKeyHash))
+
+		case query := <-c.subs.PkhUtxos.C:
+			util.WriteChIfPossible(query.Ret, c.state.GetPkhUtxos(query.PublicKeyHash))
 		}
 	}
 }

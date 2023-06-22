@@ -22,6 +22,7 @@ type PubSub struct {
 	Terminate *topic.Topic[TerminateCommand]
 	// Queries
 	PkhBalance *topic.Topic[PkhBalanceQuery]
+	PkhUtxos   *topic.Topic[PkhUtxosQuery]
 }
 
 func NewPubSub() *PubSub {
@@ -44,5 +45,6 @@ func NewPubSub() *PubSub {
 		Terminate: topic.NewTopic[TerminateCommand](),
 		// Queries
 		PkhBalance: topic.NewTopic[PkhBalanceQuery](),
+		PkhUtxos:   topic.NewTopic[PkhUtxosQuery](),
 	}
 }

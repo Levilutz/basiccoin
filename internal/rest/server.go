@@ -14,14 +14,14 @@ var walletPrefix = "/wallet"
 type HttpHandler = func(http.ResponseWriter, *http.Request)
 
 type Server struct {
-	params Params
-	pubSub *pubsub.PubSub
+	params   Params
+	psClient *PSClient
 }
 
 func NewServer(params Params, pubSub *pubsub.PubSub) *Server {
 	return &Server{
-		params: params,
-		pubSub: pubSub,
+		params:   params,
+		psClient: NewPSClient(pubSub),
 	}
 }
 
@@ -41,6 +41,10 @@ func (s *Server) Start() {
 	if s.params.EnableWallet {
 		s.mountHandlers(false, walletPrefix+"/balance", map[string]HttpHandler{
 			"GET": s.handleWalletGetBalance,
+		})
+
+		s.mountHandlers(false, walletPrefix+"/utxos", map[string]HttpHandler{
+			"GET": s.handleWalletGetUtxos,
 		})
 	}
 
