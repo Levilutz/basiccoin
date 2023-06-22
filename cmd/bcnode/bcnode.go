@@ -71,12 +71,19 @@ func main() {
 		go restServer.Start()
 	}
 
-	// Trigger updates forever
+	// Trigger updates and watch for terminate command
+	printUpdatesTicker := time.NewTicker(printUpdateFreq)
+	terminateSubCh := pubSub.Terminate.SubCh()
 	for {
-		pubSub.PrintUpdate.Pub(pubsub.PrintUpdateEvent{
-			Peer:        false,
-			PeerFactory: true,
-		})
-		time.Sleep(printUpdateFreq)
+		select {
+		case <-printUpdatesTicker.C:
+			pubSub.PrintUpdate.Pub(pubsub.PrintUpdateEvent{
+				Peer:        false,
+				PeerFactory: true,
+			})
+
+		case <-terminateSubCh.C:
+			panic("terminated")
+		}
 	}
 }

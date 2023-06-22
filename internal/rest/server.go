@@ -34,7 +34,9 @@ func (s *Server) Start() {
 
 	if s.params.EnableAdmin {
 		s.mountHandlers(true, adminPrefix+"/terminate", map[string]HttpHandler{
-			"POST": func(w http.ResponseWriter, r *http.Request) {},
+			"POST": func(w http.ResponseWriter, r *http.Request) {
+				s.pubSub.Terminate.Pub(pubsub.TerminateCommand{})
+			},
 		})
 	}
 

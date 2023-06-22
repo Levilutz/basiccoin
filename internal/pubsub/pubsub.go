@@ -15,6 +15,7 @@ type PubSub struct {
 	SendPeers          *topic.Topic[SendPeersEvent]
 	ShouldAnnounceAddr *topic.Topic[ShouldAnnounceAddrEvent]
 	ShouldRequestPeers *topic.Topic[ShouldRequestPeersEvent]
+	Terminate          *topic.Topic[TerminateCommand]
 	ValidatedHead      *topic.Topic[ValidatedHeadEvent]
 	ValidatedTx        *topic.Topic[ValidatedTxEvent]
 }
@@ -32,6 +33,7 @@ func NewPubSub() *PubSub {
 		SendPeers:          topic.NewTopic[SendPeersEvent](),
 		ShouldAnnounceAddr: topic.NewTopic[ShouldAnnounceAddrEvent](),
 		ShouldRequestPeers: topic.NewTopic[ShouldRequestPeersEvent](),
+		Terminate:          topic.NewTopic[TerminateCommand](),
 		ValidatedHead:      topic.NewTopic[ValidatedHeadEvent](),
 		ValidatedTx:        topic.NewTopic[ValidatedTxEvent](),
 	}
