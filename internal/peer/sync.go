@@ -3,7 +3,7 @@ package peer
 import (
 	"fmt"
 
-	"github.com/levilutz/basiccoin/internal/pubsub"
+	"github.com/levilutz/basiccoin/internal/bus"
 	"github.com/levilutz/basiccoin/pkg/core"
 	"github.com/levilutz/basiccoin/pkg/queue"
 	"github.com/levilutz/basiccoin/pkg/set"
@@ -184,7 +184,7 @@ func (p *Peer) handleInboundSyncChain() error {
 		return p.conn.Err()
 	}
 	// Send the new entities to the head (reversed so they're inserted in correct order)
-	p.pubSub.CandidateHead.Pub(pubsub.CandidateHeadEvent{
+	p.bus.CandidateHead.Pub(bus.CandidateHeadEvent{
 		Head:    newHead,
 		Blocks:  util.Reverse(newBlocks),
 		Merkles: util.Reverse(newMerkles),

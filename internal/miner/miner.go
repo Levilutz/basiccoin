@@ -5,8 +5,8 @@ import (
 	"runtime/debug"
 	"time"
 
+	"github.com/levilutz/basiccoin/internal/bus"
 	"github.com/levilutz/basiccoin/internal/inv"
-	"github.com/levilutz/basiccoin/internal/pubsub"
 	"github.com/levilutz/basiccoin/pkg/core"
 	"github.com/levilutz/basiccoin/pkg/topic"
 	"github.com/levilutz/basiccoin/pkg/util"
@@ -15,7 +15,7 @@ import (
 // The miner's subscriptions.
 // Ensure each of these is initialized in NewMiner.
 type subscriptions struct {
-	MinerTarget *topic.SubCh[pubsub.MinerTargetEvent]
+	MinerTarget *topic.SubCh[bus.MinerTargetEvent]
 }
 
 // Close our subscriptions as we close.
@@ -26,7 +26,7 @@ func (s subscriptions) Close() {
 // A single-threaded miner instance.
 type Miner struct {
 	params      Params
-	pubSub      *pubsub.PubSub
+	bus         *bus.Bus
 	inv         inv.InvReader
 	subs        *subscriptions
 	template    *core.Block
@@ -35,13 +35,13 @@ type Miner struct {
 }
 
 // Create a new miner.
-func NewMiner(params Params, pubSub *pubsub.PubSub, inv inv.InvReader) *Miner {
+func NewMiner(params Params, msgBus *bus.Bus, inv inv.InvReader) *Miner {
 	subs := &subscriptions{
-		MinerTarget: pubSub.MinerTarget.SubCh(),
+		MinerTarget: msgBus.MinerTarget.SubCh(),
 	}
 	return &Miner{
 		params:      params,
-		pubSub:      pubSub,
+		bus:         msgBus,
 		inv:         inv,
 		subs:        subs,
 		template:    nil,
@@ -141,7 +141,7 @@ func (m *Miner) mine(rounds uint64) {
 // Publish the currently held solution.
 func (m *Miner) publishSolution() {
 	fmt.Println("!!! mined solution")
-	m.pubSub.CandidateHead.Pub(pubsub.CandidateHeadEvent{
+	m.bus.CandidateHead.Pub(bus.CandidateHeadEvent{
 		Head:    m.template.Hash(),
 		Blocks:  []core.Block{*m.template},
 		Merkles: util.CopyList(m.outMerkles),

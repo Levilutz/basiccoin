@@ -1,4 +1,4 @@
-package pubsub
+package bus
 
 import "github.com/levilutz/basiccoin/pkg/core"
 

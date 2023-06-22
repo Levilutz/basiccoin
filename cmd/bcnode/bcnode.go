@@ -3,11 +3,11 @@ package main
 import (
 	"time"
 
+	"github.com/levilutz/basiccoin/internal/bus"
 	"github.com/levilutz/basiccoin/internal/chain"
 	"github.com/levilutz/basiccoin/internal/inv"
 	"github.com/levilutz/basiccoin/internal/miner"
 	"github.com/levilutz/basiccoin/internal/peerfactory"
-	"github.com/levilutz/basiccoin/internal/pubsub"
 	"github.com/levilutz/basiccoin/internal/rest"
 	"github.com/levilutz/basiccoin/pkg/core"
 )
@@ -39,19 +39,19 @@ func main() {
 	}
 
 	// Make the event bus and shared inventory
-	pubSub := pubsub.NewPubSub()
+	msgBus := bus.NewBus()
 	inv := inv.NewInv(coreParams)
 
 	// Create app components
-	chain := chain.NewChain(pubSub, inv, flags.Miners > 0)
-	peerFactory := peerfactory.NewPeerFactory(peerFactoryParams, pubSub, inv)
+	chain := chain.NewChain(msgBus, inv, flags.Miners > 0)
+	peerFactory := peerfactory.NewPeerFactory(peerFactoryParams, msgBus, inv)
 	miners := make([]*miner.Miner, flags.Miners)
 	for i := 0; i < flags.Miners; i++ {
-		miners[i] = miner.NewMiner(minerParams, pubSub, inv)
+		miners[i] = miner.NewMiner(minerParams, msgBus, inv)
 	}
 	var restServer *rest.Server
 	if flags.HttpAdminEnabled || flags.HttpWalletEnabled {
-		restServer = rest.NewServer(restParams, pubSub)
+		restServer = rest.NewServer(restParams, msgBus)
 	}
 
 	// Set seed peer
@@ -73,11 +73,11 @@ func main() {
 
 	// Trigger updates and watch for terminate command
 	printUpdatesTicker := time.NewTicker(printUpdateFreq)
-	terminateSubCh := pubSub.Terminate.SubCh()
+	terminateSubCh := msgBus.Terminate.SubCh()
 	for {
 		select {
 		case <-printUpdatesTicker.C:
-			pubSub.PrintUpdate.Pub(pubsub.PrintUpdateEvent{
+			msgBus.PrintUpdate.Pub(bus.PrintUpdateEvent{
 				Peer:        false,
 				PeerFactory: true,
 			})

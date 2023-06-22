@@ -1,7 +1,7 @@
 package chain
 
 import (
-	"github.com/levilutz/basiccoin/internal/pubsub"
+	"github.com/levilutz/basiccoin/internal/bus"
 	"github.com/levilutz/basiccoin/pkg/core"
 	"github.com/levilutz/basiccoin/pkg/set"
 )
@@ -35,7 +35,7 @@ func (c *Chain) CreateMiningTarget() {
 			break
 		}
 	}
-	c.pubSub.MinerTarget.Pub(pubsub.MinerTargetEvent{
+	c.bus.MinerTarget.Pub(bus.MinerTargetEvent{
 		Head:   c.state.head,
 		Target: core.NextTarget(c.inv.GetCoreParams(), c.inv, c.state.head),
 		TxIds:  txIds,

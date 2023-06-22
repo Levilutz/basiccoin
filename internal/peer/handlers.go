@@ -1,7 +1,7 @@
 package peer
 
 import (
-	"github.com/levilutz/basiccoin/internal/pubsub"
+	"github.com/levilutz/basiccoin/internal/bus"
 	"github.com/levilutz/basiccoin/pkg/core"
 )
 
@@ -12,7 +12,7 @@ func (p *Peer) handleReadAnnounceAddr() error {
 	if p.conn.HasErr() {
 		return p.conn.Err()
 	}
-	p.pubSub.PeerAnnouncedAddr.Pub(pubsub.PeerAnnouncedAddrEvent{
+	p.bus.PeerAnnouncedAddr.Pub(bus.PeerAnnouncedAddrEvent{
 		PeerRuntimeId: p.conn.PeerRuntimeId(),
 		Addr:          addr,
 	})
@@ -27,7 +27,7 @@ func (p *Peer) handleWriteAnnounceAddr(addr string) error {
 var addrsRequestCmd = "addrs-request"
 
 func (p *Peer) handleReadAddrsRequest() error {
-	p.pubSub.PeersRequested.Pub(pubsub.PeersRequestedEvent{
+	p.bus.PeersRequested.Pub(bus.PeersRequestedEvent{
 		PeerRuntimeId: p.conn.PeerRuntimeId(),
 	})
 	return nil
@@ -49,7 +49,7 @@ func (p *Peer) handleReadPeerAddrs() error {
 	if p.conn.HasErr() {
 		return p.conn.Err()
 	}
-	p.pubSub.PeersReceived.Pub(pubsub.PeersReceivedEvent{
+	p.bus.PeersReceived.Pub(bus.PeersReceivedEvent{
 		PeerAddrs: peerAddrs,
 	})
 	return nil
@@ -80,7 +80,7 @@ func (p *Peer) handleReadNewTx() error {
 	if p.conn.HasErr() {
 		return p.conn.Err()
 	}
-	p.pubSub.CandidateTx.Pub(pubsub.CandidateTxEvent{
+	p.bus.CandidateTx.Pub(bus.CandidateTxEvent{
 		Tx: tx,
 	})
 	return nil

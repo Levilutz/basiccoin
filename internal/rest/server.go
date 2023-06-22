@@ -5,7 +5,7 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/levilutz/basiccoin/internal/pubsub"
+	"github.com/levilutz/basiccoin/internal/bus"
 )
 
 var adminPrefix = "/admin"
@@ -18,10 +18,10 @@ type Server struct {
 	psClient *PSClient
 }
 
-func NewServer(params Params, pubSub *pubsub.PubSub) *Server {
+func NewServer(params Params, msgBus *bus.Bus) *Server {
 	return &Server{
 		params:   params,
-		psClient: NewPSClient(pubSub),
+		psClient: NewPSClient(msgBus),
 	}
 }
 

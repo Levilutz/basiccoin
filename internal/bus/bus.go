@@ -1,9 +1,9 @@
-package pubsub
+package bus
 
 import "github.com/levilutz/basiccoin/pkg/topic"
 
 // The set of pub sub topics any component needs.
-type PubSub struct {
+type Bus struct {
 	// Events
 	CandidateHead      *topic.Topic[CandidateHeadEvent]
 	CandidateTx        *topic.Topic[CandidateTxEvent]
@@ -25,8 +25,8 @@ type PubSub struct {
 	PkhUtxos   *topic.Topic[PkhUtxosQuery]
 }
 
-func NewPubSub() *PubSub {
-	return &PubSub{
+func NewBus() *Bus {
+	return &Bus{
 		// Events
 		CandidateHead:      topic.NewTopic[CandidateHeadEvent](),
 		CandidateTx:        topic.NewTopic[CandidateTxEvent](),

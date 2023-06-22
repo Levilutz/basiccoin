@@ -7,9 +7,9 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/levilutz/basiccoin/internal/bus"
 	"github.com/levilutz/basiccoin/internal/inv"
 	"github.com/levilutz/basiccoin/internal/peer"
-	"github.com/levilutz/basiccoin/internal/pubsub"
 	"github.com/levilutz/basiccoin/pkg/core"
 	"github.com/levilutz/basiccoin/pkg/prot"
 	"github.com/levilutz/basiccoin/pkg/set"
@@ -21,12 +21,12 @@ import (
 // The peer factory's subscriptions.
 // Ensure each of these is initialized in NewPeerFactory.
 type subcriptions struct {
-	PeerAnnouncedAddr *topic.SubCh[pubsub.PeerAnnouncedAddrEvent]
-	PeerClosing       *topic.SubCh[pubsub.PeerClosingEvent]
-	PeersReceived     *topic.SubCh[pubsub.PeersReceivedEvent]
-	PeersRequested    *topic.SubCh[pubsub.PeersRequestedEvent]
-	PrintUpdate       *topic.SubCh[pubsub.PrintUpdateEvent]
-	ValidatedHead     *topic.SubCh[pubsub.ValidatedHeadEvent]
+	PeerAnnouncedAddr *topic.SubCh[bus.PeerAnnouncedAddrEvent]
+	PeerClosing       *topic.SubCh[bus.PeerClosingEvent]
+	PeersReceived     *topic.SubCh[bus.PeersReceivedEvent]
+	PeersRequested    *topic.SubCh[bus.PeersRequestedEvent]
+	PrintUpdate       *topic.SubCh[bus.PrintUpdateEvent]
+	ValidatedHead     *topic.SubCh[bus.ValidatedHeadEvent]
 }
 
 // A peer factory. Does not manage the peers after creation.
@@ -34,7 +34,7 @@ type subcriptions struct {
 // Keeps track of what peers exist.
 type PeerFactory struct {
 	params         Params
-	pubSub         *pubsub.PubSub
+	bus            *bus.Bus
 	inv            inv.InvReader
 	subs           *subcriptions
 	newConns       chan *prot.Conn
@@ -47,18 +47,18 @@ type PeerFactory struct {
 }
 
 // Create a new peer factory given a message bus instance.
-func NewPeerFactory(params Params, pubSub *pubsub.PubSub, inv inv.InvReader) *PeerFactory {
+func NewPeerFactory(params Params, msgBus *bus.Bus, inv inv.InvReader) *PeerFactory {
 	subs := &subcriptions{
-		PeerAnnouncedAddr: pubSub.PeerAnnouncedAddr.SubCh(),
-		PeerClosing:       pubSub.PeerClosing.SubCh(),
-		PeersReceived:     pubSub.PeersReceived.SubCh(),
-		PeersRequested:    pubSub.PeersRequested.SubCh(),
-		PrintUpdate:       pubSub.PrintUpdate.SubCh(),
-		ValidatedHead:     pubSub.ValidatedHead.SubCh(),
+		PeerAnnouncedAddr: msgBus.PeerAnnouncedAddr.SubCh(),
+		PeerClosing:       msgBus.PeerClosing.SubCh(),
+		PeersReceived:     msgBus.PeersReceived.SubCh(),
+		PeersRequested:    msgBus.PeersRequested.SubCh(),
+		PrintUpdate:       msgBus.PrintUpdate.SubCh(),
+		ValidatedHead:     msgBus.ValidatedHead.SubCh(),
 	}
 	return &PeerFactory{
 		params:         params,
-		pubSub:         pubSub,
+		bus:            msgBus,
 		inv:            inv,
 		subs:           subs,
 		newConns:       make(chan *prot.Conn, 256),
@@ -123,7 +123,7 @@ func (pf *PeerFactory) Loop() {
 			}
 
 		case event := <-pf.subs.PeersRequested.C:
-			pf.pubSub.SendPeers.Pub(pubsub.SendPeersEvent{
+			pf.bus.SendPeers.Pub(bus.SendPeersEvent{
 				TargetRuntimeId: event.PeerRuntimeId,
 				PeerAddrs:       util.CopyMap(pf.knownPeerAddrs),
 			})
@@ -219,7 +219,7 @@ func (pf *PeerFactory) addConn(conn *prot.Conn) {
 	if pf.knownPeers.Size() < pf.params.MaxPeers &&
 		!pf.knownPeers.Includes(runtimeId) {
 		// Upgrade to peer
-		go peer.NewPeer(pf.pubSub, pf.inv, conn, pf.curHead).Loop()
+		go peer.NewPeer(pf.bus, pf.inv, conn, pf.curHead).Loop()
 		pf.knownPeers.Add(runtimeId)
 		// Set our localaddr and start listen if we only now can
 		if pf.params.Listen && pf.params.LocalAddr == "" {
@@ -228,7 +228,7 @@ func (pf *PeerFactory) addConn(conn *prot.Conn) {
 		}
 		// Broadcast our localaddr to the peer if we want to listen
 		if pf.params.Listen {
-			pf.pubSub.ShouldAnnounceAddr.Pub(pubsub.ShouldAnnounceAddrEvent{
+			pf.bus.ShouldAnnounceAddr.Pub(bus.ShouldAnnounceAddrEvent{
 				TargetRuntimeId: runtimeId,
 				Addr:            pf.params.LocalAddr,
 			})
@@ -247,7 +247,7 @@ func (pf *PeerFactory) seekNewPeers() {
 	}
 	targetInd := rand.Intn(pf.knownPeers.Size())
 	targetRuntimeId := pf.knownPeers.ToList()[targetInd]
-	pf.pubSub.ShouldRequestPeers.Pub(pubsub.ShouldRequestPeersEvent{
+	pf.bus.ShouldRequestPeers.Pub(bus.ShouldRequestPeersEvent{
 		TargetRuntimeId: targetRuntimeId,
 	})
 }

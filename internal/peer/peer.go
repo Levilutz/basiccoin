@@ -6,8 +6,8 @@ import (
 	"runtime/debug"
 	"time"
 
+	"github.com/levilutz/basiccoin/internal/bus"
 	"github.com/levilutz/basiccoin/internal/inv"
-	"github.com/levilutz/basiccoin/internal/pubsub"
 	"github.com/levilutz/basiccoin/pkg/core"
 	"github.com/levilutz/basiccoin/pkg/prot"
 	"github.com/levilutz/basiccoin/pkg/topic"
@@ -18,12 +18,12 @@ var errPeerClosed = fmt.Errorf("peer requested close")
 // The peer's subscriptions.
 // Ensure each of these is initialized in NewPeer.
 type subscriptions struct {
-	PrintUpdate        *topic.SubCh[pubsub.PrintUpdateEvent]
-	SendPeers          *topic.SubCh[pubsub.SendPeersEvent]
-	ShouldAnnounceAddr *topic.SubCh[pubsub.ShouldAnnounceAddrEvent]
-	ShouldRequestPeers *topic.SubCh[pubsub.ShouldRequestPeersEvent]
-	ValidatedHead      *topic.SubCh[pubsub.ValidatedHeadEvent]
-	ValidatedTx        *topic.SubCh[pubsub.ValidatedTxEvent]
+	PrintUpdate        *topic.SubCh[bus.PrintUpdateEvent]
+	SendPeers          *topic.SubCh[bus.SendPeersEvent]
+	ShouldAnnounceAddr *topic.SubCh[bus.ShouldAnnounceAddrEvent]
+	ShouldRequestPeers *topic.SubCh[bus.ShouldRequestPeersEvent]
+	ValidatedHead      *topic.SubCh[bus.ValidatedHeadEvent]
+	ValidatedTx        *topic.SubCh[bus.ValidatedTxEvent]
 }
 
 // Close our subscriptions as we close.
@@ -38,7 +38,7 @@ func (s subscriptions) Close() {
 
 // A connection to a single peer.
 type Peer struct {
-	pubSub      *pubsub.PubSub
+	bus         *bus.Bus
 	inv         inv.InvReader
 	subs        *subscriptions
 	conn        *prot.Conn
@@ -47,17 +47,17 @@ type Peer struct {
 }
 
 // Create a new peer given a message bus instance.
-func NewPeer(pubSub *pubsub.PubSub, inv inv.InvReader, conn *prot.Conn, curHead core.HashT) *Peer {
+func NewPeer(msgBus *bus.Bus, inv inv.InvReader, conn *prot.Conn, curHead core.HashT) *Peer {
 	subs := &subscriptions{
-		PrintUpdate:        pubSub.PrintUpdate.SubCh(),
-		SendPeers:          pubSub.SendPeers.SubCh(),
-		ShouldAnnounceAddr: pubSub.ShouldAnnounceAddr.SubCh(),
-		ShouldRequestPeers: pubSub.ShouldRequestPeers.SubCh(),
-		ValidatedHead:      pubSub.ValidatedHead.SubCh(),
-		ValidatedTx:        pubSub.ValidatedTx.SubCh(),
+		PrintUpdate:        msgBus.PrintUpdate.SubCh(),
+		SendPeers:          msgBus.SendPeers.SubCh(),
+		ShouldAnnounceAddr: msgBus.ShouldAnnounceAddr.SubCh(),
+		ShouldRequestPeers: msgBus.ShouldRequestPeers.SubCh(),
+		ValidatedHead:      msgBus.ValidatedHead.SubCh(),
+		ValidatedTx:        msgBus.ValidatedTx.SubCh(),
 	}
 	return &Peer{
-		pubSub:      pubSub,
+		bus:         msgBus,
 		inv:         inv,
 		subs:        subs,
 		conn:        conn,
@@ -77,7 +77,7 @@ func (p *Peer) Loop() {
 			fmt.Printf("peer %s closed\n", p.conn.PeerRuntimeId())
 		}
 		p.subs.Close()
-		p.pubSub.PeerClosing.Pub(pubsub.PeerClosingEvent{
+		p.bus.PeerClosing.Pub(bus.PeerClosingEvent{
 			PeerRuntimeId: p.conn.PeerRuntimeId(),
 		})
 	}()
