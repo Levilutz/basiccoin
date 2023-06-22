@@ -32,8 +32,10 @@ func main() {
 		peerFactoryParams = peerfactory.ProdParams(flags.Listen, flags.LocalAddr)
 		printUpdateFreq = time.Second * 60
 	}
-	if flags.HttpEnabled {
-		restParams = rest.NewParams(false, false, "")
+	if flags.HttpAdminEnabled || flags.HttpWalletEnabled {
+		restParams = rest.NewParams(
+			flags.HttpAdminEnabled, flags.HttpWalletEnabled, flags.HttpAdminPw,
+		)
 	}
 
 	// Make the event bus and shared inventory
@@ -48,7 +50,7 @@ func main() {
 		miners[i] = miner.NewMiner(minerParams, pubSub, inv)
 	}
 	var restServer *rest.Server
-	if flags.HttpEnabled {
+	if flags.HttpAdminEnabled || flags.HttpWalletEnabled {
 		restServer = rest.NewServer(restParams, pubSub)
 	}
 
@@ -65,7 +67,7 @@ func main() {
 	go chain.Loop()
 	time.Sleep(time.Millisecond * 250)
 	go peerFactory.Loop()
-	if flags.HttpEnabled {
+	if flags.HttpAdminEnabled || flags.HttpWalletEnabled {
 		go restServer.Start()
 	}
 
