@@ -7,7 +7,8 @@ import (
 
 // Context to be passed to command handler functions.
 type HandlerContext struct {
-	Args []string
+	Args   []string
+	Config *Config
 }
 
 // A single command with its help, requirements, and handlerr function.
@@ -36,8 +37,23 @@ func Execute(commands []Command) {
 		fmt.Println(yellowStr("must provide command"))
 		return
 	}
-	command := os.Args[1]
-	cmdArgs := os.Args[2:]
+	var dev bool
+	var command string
+	var cmdArgs []string
+	if os.Args[1] == "dev" {
+		dev = true
+		command = os.Args[2]
+		cmdArgs = os.Args[3:]
+	} else {
+		dev = false
+		command = os.Args[1]
+		cmdArgs = os.Args[2:]
+	}
+
+	// Ensure config exists, then load it
+	EnsureConfig(dev)
+	cfg := GetConfig(getConfigPath(dev))
+	cfg.VerifyKeys()
 
 	// Show general help message if wanted
 	if command == "help" {
@@ -68,7 +84,8 @@ func Execute(commands []Command) {
 
 	// Run the command
 	err := cmd.Handler(&HandlerContext{
-		Args: cmdArgs,
+		Args:   cmdArgs,
+		Config: cfg,
 	})
 	if err != nil {
 		fmt.Println(redStr(err.Error()))
