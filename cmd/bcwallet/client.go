@@ -4,6 +4,9 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strconv"
+
+	"github.com/levilutz/basiccoin/pkg/core"
 )
 
 type Client struct {
@@ -17,7 +20,9 @@ func NewClient(cfg *Config) (*Client, error) {
 	}
 	baseUrl := cfg.NodeAddr
 	if baseUrl[len(baseUrl)-1:] != "/" {
-		baseUrl += "/"
+		baseUrl += "/wallet/"
+	} else {
+		baseUrl += "wallet/"
 	}
 	c := &Client{
 		baseUrl: baseUrl,
@@ -44,6 +49,22 @@ func (c *Client) Check() error {
 		return fmt.Errorf("incompatible server version: '%s' != '%s'", string(body), vers)
 	}
 	return nil
+}
+
+// Query the node for the balance of a given pkh.
+func (c *Client) GetBalance(publicKeyHash core.HashT) (uint64, error) {
+	queryStr := fmt.Sprintf("?publicKeyHash=%s", publicKeyHash)
+	resp, err := http.Get(c.baseUrl + "balance" + queryStr)
+	if err != nil {
+		return 0, err
+	} else if resp.StatusCode != 200 {
+		return 0, fmt.Errorf("balance non-2XX response: %d", resp.StatusCode)
+	}
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return 0, err
+	}
+	return strconv.ParseUint(string(body), 10, 64)
 }
 
 func getVersion(dev bool) string {
