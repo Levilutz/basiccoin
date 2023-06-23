@@ -83,6 +83,14 @@ func NewConfig(nodeAddr string, dev bool) *Config {
 	}
 }
 
+func (c *Config) Version() string {
+	if c.Dev {
+		return "v0.0.0-dev"
+	} else {
+		return "v0.0.0"
+	}
+}
+
 func (c *Config) VerifyKeys() {
 	for _, kc := range c.Keys {
 		if err := kc.Verify(); err != nil {

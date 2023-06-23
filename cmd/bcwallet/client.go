@@ -41,7 +41,7 @@ func (c *Client) Check() error {
 	} else if resp.StatusCode != 200 {
 		return fmt.Errorf("version non-2XX response: %d", resp.StatusCode)
 	}
-	vers := getVersion(c.cfg.Dev)
+	vers := c.cfg.Version()
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return err
@@ -65,12 +65,4 @@ func (c *Client) GetBalance(publicKeyHash core.HashT) (uint64, error) {
 		return 0, err
 	}
 	return strconv.ParseUint(string(body), 10, 64)
-}
-
-func getVersion(dev bool) string {
-	if dev {
-		return "v0.0.0-dev"
-	} else {
-		return "v0.0.0"
-	}
 }
