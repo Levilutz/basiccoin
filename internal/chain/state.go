@@ -99,22 +99,20 @@ func (s *State) Rewind() {
 		// Return the tx inputs
 		for _, utxo := range tx.GetConsumedUtxos() {
 			s.utxos.Add(utxo)
-			if s.pkhUtxos != nil {
-				txo := s.inv.GetTxOut(utxo.TxId, utxo.Ind)
-				s.creditBalance(txo.PublicKeyHash, utxo)
-			}
+			txo := s.inv.GetTxOut(utxo.TxId, utxo.Ind)
+			s.creditBalance(txo.PublicKeyHash, utxo)
 		}
 		// Remove the tx outputs from the utxo set
 		for i, txo := range tx.Outputs {
 			if !s.utxos.Remove(core.Utxo{TxId: txId, Ind: uint64(i), Value: txo.Value}) {
 				panic(fmt.Sprintf("state corrupt - missing utxo %s[%d]", txId, i))
 			}
-			if s.pkhUtxos != nil {
-				s.debitBalance(txo.PublicKeyHash, core.Utxo{
-					TxId:  txId,
-					Ind:   uint64(i),
-					Value: txo.Value,
-				})
+			if err := s.debitBalance(txo.PublicKeyHash, core.Utxo{
+				TxId:  txId,
+				Ind:   uint64(i),
+				Value: txo.Value,
+			}); err != nil {
+				panic(err)
 			}
 		}
 		// Remove the tx included block (and continue to verify it existed)
@@ -188,21 +186,19 @@ func (s *State) Advance(nextBlockId core.HashT) error {
 			if !s.utxos.Remove(utxo) {
 				return fmt.Errorf("tx input not available %s[%d]", utxo.TxId, utxo.Ind)
 			}
-			if s.pkhUtxos != nil {
-				txo := s.inv.GetTxOut(utxo.TxId, utxo.Ind)
-				s.debitBalance(txo.PublicKeyHash, utxo)
+			txo := s.inv.GetTxOut(utxo.TxId, utxo.Ind)
+			if err := s.debitBalance(txo.PublicKeyHash, utxo); err != nil {
+				return err
 			}
 		}
 		// Add the tx outputs
 		for i, txo := range tx.Outputs {
 			s.utxos.Add(core.Utxo{TxId: txId, Ind: uint64(i), Value: txo.Value})
-			if s.pkhUtxos != nil {
-				s.creditBalance(txo.PublicKeyHash, core.Utxo{
-					TxId:  txId,
-					Ind:   uint64(i),
-					Value: txo.Value,
-				})
-			}
+			s.creditBalance(txo.PublicKeyHash, core.Utxo{
+				TxId:  txId,
+				Ind:   uint64(i),
+				Value: txo.Value,
+			})
 		}
 		// Add the tx included block (and continue to verify tx isn't already included)
 		existingBlockId, ok := s.includedTxBlocks[txId]
@@ -275,12 +271,18 @@ func (s *State) creditBalance(publicKeyHash core.HashT, credit core.Utxo) {
 }
 
 // Remove from the utxo set of a public key hash.
-func (s *State) debitBalance(publicKeyHash core.HashT, debit core.Utxo) {
+func (s *State) debitBalance(publicKeyHash core.HashT, debit core.Utxo) error {
 	utxos, ok := s.pkhUtxos[publicKeyHash]
-	if !ok || !s.pkhUtxos[publicKeyHash].Includes(debit) {
-		panic("cannot debit balance, balance does not exist")
+	if !ok {
+		return fmt.Errorf("cannot debit balance - pkh %s controls no utxos", publicKeyHash)
+	} else if !s.pkhUtxos[publicKeyHash].Includes(debit) {
+		return fmt.Errorf("cannot debit balance, pkh %s does not control %v", publicKeyHash, debit)
 	}
 	utxos.Remove(debit)
+	if utxos.Size() == 0 {
+		delete(s.pkhUtxos, publicKeyHash)
+	}
+	return nil
 }
 
 // Get the utxos of a public key hash. Optionally, exclude utxos that are spent in the mempool.
@@ -290,6 +292,8 @@ func (s *State) GetPkhUtxos(publicKeyHash core.HashT, excludeMempool bool) []cor
 		return []core.Utxo{}
 	}
 	if excludeMempool {
+		// If we don't copy, the following filter will delete utxos off the actual state
+		utxos = utxos.Copy()
 		utxos.Filter(func(utxo core.Utxo) bool {
 			_, spentInMempool := s.mempoolUtxoSpends[utxo]
 			return !spentInMempool

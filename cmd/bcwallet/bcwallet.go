@@ -224,7 +224,8 @@ var commands = []Command{
 			nonChangeOutputs := tx.OutputsValue() - tx.Outputs[0].Value
 			feeRate := 100.0 * float64(fee) / float64(nonChangeOutputs)
 			fmt.Printf("outputs: %d\n", nonChangeOutputs)
-			fmt.Printf("fees: %d (%.2f%%)\n", fee, feeRate)
+			fmt.Printf("fees: %d : %.2f%%\n", fee, feeRate)
+			fmt.Printf("total debit: %d\n", nonChangeOutputs+fee)
 			if inp := ReadInput("confirm? (y/n): "); inp != "y" && inp != "Y" {
 				return fmt.Errorf("tx cancelled")
 			}
