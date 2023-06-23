@@ -172,5 +172,9 @@ func (c *Chain) handleCandidateTx(event bus.CandidateTxEvent) error {
 	c.bus.ValidatedTx.Pub(bus.ValidatedTxEvent{
 		TxId: txId,
 	})
+	// Retargeting the miners after every tx would probably be too much in a very active network
+	if c.supportMiners {
+		c.CreateMiningTarget()
+	}
 	return nil
 }
