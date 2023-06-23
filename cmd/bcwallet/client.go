@@ -1,12 +1,14 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
 	"strconv"
 
 	"github.com/levilutz/basiccoin/pkg/core"
+	"github.com/levilutz/basiccoin/pkg/set"
 )
 
 type Client struct {
@@ -78,4 +80,47 @@ func (c *Client) GetManyBalances(publicKeyHashes []core.HashT) (map[core.HashT]u
 		balances[pkh] = bal
 	}
 	return balances, nil
+}
+
+// Query the node for the utxos of a given pkh.
+func (c *Client) GetUtxos(publicKeyHash core.HashT) ([]core.Utxo, error) {
+	queryStr := fmt.Sprintf("?publicKeyHash=%s", publicKeyHash)
+	resp, err := http.Get(c.baseUrl + "utxos" + queryStr)
+	if err != nil {
+		return nil, err
+	} else if resp.StatusCode != 200 {
+		return nil, fmt.Errorf("utxos non-2XX response: %d", resp.StatusCode)
+	}
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	utxos := []core.Utxo{}
+	if err := json.Unmarshal(body, &utxos); err != nil {
+		return nil, err
+	}
+	return utxos, nil
+}
+
+// Query the node for the utxos of multiple given pkhs.
+func (c *Client) GetManyUtxos(publicKeyHashes []core.HashT) (map[core.Utxo]core.HashT, error) {
+	out := make(map[core.Utxo]core.HashT)
+	covered := set.NewSet[core.HashT]()
+	for _, pkh := range publicKeyHashes {
+		if covered.Includes(pkh) {
+			continue
+		}
+		covered.Add(pkh)
+		utxos, err := c.GetUtxos(pkh)
+		if err != nil {
+			return nil, err
+		}
+		for _, utxo := range utxos {
+			if _, ok := out[utxo]; ok {
+				continue
+			}
+			out[utxo] = pkh
+		}
+	}
+	return out, nil
 }
