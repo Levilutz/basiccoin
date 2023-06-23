@@ -1,6 +1,8 @@
 package main
 
 import (
+	"bytes"
+	"encoding/hex"
 	"fmt"
 
 	"github.com/levilutz/basiccoin/pkg/core"
@@ -61,13 +63,35 @@ var commands = []Command{
 	{
 		Name:           "generate",
 		HelpText:       "Generate a new address to receive coin.",
+		ArgsUsage:      "(prefix)",
 		RequiresClient: false,
 		Handler: func(ctx *HandlerContext) error {
-			priv, err := core.NewEcdsa()
-			if err != nil {
-				return err
+			var kc KeyConfig
+			if len(ctx.Args) > 0 {
+				if len(ctx.Args[0]) >= 6 {
+					fmt.Println(yellowStr("longer prefixes take exponentially longer time to find"))
+				} // nb. we don't check that the given prefix only contains hex chars
+				for {
+					priv, err := core.NewEcdsa()
+					if err != nil {
+						return err
+					}
+					tryKc := NewKeyConfig(priv)
+					raw := tryKc.PublicKeyHash.Data()
+					pkhHex := make([]byte, 64)
+					hex.Encode(pkhHex, raw[:])
+					if bytes.HasPrefix(pkhHex, []byte(ctx.Args[0])) {
+						kc = tryKc
+						break
+					}
+				}
+			} else {
+				priv, err := core.NewEcdsa()
+				if err != nil {
+					return err
+				}
+				kc = NewKeyConfig(priv)
 			}
-			kc := NewKeyConfig(priv)
 			ctx.Config.AddKeys(kc)
 			fmt.Println(kc.PublicKeyHash)
 			return ctx.Config.Save()
