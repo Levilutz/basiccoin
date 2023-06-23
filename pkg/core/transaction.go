@@ -97,6 +97,11 @@ func (tx Tx) Rate() float64 {
 	return (float64(tx.InputsValue()) - float64(tx.OutputsValue())) / float64(tx.VSize())
 }
 
+// What fees would be paid at the given fee rate.
+func (tx Tx) FeeFromRate(targetFeeRate float64) uint64 {
+	return uint64(targetFeeRate * float64(tx.VSize()))
+}
+
 func (tx Tx) HasSurplus() bool {
 	return tx.InputsValue() > tx.OutputsValue()
 }
