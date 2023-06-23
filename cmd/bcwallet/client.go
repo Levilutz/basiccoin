@@ -66,3 +66,16 @@ func (c *Client) GetBalance(publicKeyHash core.HashT) (uint64, error) {
 	}
 	return strconv.ParseUint(string(body), 10, 64)
 }
+
+// Query the node for the balances of several pkhs.
+func (c *Client) GetManyBalances(publicKeyHashes []core.HashT) (map[core.HashT]uint64, error) {
+	balances := make(map[core.HashT]uint64, len(publicKeyHashes))
+	for _, pkh := range publicKeyHashes {
+		bal, err := c.GetBalance(pkh)
+		if err != nil {
+			return nil, err
+		}
+		balances[pkh] = bal
+	}
+	return balances, nil
+}

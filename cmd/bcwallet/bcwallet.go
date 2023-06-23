@@ -7,6 +7,7 @@ import (
 	"sort"
 
 	"github.com/levilutz/basiccoin/pkg/core"
+	"github.com/levilutz/basiccoin/pkg/set"
 )
 
 // Define commands available on this cli.
@@ -119,22 +120,22 @@ var commands = []Command{
 				pkhs = ctx.Config.GetPublicKeyHashes()
 			}
 			// Actually get balances
-			balances := make(map[core.HashT]uint64, len(pkhs))
-			total := uint64(0)
-			for _, pkh := range pkhs {
-				bal, err := ctx.Client.GetBalance(pkh)
-				if err != nil {
-					return err
-				}
-				balances[pkh] = bal
-				total += bal
+			balances, err := ctx.Client.GetManyBalances(pkhs)
+			if err != nil {
+				return err
 			}
 			sort.Slice(pkhs, func(i, j int) bool {
 				// > instead of < becaues we want descending
 				return balances[pkhs[i]] > balances[pkhs[j]]
 			})
+			total := uint64(0)
+			covered := set.NewSet[core.HashT]() // Don't consider duplicate pkhs
 			for _, pkh := range pkhs {
-				fmt.Printf("%s\t%d\n", pkh, balances[pkh])
+				if !covered.Includes(pkh) {
+					total += balances[pkh]
+					covered.Add(pkh)
+					fmt.Printf("%s\t%d\n", pkh, balances[pkh])
+				}
 			}
 			fmt.Printf("\ntotal\t%d\n", total)
 			return nil
