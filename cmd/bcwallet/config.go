@@ -91,6 +91,14 @@ func (c *Config) Version() string {
 	}
 }
 
+func (c *Config) CoreParams() core.Params {
+	if c.Dev {
+		return core.DevNetParams()
+	} else {
+		return core.ProdNetParams()
+	}
+}
+
 func (c *Config) VerifyKeys() {
 	for _, kc := range c.Keys {
 		if err := kc.Verify(); err != nil {
@@ -112,6 +120,14 @@ func (c *Config) GetPublicKeyHashes() []core.HashT {
 	out := make([]core.HashT, len(c.Keys))
 	for i, kc := range c.Keys {
 		out[i] = kc.PublicKeyHash
+	}
+	return out
+}
+
+func (c *Config) GetPrivateKeys() []*ecdsa.PrivateKey {
+	out := make([]*ecdsa.PrivateKey, len(c.Keys))
+	for i, kc := range c.Keys {
+		out[i] = kc.PrivateKey
 	}
 	return out
 }

@@ -5,6 +5,8 @@ import (
 	"encoding/hex"
 	"fmt"
 	"sort"
+	"strconv"
+	"strings"
 
 	"github.com/levilutz/basiccoin/internal/rest/client"
 	"github.com/levilutz/basiccoin/pkg/core"
@@ -166,6 +168,61 @@ var commands = []Command{
 			for utxo := range utxos {
 				fmt.Printf("%s[%d]\t%d\n", utxo.TxId, utxo.Ind, utxo.Value)
 			}
+			return nil
+		},
+	},
+	{
+		Name:           "send",
+		HelpText:       "Send coin to given public key hashes, given as 'pkh:amount' pairs.",
+		ArgsUsage:      "[pkh:amount...]",
+		RequiredArgs:   1,
+		RequiresClient: true,
+		Handler: func(ctx *HandlerContext) error {
+			// Parse input
+			dests := make(map[core.HashT]uint64, len(ctx.Args))
+			for _, arg := range ctx.Args {
+				split := strings.Split(arg, ":")
+				if len(split) != 2 {
+					return fmt.Errorf("must provide 'pkh:amount' pairs")
+				}
+				pkh, err := core.NewHashTFromString(split[0])
+				if err != nil {
+					return err
+				}
+				val, err := strconv.ParseUint(split[1], 10, 64)
+				if err != nil {
+					return err
+				}
+				dests[pkh] = val
+			}
+
+			// TODO: Get min block
+			// Get utxo balances
+			utxos, err := ctx.Client.GetManyUtxos(ctx.Config.GetPublicKeyHashes())
+			if err != nil {
+				return err
+			}
+
+			// Make tx
+			tx, err := core.MakeOutboundTx(
+				ctx.Config.CoreParams(),
+				ctx.Config.GetPrivateKeys(),
+				utxos,
+				dests,
+				float64(1.0),
+				0,
+			)
+			if err != nil {
+				return err
+			}
+
+			// Send tx
+			resp, err := ctx.Client.PostTx(*tx)
+			if err != nil {
+				return err
+			}
+
+			fmt.Println(greenStr(resp.String()))
 			return nil
 		},
 	},

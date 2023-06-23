@@ -1,6 +1,8 @@
 package client
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -109,4 +111,30 @@ func (c *WalletClient) GetManyUtxos(publicKeyHashes []core.HashT) (map[core.Utxo
 		return nil, err
 	}
 	return resp.Utxos, nil
+}
+
+// Send a tx to the node.
+func (c *WalletClient) PostTx(tx core.Tx) (core.HashT, error) {
+	txJson, err := json.Marshal(tx)
+	if err != nil {
+		return core.HashT{}, err
+	}
+	resp, err := http.Post(c.baseUrl+"tx", "application/json", bytes.NewReader(txJson))
+	if err != nil {
+		return core.HashT{}, err
+	} else if resp.StatusCode != 200 {
+		return core.HashT{}, fmt.Errorf("tx non-2XX response: %d", resp.StatusCode)
+	}
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return core.HashT{}, err
+	}
+	txId, err := core.NewHashTFromString(string(body))
+	if err != nil {
+		return core.HashT{}, fmt.Errorf("received txId failed to parse: %s - %s", txId, err.Error())
+	}
+	if txId != tx.Hash() {
+		return core.HashT{}, fmt.Errorf("received incorrect txId: %s != %s", txId, tx.Hash())
+	}
+	return txId, nil
 }
