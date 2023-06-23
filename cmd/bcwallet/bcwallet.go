@@ -246,6 +246,55 @@ var commands = []Command{
 		},
 	},
 	{
+		Name:           "consolidate",
+		HelpText:       "Consolidate controlled balance into fewer utxos.",
+		RequiresClient: true,
+		Handler: func(ctx *HandlerContext) error {
+			// Get current head height / min block
+			minBlock, err := ctx.Client.GetHeadHeight()
+			if err != nil {
+				return err
+			}
+
+			// Get utxo balances
+			utxos, err := ctx.Client.GetManyUtxos(ctx.Config.GetPublicKeyHashes(), true)
+			if err != nil {
+				return err
+			}
+
+			// Make tx
+			tx, err := core.MakeConsolidateTx(
+				ctx.Config.CoreParams(),
+				ctx.Config.GetPrivateKeys(),
+				utxos,
+				float64(1.0),
+				minBlock,
+			)
+			if err != nil {
+				return err
+			}
+
+			// Ask user for confirmation on the fee rate
+			fee := tx.InputsValue() - tx.OutputsValue()
+			feeRate := 100.0 * float64(fee) / float64(tx.InputsValue())
+			fmt.Printf("inputs: %d\n", tx.InputsValue())
+			fmt.Printf("outputs: %d\n", tx.OutputsValue())
+			fmt.Printf("fees: %d : %.2f%%\n", fee, feeRate)
+			if inp := ReadInput("confirm? (y/n): "); inp != "y" && inp != "Y" {
+				return fmt.Errorf("tx cancelled")
+			}
+
+			// Send tx
+			resp, err := ctx.Client.PostTx(*tx)
+			if err != nil {
+				return err
+			}
+
+			fmt.Println(greenStr(resp.String()))
+			return nil
+		},
+	},
+	{
 		Name:           "tx-confirms",
 		HelpText:       "Get the number of confirmations for given tx ids.",
 		ArgsUsage:      "(txId...)",
