@@ -50,6 +50,10 @@ func (s *Server) Start() {
 		s.mountHandlers(false, walletPrefix+"/tx", map[string]HttpHandler{
 			"POST": s.handleWalletPostTx,
 		})
+
+		s.mountHandlers(false, walletPrefix+"/tx/confirms", map[string]HttpHandler{
+			"GET": s.handleWalletGetTxConfirms,
+		})
 	}
 
 	portStr := fmt.Sprintf(":%d", s.params.Port)

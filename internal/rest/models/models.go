@@ -75,3 +75,31 @@ func (r *UtxosResp) UnmarshalJSON(data []byte) error {
 	r.Utxos = out
 	return nil
 }
+
+type TxConfirmsResp struct {
+	Confirms map[core.HashT]uint64
+}
+
+type txConfirmsRespJSON struct {
+	Confirms map[string]uint64 `json:"confirms"`
+}
+
+func (r TxConfirmsResp) MarshalJSON() ([]byte, error) {
+	return json.Marshal(txConfirmsRespJSON{
+		Confirms: core.MarshalHashTMap(r.Confirms),
+	})
+}
+
+func (r *TxConfirmsResp) UnmarshalJSON(data []byte) error {
+	raw := txConfirmsRespJSON{}
+	err := json.Unmarshal(data, &raw)
+	if err != nil {
+		return err
+	}
+	confirms, err := core.UnmarshalHashTMap(raw.Confirms)
+	if err != nil {
+		return err
+	}
+	r.Confirms = confirms
+	return nil
+}

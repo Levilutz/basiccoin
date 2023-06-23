@@ -89,7 +89,7 @@ func (s *State) Rewind() {
 			}
 		}
 		// Remove the tx included block (and continue to verify it existed)
-		existingBlockId, ok := s.GetIncludedTxBlock(txId)
+		existingBlockId, ok := s.includedTxBlocks[txId]
 		if !ok || existingBlockId != s.head {
 			panic(fmt.Sprintf("state corrupt - missing/wrong tx block %s", txId))
 		}
@@ -164,7 +164,7 @@ func (s *State) Advance(nextBlockId core.HashT) error {
 			}
 		}
 		// Add the tx included block (and continue to verify tx isn't already included)
-		existingBlockId, ok := s.GetIncludedTxBlock(txId)
+		existingBlockId, ok := s.includedTxBlocks[txId]
 		if ok {
 			return fmt.Errorf("tx already included in block %s", existingBlockId)
 		}
@@ -205,7 +205,7 @@ func (s *State) GetSortedIncludableMempool() []core.HashT {
 	})
 	memL := mem.ToList()
 	sort.Slice(memL, func(i, j int) bool {
-		// > instead of < because we want descending.
+		// descending
 		return s.mempoolRates[memL[i]] > s.mempoolRates[memL[j]]
 	})
 	return memL
@@ -276,7 +276,19 @@ func (s *State) GetManyPkhBalances(publicKeyHashes []core.HashT) map[core.HashT]
 	return out
 }
 
-func (s *State) GetIncludedTxBlock(txId core.HashT) (core.HashT, bool) {
-	blockId, ok := s.includedTxBlocks[txId]
-	return blockId, ok
+func (s *State) GetTxConfirms(txIds []core.HashT) map[core.HashT]uint64 {
+	out := make(map[core.HashT]uint64)
+	for _, txId := range txIds {
+		if !s.inv.HasTx(txId) {
+			continue
+		}
+		blockId, ok := s.includedTxBlocks[txId]
+		if !ok {
+			out[txId] = 0
+			continue
+		}
+		depth := s.inv.GetBlockHeight(s.head) - s.inv.GetBlockHeight(blockId)
+		out[txId] = depth + 1 // Depth of 0 means it's been included once, so add 1
+	}
+	return out
 }

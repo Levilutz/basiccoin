@@ -152,6 +152,28 @@ func (h HashT) MinNextTarget() HashT {
 	return NewHashTFromBigInt(hInt)
 }
 
+// Convert a []HashT to a []string.
+func MarshalHashTSlice(in []HashT) []string {
+	out := make([]string, len(in))
+	for i, hash := range in {
+		out[i] = hash.String()
+	}
+	return out
+}
+
+// Convert a []string to a []HashT.
+func UnmarshalHashTSlice(in []string) ([]HashT, error) {
+	out := make([]HashT, len(in))
+	var err error
+	for i, str := range in {
+		out[i], err = NewHashTFromString(str)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return out, nil
+}
+
 // Convert a HashT->K map to a string->K map.
 func MarshalHashTMap[K any](in map[HashT]K) map[string]K {
 	out := make(map[string]K, len(in))

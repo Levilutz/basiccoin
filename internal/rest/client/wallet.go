@@ -68,10 +68,7 @@ func (c *WalletClient) GetBalance(publicKeyHash core.HashT) (uint64, error) {
 
 // Query the node for the balances of several pkhs.
 func (c *WalletClient) GetManyBalances(publicKeyHashes []core.HashT) (map[core.HashT]uint64, error) {
-	pkhStrs := make([]string, len(publicKeyHashes))
-	for i, pkh := range publicKeyHashes {
-		pkhStrs[i] = pkh.String()
-	}
+	pkhStrs := core.MarshalHashTSlice(publicKeyHashes)
 	queryStr := fmt.Sprintf("?publicKeyHash=%s", strings.Join(pkhStrs, "&publicKeyHash="))
 	resp, err := GetParse[models.BalanceResp](c.baseUrl + "balance" + queryStr)
 	if err != nil {
@@ -101,10 +98,7 @@ func (c *WalletClient) GetUtxos(publicKeyHash core.HashT) ([]core.Utxo, error) {
 
 // Query the node for the utxos of multiple given pkhs.
 func (c *WalletClient) GetManyUtxos(publicKeyHashes []core.HashT) (map[core.Utxo]core.HashT, error) {
-	pkhStrs := make([]string, len(publicKeyHashes))
-	for i, pkh := range publicKeyHashes {
-		pkhStrs[i] = pkh.String()
-	}
+	pkhStrs := core.MarshalHashTSlice(publicKeyHashes)
 	queryStr := fmt.Sprintf("?publicKeyHash=%s", strings.Join(pkhStrs, "&publicKeyHash="))
 	resp, err := GetParse[models.UtxosResp](c.baseUrl + "utxos" + queryStr)
 	if err != nil {
@@ -137,4 +131,15 @@ func (c *WalletClient) PostTx(tx core.Tx) (core.HashT, error) {
 		return core.HashT{}, fmt.Errorf("received incorrect txId: %s != %s", txId, tx.Hash())
 	}
 	return txId, nil
+}
+
+// Get tx confirmations.
+func (c *WalletClient) GetTxConfirms(txIds []core.HashT) (map[core.HashT]uint64, error) {
+	txIdStrs := core.MarshalHashTSlice(txIds)
+	queryStr := fmt.Sprintf("?txId=%s", strings.Join(txIdStrs, "&txId="))
+	resp, err := GetParse[models.TxConfirmsResp](c.baseUrl + "tx/confirms" + queryStr)
+	if err != nil {
+		return nil, err
+	}
+	return resp.Confirms, nil
 }

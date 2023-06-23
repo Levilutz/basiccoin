@@ -13,6 +13,7 @@ import (
 	"github.com/levilutz/basiccoin/internal/rest/client"
 	"github.com/levilutz/basiccoin/pkg/core"
 	"github.com/levilutz/basiccoin/pkg/set"
+	"github.com/levilutz/basiccoin/pkg/util"
 )
 
 // Define commands available on this cli.
@@ -126,7 +127,7 @@ var commands = []Command{
 				return err
 			}
 			sort.Slice(pkhs, func(i, j int) bool {
-				// > instead of < becaues we want descending
+				// descending
 				return balances[pkhs[i]] > balances[pkhs[j]]
 			})
 			total := uint64(0)
@@ -223,7 +224,7 @@ var commands = []Command{
 			nonChangeOutputs := tx.OutputsValue() - tx.Outputs[0].Value
 			feeRate := 100.0 * float64(fee) / float64(nonChangeOutputs)
 			fmt.Printf("outputs: %d\n", nonChangeOutputs)
-			fmt.Printf("fees: %d (%.2fp)\n", fee, feeRate)
+			fmt.Printf("fees: %d (%.2f%%)\n", fee, feeRate)
 			if inp := ReadInput("confirm? (y/n): "); inp != "y" && inp != "Y" {
 				return fmt.Errorf("tx cancelled")
 			}
@@ -235,6 +236,44 @@ var commands = []Command{
 			}
 
 			fmt.Println(greenStr(resp.String()))
+			return nil
+		},
+	},
+	{
+		Name:           "tx-confirms",
+		HelpText:       "Get the number of confirmations for given tx ids.",
+		ArgsUsage:      "(txId...)",
+		RequiredArgs:   1,
+		RequiresClient: true,
+		Handler: func(ctx *HandlerContext) error {
+			txIds, err := core.UnmarshalHashTSlice(ctx.Args)
+			if err != nil {
+				return err
+			}
+			confirms, err := ctx.Client.GetTxConfirms(txIds)
+			if err != nil {
+				return err
+			}
+			knownTxIds := util.MapKeys(confirms)
+			sort.Slice(knownTxIds, func(i, j int) bool {
+				// descending
+				return confirms[knownTxIds[i]] > confirms[knownTxIds[j]]
+			})
+			for _, txId := range knownTxIds {
+				numStr := ""
+				if confirms[txId] == 0 {
+					numStr = yellowStr("0")
+				} else {
+					numStr = greenStr(fmt.Sprintf("%d", confirms[txId]))
+				}
+				fmt.Printf("%s\t%s\n", txId, numStr)
+			}
+			for _, txId := range txIds {
+				if _, ok := confirms[txId]; !ok {
+					uhOh := redStr("not known")
+					fmt.Printf("%s\t%s\n", txId, uhOh)
+				}
+			}
 			return nil
 		},
 	},

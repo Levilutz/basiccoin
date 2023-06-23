@@ -45,3 +45,12 @@ func (c *BusClient) UtxosQuery(publicKeyHashes []core.HashT) map[core.Utxo]core.
 	})
 	return <-ret
 }
+
+func (c *BusClient) TxConfirmsQuery(txIds []core.HashT) map[core.HashT]uint64 {
+	ret := make(chan map[core.HashT]uint64)
+	c.bus.TxConfirms.Pub(bus.TxConfirmsQuery{
+		Ret:   ret,
+		TxIds: txIds,
+	})
+	return <-ret
+}

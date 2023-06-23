@@ -23,6 +23,7 @@ type Bus struct {
 	// Queries
 	PkhBalance *topic.Topic[PkhBalanceQuery]
 	PkhUtxos   *topic.Topic[PkhUtxosQuery]
+	TxConfirms *topic.Topic[TxConfirmsQuery]
 }
 
 func NewBus() *Bus {
@@ -46,5 +47,6 @@ func NewBus() *Bus {
 		// Queries
 		PkhBalance: topic.NewTopic[PkhBalanceQuery](),
 		PkhUtxos:   topic.NewTopic[PkhUtxosQuery](),
+		TxConfirms: topic.NewTopic[TxConfirmsQuery](),
 	}
 }

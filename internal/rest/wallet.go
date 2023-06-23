@@ -16,14 +16,10 @@ func (s *Server) handleWalletGetBalance(w http.ResponseWriter, r *http.Request) 
 		write400(w, fmt.Errorf("no public key hashes provided"))
 		return
 	}
-	pkhs := make([]core.HashT, len(pkhStrs))
-	var err error
-	for i, pkhStr := range pkhStrs {
-		pkhs[i], err = core.NewHashTFromString(pkhStr)
-		if err != nil {
-			write400(w, err)
-			return
-		}
+	pkhs, err := core.UnmarshalHashTSlice(pkhStrs)
+	if err != nil {
+		write400(w, err)
+		return
 	}
 	balances := s.busClient.BalanceQuery(pkhs)
 	outJson, err := json.Marshal(models.BalanceResp{
@@ -42,14 +38,10 @@ func (s *Server) handleWalletGetUtxos(w http.ResponseWriter, r *http.Request) {
 		write400(w, fmt.Errorf("no public key hashes provided"))
 		return
 	}
-	pkhs := make([]core.HashT, len(pkhStrs))
-	var err error
-	for i, pkhStr := range pkhStrs {
-		pkhs[i], err = core.NewHashTFromString(pkhStr)
-		if err != nil {
-			write400(w, err)
-			return
-		}
+	pkhs, err := core.UnmarshalHashTSlice(pkhStrs)
+	if err != nil {
+		write400(w, err)
+		return
 	}
 	utxos := s.busClient.UtxosQuery(pkhs)
 	outJson, err := json.Marshal(models.UtxosResp{
@@ -82,4 +74,26 @@ func (s *Server) handleWalletPostTx(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	io.WriteString(w, tx.Hash().String())
+}
+
+func (s *Server) handleWalletGetTxConfirms(w http.ResponseWriter, r *http.Request) {
+	txIdStrs, ok := r.URL.Query()["txId"]
+	if !ok {
+		write400(w, fmt.Errorf("no txIds provided"))
+		return
+	}
+	txIds, err := core.UnmarshalHashTSlice(txIdStrs)
+	if err != nil {
+		write400(w, err)
+		return
+	}
+	confirms := s.busClient.TxConfirmsQuery(txIds)
+	outJson, err := json.Marshal(models.TxConfirmsResp{
+		Confirms: confirms,
+	})
+	if err != nil {
+		write500(w, err)
+		return
+	}
+	w.Write(outJson)
 }

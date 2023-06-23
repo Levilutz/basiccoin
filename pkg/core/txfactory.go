@@ -45,7 +45,7 @@ func MakeOutboundTx(
 	}
 	pkhs := util.MapKeys(pkhBalances)
 	sort.Slice(pkhs, func(i, j int) bool {
-		// > instead of < because we want descending
+		// descending
 		return pkhBalances[pkhs[i]] > pkhBalances[pkhs[j]]
 	})
 
@@ -61,7 +61,7 @@ func MakeOutboundTx(
 	// Get utxos sorted by value
 	utxos := util.MapKeys(utxoPkhs)
 	sort.Slice(utxos, func(i, j int) bool {
-		// > instead of < because we want descending
+		// descending
 		return utxos[i].Value > utxos[j].Value
 	})
 
