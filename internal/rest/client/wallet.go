@@ -57,23 +57,13 @@ func (c *WalletClient) Check() error {
 // Query the node for the balance of a given pkh.
 func (c *WalletClient) GetBalance(publicKeyHash core.HashT) (uint64, error) {
 	queryStr := fmt.Sprintf("?publicKeyHash=%s", publicKeyHash)
-	resp, err := http.Get(c.baseUrl + "balance" + queryStr)
+	resp, err := GetParse[models.BalanceResp](c.baseUrl + "balance" + queryStr)
 	if err != nil {
 		return 0, err
-	} else if resp.StatusCode != 200 {
-		return 0, fmt.Errorf("balance non-2XX response: %d", resp.StatusCode)
-	}
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return 0, err
-	}
-	var parsed models.BalanceResp
-	if err = json.Unmarshal(body, &parsed); err != nil {
-		return 0, err
-	} else if _, ok := parsed.Balances[publicKeyHash]; !ok {
+	} else if _, ok := resp.Balances[publicKeyHash]; !ok {
 		return 0, fmt.Errorf("did not receive correct pkhs in response")
 	}
-	return parsed.Balances[publicKeyHash], nil
+	return resp.Balances[publicKeyHash], nil
 }
 
 // Query the node for the balances of several pkhs.
@@ -83,21 +73,11 @@ func (c *WalletClient) GetManyBalances(publicKeyHashes []core.HashT) (map[core.H
 		pkhStrs[i] = pkh.String()
 	}
 	queryStr := fmt.Sprintf("?publicKeyHash=%s", strings.Join(pkhStrs, "&publicKeyHash="))
-	resp, err := http.Get(c.baseUrl + "balance" + queryStr)
-	if err != nil {
-		return nil, err
-	} else if resp.StatusCode != 200 {
-		return nil, fmt.Errorf("balance non-2XX response: %d", resp.StatusCode)
-	}
-	body, err := io.ReadAll(resp.Body)
+	resp, err := GetParse[models.BalanceResp](c.baseUrl + "balance" + queryStr)
 	if err != nil {
 		return nil, err
 	}
-	var parsed models.BalanceResp
-	if err = json.Unmarshal(body, &parsed); err != nil {
-		return nil, err
-	}
-	return parsed.Balances, nil
+	return resp.Balances, nil
 }
 
 // Query the node for the utxos of a given pkh.
