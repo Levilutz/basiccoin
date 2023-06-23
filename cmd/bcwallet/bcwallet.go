@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"sort"
 
+	"github.com/levilutz/basiccoin/internal/rest/client"
 	"github.com/levilutz/basiccoin/pkg/core"
 	"github.com/levilutz/basiccoin/pkg/set"
 )
@@ -50,15 +51,11 @@ var commands = []Command{
 		RequiredArgs:   1,
 		RequiresClient: false,
 		Handler: func(ctx *HandlerContext) error {
-			addr := ctx.Args[0]
-			_, err := NewClient(&Config{
-				Dev:      ctx.Config.Dev,
-				NodeAddr: addr,
-			})
+			_, err := client.NewWalletClient(ctx.Args[0], ctx.Config.Version())
 			if err != nil {
 				return fmt.Errorf("failed to connect to client: " + err.Error())
 			}
-			ctx.Config.NodeAddr = addr
+			ctx.Config.NodeAddr = ctx.Args[0]
 			return ctx.Config.Save()
 		},
 	},

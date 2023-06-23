@@ -3,13 +3,15 @@ package main
 import (
 	"fmt"
 	"os"
+
+	"github.com/levilutz/basiccoin/internal/rest/client"
 )
 
 // Context to be passed to command handler functions.
 type HandlerContext struct {
 	Args   []string
 	Config *Config
-	Client *Client
+	Client *client.WalletClient
 }
 
 // A single command with its help, requirements, and handlerr function.
@@ -57,14 +59,14 @@ func Execute(commands []Command) {
 	cfg := GetConfig(getConfigPath(dev))
 	cfg.VerifyKeys()
 
-	// Make a client from the config
-	var client *Client = nil
+	// Make a wClient from the config
+	var wClient *client.WalletClient = nil
 	if cfg.NodeAddr != "" {
-		tryClient, err := NewClient(cfg)
+		tryClient, err := client.NewWalletClient(cfg.NodeAddr, cfg.Version())
 		if err != nil {
 			fmt.Println(yellowStr("failed to connect to configured node: " + err.Error()))
 		} else {
-			client = tryClient
+			wClient = tryClient
 		}
 	}
 
@@ -96,7 +98,7 @@ func Execute(commands []Command) {
 	}
 
 	// Verify client connected if required
-	if client == nil && cmd.RequiresClient {
+	if wClient == nil && cmd.RequiresClient {
 		fmt.Println(yellowStr("command requires valid node connection"))
 		fmt.Println(yellowStr("run 'bcwallet connect' to set up"))
 		return
@@ -106,7 +108,7 @@ func Execute(commands []Command) {
 	err := cmd.Handler(&HandlerContext{
 		Args:   cmdArgs,
 		Config: cfg,
-		Client: client,
+		Client: wClient,
 	})
 	if err != nil {
 		fmt.Println(redStr(err.Error()))
