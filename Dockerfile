@@ -14,6 +14,4 @@ FROM alpine:3.18.2 AS main
 
 COPY --from=builder /bcnode /
 
-EXPOSE 80
-
 CMD ["/bcnode"]

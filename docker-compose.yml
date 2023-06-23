@@ -16,7 +16,10 @@ services:
       - "--dev"
       - "--addr=node1:21720"
       - "--miners=1"
-      - "--payout=0c4738eb17afce8ab5151dcd57b3dc134ba80b2b33e8be38759347b4542303ec"
+      - "--payout=eeeeeed6bdacc4d88f6e07ba9070a3bcc1d1648cb8393ecb47bbe02235e48a5a"
+      - "--http-wallet"
+    ports:
+      - 8080:80
 
   node2:
     image: bcnode:latest
@@ -24,6 +27,8 @@ services:
       - "/bcnode"
       - "--dev"
       - "--seed=node1:21720"
+      - "--miners=1"
+      - "--payout=1111116d16df90d775cc31093d9e6f55bdbb7373b77b7d2178d78eb0a6760e20"
     
   node3:
     image: bcnode:latest
@@ -31,38 +36,3 @@ services:
       - "/bcnode"
       - "--dev"
       - "--seed=node1:21720"
-  
-  node4:
-    image: bcnode:latest
-    command:
-      - "/bcnode"
-      - "--dev"
-      - "--seed=node1:21720"
-  
-  node5:
-    image: bcnode:latest
-    command:
-      - "/bcnode"
-      - "--dev"
-      - "--seed=node4:21720"
-    
-  node6:
-    image: bcnode:latest
-    command:
-      - "/bcnode"
-      - "--dev"
-      - "--seed=node4:21720"
-  
-  node7:
-    image: bcnode:latest
-    command:
-      - "/bcnode"
-      - "--dev"
-      - "--seed=node4:21720"
-  
-  node8:
-    image: bcnode:latest
-    command:
-      - "/bcnode"
-      - "--dev"
-      - "--seed=node7:21720"

@@ -26,9 +26,11 @@ func getVersion(dev bool) string {
 	}
 }
 
-func NewParams(enableAdmin bool, enableWallet bool, password string, dev bool) Params {
+func NewParams(
+	port int, enableAdmin bool, enableWallet bool, password string, dev bool,
+) Params {
 	return Params{
-		Port:         8080,
+		Port:         port,
 		EnableAdmin:  enableAdmin,
 		EnableWallet: enableWallet,
 		Password:     password,
