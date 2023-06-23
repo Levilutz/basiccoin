@@ -9,7 +9,6 @@ import (
 	"path"
 
 	"github.com/levilutz/basiccoin/pkg/core"
-	"github.com/levilutz/basiccoin/src/kern"
 )
 
 type KeyConfigJSON struct {
@@ -23,7 +22,7 @@ type KeyConfig struct {
 }
 
 func NewKeyConfig(priv *ecdsa.PrivateKey) KeyConfig {
-	pubBytes, err := kern.MarshalEcdsaPublic(priv)
+	pubBytes, err := core.MarshalEcdsaPublic(priv)
 	if err != nil {
 		panic(err)
 	}
