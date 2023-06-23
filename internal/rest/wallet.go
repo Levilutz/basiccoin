@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 
 	"github.com/levilutz/basiccoin/internal/rest/models"
 	"github.com/levilutz/basiccoin/pkg/core"
@@ -43,7 +44,12 @@ func (s *Server) handleWalletGetUtxos(w http.ResponseWriter, r *http.Request) {
 		write400(w, err)
 		return
 	}
-	utxos := s.busClient.UtxosQuery(pkhs)
+	excludeMempool := false
+	if vals, ok := r.URL.Query()["excludeMempool"]; ok &&
+		len(vals) > 0 && strings.ToLower(vals[0]) == "true" {
+		excludeMempool = true
+	}
+	utxos := s.busClient.UtxosQuery(pkhs, excludeMempool)
 	outJson, err := json.Marshal(models.UtxosResp{
 		Utxos: utxos,
 	})

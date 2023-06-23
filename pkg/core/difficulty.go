@@ -90,12 +90,13 @@ func NextTarget(params Params, inv InvTargeter, prevBlockId HashT) HashT {
 		target = maxNext
 	}
 
+	// TODO: actually compute this from targets, not estimate on time
 	adjustmentPct := 100.0*float64(actualTime)/float64(desiredTime) - 100.0
-	if adjustmentPct > 4.0 {
-		adjustmentPct = 4.0
-	} else if adjustmentPct < -4.0 {
-		adjustmentPct = -4.0
+	if adjustmentPct > 300.0 {
+		adjustmentPct = 300.0
+	} else if adjustmentPct < -75.0 {
+		adjustmentPct = -75.0
 	}
-	fmt.Printf("adjusting target by %f pct to %s\n", adjustmentPct, target)
+	fmt.Printf("adjusting target by %f%% to %s\n", adjustmentPct, target)
 	return target
 }

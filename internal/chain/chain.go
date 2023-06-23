@@ -78,7 +78,9 @@ func (c *Chain) Loop() {
 			util.WriteChIfPossible(query.Ret, c.state.GetManyPkhBalances(query.PublicKeyHashes))
 
 		case query := <-c.subs.PkhUtxos.C:
-			util.WriteChIfPossible(query.Ret, c.state.GetManyPkhUtxos(query.PublicKeyHashes))
+			util.WriteChIfPossible(
+				query.Ret, c.state.GetManyPkhUtxos(query.PublicKeyHashes, query.ExcludeMempool),
+			)
 
 		case query := <-c.subs.TxConfirms.C:
 			util.WriteChIfPossible(query.Ret, c.state.GetTxConfirms(query.TxIds))

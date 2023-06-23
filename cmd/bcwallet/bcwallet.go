@@ -164,7 +164,7 @@ var commands = []Command{
 				pkhs = ctx.Config.GetPublicKeyHashes()
 			}
 			// Actually get utxos
-			utxos, err := ctx.Client.GetManyUtxos(pkhs)
+			utxos, err := ctx.Client.GetManyUtxos(pkhs, false)
 			if err != nil {
 				return err
 			}
@@ -201,7 +201,7 @@ var commands = []Command{
 
 			// TODO: Get min block
 			// Get utxo balances
-			utxos, err := ctx.Client.GetManyUtxos(ctx.Config.GetPublicKeyHashes())
+			utxos, err := ctx.Client.GetManyUtxos(ctx.Config.GetPublicKeyHashes(), true)
 			if err != nil {
 				return err
 			}

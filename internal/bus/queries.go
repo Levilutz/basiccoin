@@ -9,9 +9,11 @@ type PkhBalanceQuery struct {
 }
 
 // A query for the current utxos controlled by a PublicKeyHash.
+// Optionally, exclude utxos that are spent by any txs in the mempool.
 type PkhUtxosQuery struct {
 	Ret             chan map[core.Utxo]core.HashT
 	PublicKeyHashes []core.HashT
+	ExcludeMempool  bool
 }
 
 // A query for the number of confirmations for each given tx.

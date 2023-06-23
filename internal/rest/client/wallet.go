@@ -77,29 +77,15 @@ func (c *WalletClient) GetManyBalances(publicKeyHashes []core.HashT) (map[core.H
 	return resp.Balances, nil
 }
 
-// Query the node for the utxos of a given pkh.
-func (c *WalletClient) GetUtxos(publicKeyHash core.HashT) ([]core.Utxo, error) {
-	queryStr := fmt.Sprintf("?publicKeyHash=%s", publicKeyHash)
-	resp, err := GetParse[models.UtxosResp](c.baseUrl + "utxos" + queryStr)
-	if err != nil {
-		return nil, err
-	}
-	out := make([]core.Utxo, len(resp.Utxos))
-	i := 0
-	for utxo, pkh := range resp.Utxos {
-		if pkh != publicKeyHash {
-			return nil, fmt.Errorf("did not receive correct pkh in response")
-		}
-		out[i] = utxo
-		i++
-	}
-	return out, nil
-}
-
 // Query the node for the utxos of multiple given pkhs.
-func (c *WalletClient) GetManyUtxos(publicKeyHashes []core.HashT) (map[core.Utxo]core.HashT, error) {
+func (c *WalletClient) GetManyUtxos(
+	publicKeyHashes []core.HashT, excludeMempool bool,
+) (map[core.Utxo]core.HashT, error) {
 	pkhStrs := core.MarshalHashTSlice(publicKeyHashes)
 	queryStr := fmt.Sprintf("?publicKeyHash=%s", strings.Join(pkhStrs, "&publicKeyHash="))
+	if excludeMempool {
+		queryStr += "&excludeMempool=true"
+	}
 	resp, err := GetParse[models.UtxosResp](c.baseUrl + "utxos" + queryStr)
 	if err != nil {
 		return nil, err

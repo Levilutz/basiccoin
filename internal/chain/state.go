@@ -13,25 +13,42 @@ import (
 // The state of our local blockchain.
 // Should only be accessed by a single thread.
 type State struct {
-	head             core.HashT
-	mempool          *set.Set[core.HashT]
-	utxos            *set.Set[core.Utxo]
-	inv              inv.InvReader
-	mempoolRates     map[core.HashT]float64
-	pkhUtxos         map[core.HashT]*set.Set[core.Utxo]
+	// The head of our current chain
+	head core.HashT
+
+	// The set of txs we have verified but are not included in current chain
+	mempool *set.Set[core.HashT]
+
+	// The set of utxos that haven't been spent at the head of our chain
+	utxos *set.Set[core.Utxo]
+
+	// A reference to our inventory
+	inv inv.InvReader
+
+	// The fee rate for every tx in our mempool
+	mempoolRates map[core.HashT]float64
+
+	// For each utxo spent in the mempool, which mempool txIds spend it
+	mempoolUtxoSpends map[core.Utxo]*set.Set[core.HashT]
+
+	// The set of utxos controlled by each public key hash with a balance
+	pkhUtxos map[core.HashT]*set.Set[core.Utxo]
+
+	// The block id at which each transaction was included
 	includedTxBlocks map[core.HashT]core.HashT
 }
 
 // Create a new empty state at the chain zero block.
 func NewState(inv inv.InvReader) *State {
 	return &State{
-		head:             core.HashT{},
-		mempool:          set.NewSet[core.HashT](),
-		utxos:            set.NewSet[core.Utxo](),
-		inv:              inv,
-		mempoolRates:     make(map[core.HashT]float64),
-		pkhUtxos:         make(map[core.HashT]*set.Set[core.Utxo]),
-		includedTxBlocks: make(map[core.HashT]core.HashT),
+		head:              core.HashT{},
+		mempool:           set.NewSet[core.HashT](),
+		utxos:             set.NewSet[core.Utxo](),
+		inv:               inv,
+		mempoolRates:      make(map[core.HashT]float64),
+		mempoolUtxoSpends: make(map[core.Utxo]*set.Set[core.HashT]),
+		pkhUtxos:          make(map[core.HashT]*set.Set[core.Utxo]),
+		includedTxBlocks:  make(map[core.HashT]core.HashT),
 	}
 }
 
@@ -42,15 +59,21 @@ func (s *State) Copy() *State {
 	for pkh, utxos := range s.pkhUtxos {
 		newPkhUtxos[pkh] = utxos.Copy()
 	}
+	// Must deep copy mempoolUtxoSpends
+	newMempoolUtxoSpends := make(map[core.Utxo]*set.Set[core.HashT], len(s.mempoolUtxoSpends))
+	for utxo, txIds := range s.mempoolUtxoSpends {
+		newMempoolUtxoSpends[utxo] = txIds.Copy()
+	}
 	// Shallow copy everything else
 	return &State{
-		head:             s.head,
-		mempool:          s.mempool.Copy(),
-		utxos:            s.utxos.Copy(),
-		inv:              s.inv,
-		mempoolRates:     util.CopyMap(s.mempoolRates),
-		pkhUtxos:         newPkhUtxos,
-		includedTxBlocks: util.CopyMap(s.includedTxBlocks),
+		head:              s.head,
+		mempool:           s.mempool.Copy(),
+		utxos:             s.utxos.Copy(),
+		inv:               s.inv,
+		mempoolRates:      util.CopyMap(s.mempoolRates),
+		mempoolUtxoSpends: newMempoolUtxoSpends,
+		pkhUtxos:          newPkhUtxos,
+		includedTxBlocks:  util.CopyMap(s.includedTxBlocks),
 	}
 }
 
@@ -67,6 +90,12 @@ func (s *State) Rewind() {
 		// Return tx back to mempool
 		s.mempool.Add(txId)
 		s.mempoolRates[txId] = tx.Rate()
+		for _, utxo := range tx.GetConsumedUtxos() {
+			if _, ok := s.mempoolUtxoSpends[utxo]; !ok {
+				s.mempoolUtxoSpends[utxo] = set.NewSet[core.HashT]()
+			}
+			s.mempoolUtxoSpends[utxo].Add(txId)
+		}
 		// Return the tx inputs
 		for _, utxo := range tx.GetConsumedUtxos() {
 			s.utxos.Add(utxo)
@@ -142,6 +171,18 @@ func (s *State) Advance(nextBlockId core.HashT) error {
 			return fmt.Errorf("state corrupt - missing tx %s", txId)
 		}
 		delete(s.mempoolRates, txId)
+		for _, utxo := range tx.GetConsumedUtxos() {
+			txIds, ok := s.mempoolUtxoSpends[utxo]
+			if !ok {
+				return fmt.Errorf("state corrupt - missing mempool utxo set for %v", utxo)
+			}
+			if !txIds.Remove(txId) {
+				return fmt.Errorf("state corrupt - mempool utxo set missing tx %s", txId)
+			}
+			if txIds.Size() == 0 {
+				delete(s.mempoolUtxoSpends, utxo)
+			}
+		}
 		// Consume the tx inputs
 		for _, utxo := range tx.GetConsumedUtxos() {
 			if !s.utxos.Remove(utxo) {
@@ -216,6 +257,12 @@ func (s *State) AddMempoolTx(txId core.HashT) {
 	tx := s.inv.GetTx(txId)
 	s.mempool.Add(txId)
 	s.mempoolRates[txId] = tx.Rate()
+	for _, utxo := range tx.GetConsumedUtxos() {
+		if _, ok := s.mempoolUtxoSpends[utxo]; !ok {
+			s.mempoolUtxoSpends[utxo] = set.NewSet[core.HashT]()
+		}
+		s.mempoolUtxoSpends[utxo].Add(txId)
+	}
 }
 
 // Add to the utxo set of a public key hash.
@@ -236,19 +283,26 @@ func (s *State) debitBalance(publicKeyHash core.HashT, debit core.Utxo) {
 	utxos.Remove(debit)
 }
 
-// Get the utxos of a public key hash.
-func (s *State) GetPkhUtxos(publicKeyHash core.HashT) []core.Utxo {
+// Get the utxos of a public key hash. Optionally, exclude utxos that are spent in the mempool.
+func (s *State) GetPkhUtxos(publicKeyHash core.HashT, excludeMempool bool) []core.Utxo {
 	utxos, ok := s.pkhUtxos[publicKeyHash]
 	if !ok {
 		return []core.Utxo{}
 	}
+	if excludeMempool {
+		utxos.Filter(func(utxo core.Utxo) bool {
+			_, spentInMempool := s.mempoolUtxoSpends[utxo]
+			return !spentInMempool
+		})
+	}
 	return utxos.ToList()
 }
 
-func (s *State) GetManyPkhUtxos(publicKeyHashes []core.HashT) map[core.Utxo]core.HashT {
+// Get the utxos of public key hashes. Optionally, exclude utxos that are spent in the mempool.
+func (s *State) GetManyPkhUtxos(publicKeyHashes []core.HashT, excludeMempool bool) map[core.Utxo]core.HashT {
 	out := make(map[core.Utxo]core.HashT)
 	for _, pkh := range publicKeyHashes {
-		utxos := s.GetPkhUtxos(pkh)
+		utxos := s.GetPkhUtxos(pkh, excludeMempool)
 		for _, utxo := range utxos {
 			out[utxo] = pkh
 		}

@@ -37,11 +37,12 @@ func (c *BusClient) BalanceQuery(publicKeyHashes []core.HashT) map[core.HashT]ui
 	return <-ret
 }
 
-func (c *BusClient) UtxosQuery(publicKeyHashes []core.HashT) map[core.Utxo]core.HashT {
+func (c *BusClient) UtxosQuery(publicKeyHashes []core.HashT, excludeMempool bool) map[core.Utxo]core.HashT {
 	ret := make(chan map[core.Utxo]core.HashT)
 	c.bus.PkhUtxos.Pub(bus.PkhUtxosQuery{
 		Ret:             ret,
 		PublicKeyHashes: publicKeyHashes,
+		ExcludeMempool:  excludeMempool,
 	})
 	return <-ret
 }
