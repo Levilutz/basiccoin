@@ -1,27 +1,17 @@
 FROM golang:1.20.5-alpine3.18 AS builder
 
-WORKDIR /app
-COPY src ./
+WORKDIR /basiccoin
+COPY cmd ./cmd
+COPY internal ./internal
+COPY pkg ./pkg
+COPY go.mod ./
 
-RUN CGO_ENABLED=0 GOOS=linux go build -o /basiccoin ./fullnode
+RUN echo $(ls -l ./)
+
+RUN CGO_ENABLED=0 GOOS=linux go build -o /bcnode ./cmd/bcnode
 
 FROM alpine:3.18.2 AS main
 
-COPY --from=builder /basiccoin /
+COPY --from=builder /bcnode /
 
-EXPOSE 80
-
-CMD ["/basiccoin"]
-
-FROM golang:1.20.5-alpine3.18 AS cli-builder
-
-WORKDIR /app
-COPY src ./
-
-RUN CGO_ENABLED=0 GOOS=linux go build -o /basiccoin-cli ./cli
-
-FROM alpine:3.18.2 AS cli
-
-COPY --from=cli-builder /basiccoin-cli /
-
-ENTRYPOINT /basiccoin-cli help
+CMD ["/bcnode"]
