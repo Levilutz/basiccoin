@@ -1,9 +1,11 @@
 package main
 
 import (
+	"bufio"
 	"bytes"
 	"encoding/hex"
 	"fmt"
+	"os"
 	"sort"
 	"strconv"
 	"strings"
@@ -216,6 +218,16 @@ var commands = []Command{
 				return err
 			}
 
+			// Ask user for confirmation on the fee rate
+			fee := tx.InputsValue() - tx.OutputsValue()
+			nonChangeOutputs := tx.OutputsValue() - tx.Outputs[0].Value
+			feeRate := 100.0 * float64(fee) / float64(nonChangeOutputs)
+			fmt.Printf("outputs: %d\n", nonChangeOutputs)
+			fmt.Printf("fees: %d (%.2fp)\n", fee, feeRate)
+			if inp := ReadInput("confirm? (y/n): "); inp != "y" && inp != "Y" {
+				return fmt.Errorf("tx cancelled")
+			}
+
 			// Send tx
 			resp, err := ctx.Client.PostTx(*tx)
 			if err != nil {
@@ -230,4 +242,15 @@ var commands = []Command{
 
 func main() {
 	Execute(commands)
+}
+
+// Read a line from stdin, given prompt.
+func ReadInput(prompt string) string {
+	reader := bufio.NewReader(os.Stdin)
+	fmt.Print(prompt)
+	text, err := reader.ReadString('\n')
+	if err != nil {
+		panic(err)
+	}
+	return text[:len(text)-1]
 }
