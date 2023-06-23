@@ -114,6 +114,7 @@ func (pf *PeerFactory) Loop() {
 
 		case event := <-pf.subs.PeerClosing.C:
 			pf.knownPeers.Remove(event.PeerRuntimeId)
+			delete(pf.knownPeerAddrs, event.PeerRuntimeId)
 
 		case event := <-pf.subs.PeersReceived.C:
 			for runtimeId, addr := range event.PeerAddrs {

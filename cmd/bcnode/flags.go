@@ -22,7 +22,7 @@ type Flags struct {
 func ParseFlags() Flags {
 	// Parse from command line
 	dev := flag.Bool("dev", false, "Whether to start the server in dev mode")
-	listen := flag.Bool("listen", true, "Whether to listen for inbound connections")
+	listen := flag.Bool("listen", false, "Whether to listen for inbound connections")
 	localAddr := flag.String("addr", "", "Local address to host from")
 	seedAddr := flag.String("seed", "", "Seed peer")
 	miners := flag.Int("miners", 0, "Number of threads to mine with")

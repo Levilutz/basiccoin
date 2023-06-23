@@ -121,6 +121,9 @@ var commands = []Command{
 			} else {
 				pkhs = ctx.Config.GetPublicKeyHashes()
 			}
+			if len(pkhs) == 0 {
+				return fmt.Errorf("no publicKeyHashes in wallet - run 'bcwallet generate'")
+			}
 			// Actually get balances
 			balances, err := ctx.Client.GetManyBalances(pkhs)
 			if err != nil {
