@@ -37,23 +37,29 @@ func (s *Server) handleWalletGetBalance(w http.ResponseWriter, r *http.Request) 
 }
 
 func (s *Server) handleWalletGetUtxos(w http.ResponseWriter, r *http.Request) {
-	pkhStr, err := getSingleQueryString(w, r, "publicKeyHash")
-	if err != nil {
-		write400(w, err)
+	pkhStrs, ok := r.URL.Query()["publicKeyHash"]
+	if !ok {
+		write400(w, fmt.Errorf("no public key hashes provided"))
 		return
 	}
-	pkh, err := core.NewHashTFromString(pkhStr)
-	if err != nil {
-		write400(w, err)
-		return
+	pkhs := make([]core.HashT, len(pkhStrs))
+	var err error
+	for i, pkhStr := range pkhStrs {
+		pkhs[i], err = core.NewHashTFromString(pkhStr)
+		if err != nil {
+			write400(w, err)
+			return
+		}
 	}
-	utxos := s.busClient.UtxosQuery(pkh)
-	utxosJson, err := json.Marshal(utxos)
+	utxos := s.busClient.UtxosQuery(pkhs)
+	outJson, err := json.Marshal(models.UtxosResp{
+		Utxos: utxos,
+	})
 	if err != nil {
 		write500(w, err)
 		return
 	}
-	w.Write(utxosJson)
+	w.Write(outJson)
 }
 
 func (s *Server) handleWalletPostTx(w http.ResponseWriter, r *http.Request) {

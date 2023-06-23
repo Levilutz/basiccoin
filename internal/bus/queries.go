@@ -10,6 +10,6 @@ type PkhBalanceQuery struct {
 
 // A query for the current utxos controlled by a PublicKeyHash.
 type PkhUtxosQuery struct {
-	Ret           chan []core.Utxo
-	PublicKeyHash core.HashT
+	Ret             chan map[core.Utxo]core.HashT
+	PublicKeyHashes []core.HashT
 }

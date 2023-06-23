@@ -37,11 +37,11 @@ func (c *BusClient) BalanceQuery(publicKeyHashes []core.HashT) map[core.HashT]ui
 	return <-ret
 }
 
-func (c *BusClient) UtxosQuery(publicKeyHash core.HashT) []core.Utxo {
-	ret := make(chan []core.Utxo)
+func (c *BusClient) UtxosQuery(publicKeyHashes []core.HashT) map[core.Utxo]core.HashT {
+	ret := make(chan map[core.Utxo]core.HashT)
 	c.bus.PkhUtxos.Pub(bus.PkhUtxosQuery{
-		Ret:           ret,
-		PublicKeyHash: publicKeyHash,
+		Ret:             ret,
+		PublicKeyHashes: publicKeyHashes,
 	})
 	return <-ret
 }

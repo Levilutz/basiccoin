@@ -220,9 +220,6 @@ func (s *State) AddMempoolTx(txId core.HashT) {
 
 // Add to the utxo set of a public key hash.
 func (s *State) creditBalance(publicKeyHash core.HashT, credit core.Utxo) {
-	if s.pkhUtxos == nil {
-		panic("balance tracking was not enabled")
-	}
 	_, ok := s.pkhUtxos[publicKeyHash]
 	if !ok {
 		s.pkhUtxos[publicKeyHash] = set.NewSet[core.Utxo]()
@@ -232,9 +229,6 @@ func (s *State) creditBalance(publicKeyHash core.HashT, credit core.Utxo) {
 
 // Remove from the utxo set of a public key hash.
 func (s *State) debitBalance(publicKeyHash core.HashT, debit core.Utxo) {
-	if s.pkhUtxos == nil {
-		panic("balance tracking was not enabled")
-	}
 	utxos, ok := s.pkhUtxos[publicKeyHash]
 	if !ok || !s.pkhUtxos[publicKeyHash].Includes(debit) {
 		panic("cannot debit balance, balance does not exist")
@@ -244,9 +238,6 @@ func (s *State) debitBalance(publicKeyHash core.HashT, debit core.Utxo) {
 
 // Get the utxos of a public key hash.
 func (s *State) GetPkhUtxos(publicKeyHash core.HashT) []core.Utxo {
-	if s.pkhUtxos == nil {
-		panic("balance tracking was not enabled")
-	}
 	utxos, ok := s.pkhUtxos[publicKeyHash]
 	if !ok {
 		return []core.Utxo{}
@@ -254,10 +245,18 @@ func (s *State) GetPkhUtxos(publicKeyHash core.HashT) []core.Utxo {
 	return utxos.ToList()
 }
 
-func (s *State) GetPkhBalance(publicKeyHash core.HashT) uint64 {
-	if s.pkhUtxos == nil {
-		panic("balance tracking was not enabled")
+func (s *State) GetManyPkhUtxos(publicKeyHashes []core.HashT) map[core.Utxo]core.HashT {
+	out := make(map[core.Utxo]core.HashT)
+	for _, pkh := range publicKeyHashes {
+		utxos := s.GetPkhUtxos(pkh)
+		for _, utxo := range utxos {
+			out[utxo] = pkh
+		}
 	}
+	return out
+}
+
+func (s *State) GetPkhBalance(publicKeyHash core.HashT) uint64 {
 	utxos, ok := s.pkhUtxos[publicKeyHash]
 	if !ok {
 		return 0
@@ -269,7 +268,7 @@ func (s *State) GetPkhBalance(publicKeyHash core.HashT) uint64 {
 	return total
 }
 
-func (s *State) GetPkhBalances(publicKeyHashes []core.HashT) map[core.HashT]uint64 {
+func (s *State) GetManyPkhBalances(publicKeyHashes []core.HashT) map[core.HashT]uint64 {
 	out := make(map[core.HashT]uint64, len(publicKeyHashes))
 	for _, pkh := range publicKeyHashes {
 		out[pkh] = s.GetPkhBalance(pkh)
