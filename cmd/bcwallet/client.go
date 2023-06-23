@@ -6,8 +6,6 @@ import (
 	"net/http"
 )
 
-const Version = "v0.0.0"
-
 type Client struct {
 	baseUrl string
 	cfg     *Config
@@ -38,11 +36,20 @@ func (c *Client) Check() error {
 	} else if resp.StatusCode != 200 {
 		return fmt.Errorf("version non-2XX response: %d", resp.StatusCode)
 	}
+	vers := getVersion(c.cfg.Dev)
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return err
-	} else if string(body) != Version {
-		return fmt.Errorf("incompatible server version: '%s' != '%s'", string(body), Version)
+	} else if string(body) != vers {
+		return fmt.Errorf("incompatible server version: '%s' != '%s'", string(body), vers)
 	}
 	return nil
+}
+
+func getVersion(dev bool) string {
+	if dev {
+		return "v0.0.0-dev"
+	} else {
+		return "v0.0.0"
+	}
 }

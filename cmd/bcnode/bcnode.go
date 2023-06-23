@@ -34,7 +34,7 @@ func main() {
 	}
 	if flags.HttpAdminEnabled || flags.HttpWalletEnabled {
 		restParams = rest.NewParams(
-			flags.HttpAdminEnabled, flags.HttpWalletEnabled, flags.HttpAdminPw,
+			flags.HttpAdminEnabled, flags.HttpWalletEnabled, flags.HttpAdminPw, flags.Dev,
 		)
 	}
 

@@ -70,12 +70,14 @@ func (kc *KeyConfig) Verify() error {
 }
 
 type Config struct {
+	Dev      bool        `json:"dev"`
 	NodeAddr string      `json:"nodeAddr"`
 	Keys     []KeyConfig `json:"keys"`
 }
 
-func NewConfig(nodeAddr string) *Config {
+func NewConfig(nodeAddr string, dev bool) *Config {
 	return &Config{
+		Dev:      dev,
 		NodeAddr: nodeAddr,
 		Keys:     []KeyConfig{},
 	}
@@ -159,7 +161,7 @@ func GetConfig(path string) *Config {
 	return config
 }
 
-func (c *Config) Save(dev bool) error {
+func (c *Config) Save() error {
 	rawConfig, err := json.MarshalIndent(c, "", "    ")
 	if err != nil {
 		return err
@@ -172,18 +174,18 @@ func (c *Config) Save(dev bool) error {
 	} else if !stat.IsDir() {
 		return fmt.Errorf("config path is not a directory: %s", getConfigDir())
 	}
-	stat, err = os.Stat(getConfigPath(dev))
+	stat, err = os.Stat(getConfigPath(c.Dev))
 	if err == nil && stat.IsDir() {
-		return fmt.Errorf("config file is a directory: %s", getConfigPath(dev))
+		return fmt.Errorf("config file is a directory: %s", getConfigPath(c.Dev))
 	}
 
-	return os.WriteFile(getConfigPath(dev), rawConfig, 0600)
+	return os.WriteFile(getConfigPath(c.Dev), rawConfig, 0600)
 }
 
 func EnsureConfig(dev bool) {
 	_, err := os.ReadFile(getConfigPath(dev))
 	if os.IsNotExist(err) {
-		err = NewConfig(getDefaultServer(dev)).Save(dev)
+		err = NewConfig(getDefaultServer(dev), dev).Save()
 	}
 	if err != nil {
 		panic("failed to save config: " + err.Error())

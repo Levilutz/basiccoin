@@ -18,12 +18,20 @@ type Params struct {
 	Version string
 }
 
-func NewParams(enableAdmin bool, enableWallet bool, password string) Params {
+func getVersion(dev bool) string {
+	if dev {
+		return "v0.0.0-dev"
+	} else {
+		return "v0.0.0"
+	}
+}
+
+func NewParams(enableAdmin bool, enableWallet bool, password string, dev bool) Params {
 	return Params{
 		Port:         8080,
 		EnableAdmin:  enableAdmin,
 		EnableWallet: enableWallet,
 		Password:     password,
-		Version:      "v0.0.0",
+		Version:      getVersion(dev),
 	}
 }
