@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/hex"
 	"fmt"
+	"sort"
 
 	"github.com/levilutz/basiccoin/pkg/core"
 )
@@ -95,6 +96,48 @@ var commands = []Command{
 			ctx.Config.AddKeys(kc)
 			fmt.Println(kc.PublicKeyHash)
 			return ctx.Config.Save()
+		},
+	},
+	{
+		Name:           "balance",
+		HelpText:       "Get the total balance of our public key hashes, or given public key hashes",
+		ArgsUsage:      "(publicKeyHash...)",
+		RequiredArgs:   0,
+		RequiresClient: true,
+		Handler: func(ctx *HandlerContext) error {
+			var pkhs []core.HashT
+			if len(ctx.Args) > 0 {
+				pkhs = make([]core.HashT, len(ctx.Args))
+				for i, arg := range ctx.Args {
+					pkh, err := core.NewHashTFromString(arg)
+					if err != nil {
+						return err
+					}
+					pkhs[i] = pkh
+				}
+			} else {
+				pkhs = ctx.Config.GetPublicKeyHashes()
+			}
+			// Actually get balances
+			balances := make(map[core.HashT]uint64, len(pkhs))
+			total := uint64(0)
+			for _, pkh := range pkhs {
+				bal, err := ctx.Client.GetBalance(pkh)
+				if err != nil {
+					return err
+				}
+				balances[pkh] = bal
+				total += bal
+			}
+			sort.Slice(pkhs, func(i, j int) bool {
+				// > instead of < becaues we want descending
+				return balances[pkhs[i]] > balances[pkhs[j]]
+			})
+			for _, pkh := range pkhs {
+				fmt.Printf("%s\t%d\n", pkh, balances[pkh])
+			}
+			fmt.Printf("\ntotal\t%d\n", total)
+			return nil
 		},
 	},
 }
