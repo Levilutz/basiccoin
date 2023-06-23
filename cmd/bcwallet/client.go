@@ -10,6 +10,7 @@ import (
 )
 
 type Client struct {
+	rawUrl  string
 	baseUrl string
 	cfg     *Config
 }
@@ -18,14 +19,13 @@ func NewClient(cfg *Config) (*Client, error) {
 	if len(cfg.NodeAddr) == 0 {
 		return nil, fmt.Errorf("must provide client address")
 	}
-	baseUrl := cfg.NodeAddr
-	if baseUrl[len(baseUrl)-1:] != "/" {
-		baseUrl += "/wallet/"
-	} else {
-		baseUrl += "wallet/"
+	rawUrl := cfg.NodeAddr
+	if rawUrl[len(rawUrl)-1:] != "/" {
+		rawUrl += "/"
 	}
 	c := &Client{
-		baseUrl: baseUrl,
+		rawUrl:  rawUrl,
+		baseUrl: rawUrl + "wallet/",
 		cfg:     cfg,
 	}
 	if err := c.Check(); err != nil {
@@ -35,7 +35,7 @@ func NewClient(cfg *Config) (*Client, error) {
 }
 
 func (c *Client) Check() error {
-	resp, err := http.Get(c.baseUrl + "version")
+	resp, err := http.Get(c.rawUrl + "version")
 	if err != nil {
 		return err
 	} else if resp.StatusCode != 200 {
