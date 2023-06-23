@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 
 	"github.com/levilutz/basiccoin/internal/rest/models"
 	"github.com/levilutz/basiccoin/pkg/core"
@@ -77,15 +78,26 @@ func (c *WalletClient) GetBalance(publicKeyHash core.HashT) (uint64, error) {
 
 // Query the node for the balances of several pkhs.
 func (c *WalletClient) GetManyBalances(publicKeyHashes []core.HashT) (map[core.HashT]uint64, error) {
-	balances := make(map[core.HashT]uint64, len(publicKeyHashes))
-	for _, pkh := range publicKeyHashes {
-		bal, err := c.GetBalance(pkh)
-		if err != nil {
-			return nil, err
-		}
-		balances[pkh] = bal
+	pkhStrs := make([]string, len(publicKeyHashes))
+	for i, pkh := range publicKeyHashes {
+		pkhStrs[i] = pkh.String()
 	}
-	return balances, nil
+	queryStr := fmt.Sprintf("?publicKeyHash=%s", strings.Join(pkhStrs, "&publicKeyHash="))
+	resp, err := http.Get(c.baseUrl + "balance" + queryStr)
+	if err != nil {
+		return nil, err
+	} else if resp.StatusCode != 200 {
+		return nil, fmt.Errorf("balance non-2XX response: %d", resp.StatusCode)
+	}
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	var parsed models.BalanceResp
+	if err = json.Unmarshal(body, &parsed); err != nil {
+		return nil, err
+	}
+	return parsed.Balances, nil
 }
 
 // Query the node for the utxos of a given pkh.
