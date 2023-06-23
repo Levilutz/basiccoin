@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/levilutz/basiccoin/internal/rest/models"
@@ -52,6 +53,21 @@ func (c *WalletClient) Check() error {
 		return fmt.Errorf("incompatible server version: '%s' != '%s'", string(body), c.version)
 	}
 	return nil
+}
+
+// Query the node for the current head height.
+func (c *WalletClient) GetHeadHeight() (uint64, error) {
+	resp, err := http.Get(c.baseUrl + "/head/height")
+	if err != nil {
+		return 0, err
+	} else if resp.StatusCode != 200 {
+		return 0, fmt.Errorf("/head/height received non-2XX response: %d", resp.StatusCode)
+	}
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return 0, err
+	}
+	return strconv.ParseUint(string(body), 10, 64)
 }
 
 // Query the node for the balance of a given pkh.

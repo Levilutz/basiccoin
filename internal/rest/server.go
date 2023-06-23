@@ -39,6 +39,10 @@ func (s *Server) Start() {
 	}
 
 	if s.params.EnableWallet {
+		s.mountHandlers(false, walletPrefix+"/head/height", map[string]HttpHandler{
+			"GET": s.handleWalletGetHeadHeight,
+		})
+
 		s.mountHandlers(false, walletPrefix+"/balance", map[string]HttpHandler{
 			"GET": s.handleWalletGetBalance,
 		})

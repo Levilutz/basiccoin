@@ -17,6 +17,7 @@ type subscriptions struct {
 	CandidateTx   *topic.SubCh[bus.CandidateTxEvent]
 	PrintUpdate   *topic.SubCh[bus.PrintUpdateEvent]
 	// Queries
+	HeadHeight *topic.SubCh[bus.HeadHeightQuery]
 	PkhBalance *topic.SubCh[bus.PkhBalanceQuery]
 	PkhUtxos   *topic.SubCh[bus.PkhUtxosQuery]
 	TxConfirms *topic.SubCh[bus.TxConfirmsQuery]
@@ -37,6 +38,7 @@ func NewChain(msgBus *bus.Bus, inv *inv.Inv, supportMiners bool) *Chain {
 		CandidateHead: msgBus.CandidateHead.SubCh(),
 		CandidateTx:   msgBus.CandidateTx.SubCh(),
 		PrintUpdate:   msgBus.PrintUpdate.SubCh(),
+		HeadHeight:    msgBus.HeadHeight.SubCh(),
 		PkhBalance:    msgBus.PkhBalance.SubCh(),
 		PkhUtxos:      msgBus.PkhUtxos.SubCh(),
 		TxConfirms:    msgBus.TxConfirms.SubCh(),
@@ -73,6 +75,9 @@ func (c *Chain) Loop() {
 
 		case <-c.subs.PrintUpdate.C:
 			fmt.Printf("chain height: %d\n", c.inv.GetBlockHeight(c.state.head))
+
+		case query := <-c.subs.HeadHeight.C:
+			util.WriteChIfPossible(query.Ret, c.inv.GetBlockHeight(c.state.head))
 
 		case query := <-c.subs.PkhBalance.C:
 			util.WriteChIfPossible(query.Ret, c.state.GetManyPkhBalances(query.PublicKeyHashes))

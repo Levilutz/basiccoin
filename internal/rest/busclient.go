@@ -28,6 +28,14 @@ func (c *BusClient) TerminateCommand() {
 	c.bus.Terminate.Pub(bus.TerminateCommand{})
 }
 
+func (c *BusClient) HeadHeightQuery() uint64 {
+	ret := make(chan uint64)
+	c.bus.HeadHeight.Pub(bus.HeadHeightQuery{
+		Ret: ret,
+	})
+	return <-ret
+}
+
 func (c *BusClient) BalanceQuery(publicKeyHashes []core.HashT) map[core.HashT]uint64 {
 	ret := make(chan map[core.HashT]uint64)
 	c.bus.PkhBalance.Pub(bus.PkhBalanceQuery{

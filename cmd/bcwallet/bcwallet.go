@@ -199,7 +199,12 @@ var commands = []Command{
 				dests[pkh] = val
 			}
 
-			// TODO: Get min block
+			// Get current head height / min block
+			minBlock, err := ctx.Client.GetHeadHeight()
+			if err != nil {
+				return err
+			}
+
 			// Get utxo balances
 			utxos, err := ctx.Client.GetManyUtxos(ctx.Config.GetPublicKeyHashes(), true)
 			if err != nil {
@@ -213,7 +218,7 @@ var commands = []Command{
 				utxos,
 				dests,
 				float64(1.0),
-				0,
+				minBlock,
 			)
 			if err != nil {
 				return err

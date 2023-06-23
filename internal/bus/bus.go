@@ -21,6 +21,7 @@ type Bus struct {
 	// Commands
 	Terminate *topic.Topic[TerminateCommand]
 	// Queries
+	HeadHeight *topic.Topic[HeadHeightQuery]
 	PkhBalance *topic.Topic[PkhBalanceQuery]
 	PkhUtxos   *topic.Topic[PkhUtxosQuery]
 	TxConfirms *topic.Topic[TxConfirmsQuery]
@@ -45,6 +46,7 @@ func NewBus() *Bus {
 		// Commands
 		Terminate: topic.NewTopic[TerminateCommand](),
 		// Queries
+		HeadHeight: topic.NewTopic[HeadHeightQuery](),
 		PkhBalance: topic.NewTopic[PkhBalanceQuery](),
 		PkhUtxos:   topic.NewTopic[PkhUtxosQuery](),
 		TxConfirms: topic.NewTopic[TxConfirmsQuery](),

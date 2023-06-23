@@ -5,11 +5,17 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/levilutz/basiccoin/internal/rest/models"
 	"github.com/levilutz/basiccoin/pkg/core"
 )
+
+func (s *Server) handleWalletGetHeadHeight(w http.ResponseWriter, r *http.Request) {
+	headHeight := s.busClient.HeadHeightQuery()
+	io.WriteString(w, strconv.FormatUint(headHeight, 10))
+}
 
 func (s *Server) handleWalletGetBalance(w http.ResponseWriter, r *http.Request) {
 	pkhStrs, ok := r.URL.Query()["publicKeyHash"]
