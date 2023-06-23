@@ -101,7 +101,7 @@ var commands = []Command{
 	},
 	{
 		Name:           "balance",
-		HelpText:       "Get the total balance of our public key hashes, or given public key hashes",
+		HelpText:       "Get the total balance of our public key hashes, or given public key hashes.",
 		ArgsUsage:      "(publicKeyHash...)",
 		RequiredArgs:   0,
 		RequiresClient: true,
@@ -138,6 +138,37 @@ var commands = []Command{
 				}
 			}
 			fmt.Printf("\ntotal\t%d\n", total)
+			return nil
+		},
+	},
+	{
+		Name:           "utxos",
+		HelpText:       "Get the combined utxos of our public key hashes, or given public key hashes.",
+		ArgsUsage:      "(publicKeyHash...)",
+		RequiredArgs:   0,
+		RequiresClient: true,
+		Handler: func(ctx *HandlerContext) error {
+			var pkhs []core.HashT
+			if len(ctx.Args) > 0 {
+				pkhs = make([]core.HashT, len(ctx.Args))
+				for i, arg := range ctx.Args {
+					pkh, err := core.NewHashTFromString(arg)
+					if err != nil {
+						return err
+					}
+					pkhs[i] = pkh
+				}
+			} else {
+				pkhs = ctx.Config.GetPublicKeyHashes()
+			}
+			// Actually get utxos
+			utxos, err := ctx.Client.GetManyUtxos(pkhs)
+			if err != nil {
+				return err
+			}
+			for utxo := range utxos {
+				fmt.Printf("%s[%d]\t%d\n", utxo.TxId, utxo.Ind, utxo.Value)
+			}
 			return nil
 		},
 	},
