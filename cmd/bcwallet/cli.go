@@ -9,15 +9,17 @@ import (
 type HandlerContext struct {
 	Args   []string
 	Config *Config
+	Client *Client
 }
 
 // A single command with its help, requirements, and handlerr function.
 type Command struct {
-	Name         string
-	HelpText     string
-	ArgsUsage    string
-	RequiredArgs int
-	Handler      func(ctx *HandlerContext) error
+	Name           string
+	HelpText       string
+	ArgsUsage      string
+	RequiredArgs   int
+	RequiresClient bool
+	Handler        func(ctx *HandlerContext) error
 }
 
 // Create the general usage text string.
@@ -55,6 +57,17 @@ func Execute(commands []Command) {
 	cfg := GetConfig(getConfigPath(dev))
 	cfg.VerifyKeys()
 
+	// Make a client from the config
+	var client *Client = nil
+	if cfg.NodeAddr != "" {
+		tryClient, err := NewClient(cfg)
+		if err != nil {
+			fmt.Println(yellowStr("failed to connect to configured node: " + err.Error()))
+		} else {
+			client = tryClient
+		}
+	}
+
 	// Show general help message if wanted
 	if command == "help" {
 		printGeneralHelp(commands)
@@ -82,10 +95,18 @@ func Execute(commands []Command) {
 		return
 	}
 
+	// Verify client connected if required
+	if client == nil && cmd.RequiresClient {
+		fmt.Println(yellowStr("command requires valid node connection"))
+		fmt.Println(yellowStr("run 'bcwallet connect' to set up"))
+		return
+	}
+
 	// Run the command
 	err := cmd.Handler(&HandlerContext{
 		Args:   cmdArgs,
 		Config: cfg,
+		Client: client,
 	})
 	if err != nil {
 		fmt.Println(redStr(err.Error()))
