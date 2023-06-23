@@ -28,11 +28,11 @@ func (c *BusClient) TerminateCommand() {
 	c.bus.Terminate.Pub(bus.TerminateCommand{})
 }
 
-func (c *BusClient) BalanceQuery(publicKeyHash core.HashT) uint64 {
-	ret := make(chan uint64)
+func (c *BusClient) BalanceQuery(publicKeyHashes []core.HashT) map[core.HashT]uint64 {
+	ret := make(chan map[core.HashT]uint64)
 	c.bus.PkhBalance.Pub(bus.PkhBalanceQuery{
-		Ret:           ret,
-		PublicKeyHash: publicKeyHash,
+		Ret:             ret,
+		PublicKeyHashes: publicKeyHashes,
 	})
 	return <-ret
 }

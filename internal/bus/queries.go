@@ -4,8 +4,8 @@ import "github.com/levilutz/basiccoin/pkg/core"
 
 // A query for the balance of a PublicKeyHash.
 type PkhBalanceQuery struct {
-	Ret           chan uint64
-	PublicKeyHash core.HashT
+	Ret             chan map[core.HashT]uint64
+	PublicKeyHashes []core.HashT
 }
 
 // A query for the current utxos controlled by a PublicKeyHash.

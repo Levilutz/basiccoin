@@ -73,7 +73,7 @@ func (c *Chain) Loop() {
 			fmt.Printf("chain height: %d\n", c.inv.GetBlockHeight(c.state.head))
 
 		case query := <-c.subs.PkhBalance.C:
-			util.WriteChIfPossible(query.Ret, c.state.GetPkhBalance(query.PublicKeyHash))
+			util.WriteChIfPossible(query.Ret, c.state.GetPkhBalances(query.PublicKeyHashes))
 
 		case query := <-c.subs.PkhUtxos.C:
 			util.WriteChIfPossible(query.Ret, c.state.GetPkhUtxos(query.PublicKeyHash))

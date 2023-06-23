@@ -269,6 +269,14 @@ func (s *State) GetPkhBalance(publicKeyHash core.HashT) uint64 {
 	return total
 }
 
+func (s *State) GetPkhBalances(publicKeyHashes []core.HashT) map[core.HashT]uint64 {
+	out := make(map[core.HashT]uint64, len(publicKeyHashes))
+	for _, pkh := range publicKeyHashes {
+		out[pkh] = s.GetPkhBalance(pkh)
+	}
+	return out
+}
+
 func (s *State) GetIncludedTxBlock(txId core.HashT) (core.HashT, bool) {
 	blockId, ok := s.includedTxBlocks[txId]
 	return blockId, ok

@@ -152,6 +152,28 @@ func (h HashT) MinNextTarget() HashT {
 	return NewHashTFromBigInt(hInt)
 }
 
+// Convert a HashT->K map to a string->K map.
+func MarshalHashTMap[K any](in map[HashT]K) map[string]K {
+	out := make(map[string]K, len(in))
+	for k, v := range in {
+		out[k.String()] = v
+	}
+	return out
+}
+
+// Convert a string->K map to a HashT->K map, if possible.
+func UnmarshalHashTMap[K any](in map[string]K) (map[HashT]K, error) {
+	out := make(map[HashT]K, len(in))
+	for k, v := range in {
+		hash, err := NewHashTFromString(k)
+		if err != nil {
+			return nil, err
+		}
+		out[hash] = v
+	}
+	return out, nil
+}
+
 // Convert the given list of targets to an amount of total work to reach them all.
 func TargetsToTotalWork(targets []HashT) *big.Int {
 	total := &big.Int{}

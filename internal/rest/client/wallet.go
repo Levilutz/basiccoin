@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"strconv"
 
+	"github.com/levilutz/basiccoin/internal/rest/models"
 	"github.com/levilutz/basiccoin/pkg/core"
 	"github.com/levilutz/basiccoin/pkg/set"
 )
@@ -66,7 +66,13 @@ func (c *WalletClient) GetBalance(publicKeyHash core.HashT) (uint64, error) {
 	if err != nil {
 		return 0, err
 	}
-	return strconv.ParseUint(string(body), 10, 64)
+	var parsed models.BalanceResp
+	if err = json.Unmarshal(body, &parsed); err != nil {
+		return 0, err
+	} else if _, ok := parsed.Balances[publicKeyHash]; !ok {
+		return 0, fmt.Errorf("did not receive correct pkhs in response")
+	}
+	return parsed.Balances[publicKeyHash], nil
 }
 
 // Query the node for the balances of several pkhs.
