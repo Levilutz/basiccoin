@@ -131,11 +131,7 @@ func (c *Chain) handleCandidateHead(event bus.CandidateHeadEvent) error {
 	newWork := c.inv.GetBlockTotalWork(event.Head)
 	curWork := c.inv.GetBlockTotalWork(curHead)
 	if !curWork.Lt(newWork) {
-		return fmt.Errorf(
-			"new chain is not higher total work than current chain: %s <= %s",
-			newWork,
-			curWork,
-		)
+		return fmt.Errorf("new chain is not higher total work than current chain")
 	}
 	// Find common ancestor of our chain heads
 	lcaId := c.inv.GetBlockLCA(curHead, event.Head)
