@@ -96,7 +96,11 @@ func (s *SubCh[T]) Close() {
 		done.Store(true)
 	}()
 	for !done.Load() {
-		<-s.C
+		select {
+		case <-s.C:
+		default:
+			time.Sleep(time.Microsecond * 25)
+		}
 	}
 	close(s.C)
 	s.subQueue.Close()
