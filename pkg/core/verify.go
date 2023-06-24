@@ -154,7 +154,7 @@ func (v Verifier) VerifyBlock(b Block) error {
 
 	// Verify block mined time is above median of previous 5 (if not the first)
 	if !b.PrevBlockId.EqZero() {
-		// Get last 11 blocks, dropping the zero block if appropriate
+		// Get last 5 blocks, dropping the zero block if appropriate
 		ancestorIds := []HashT{b.PrevBlockId}
 		ancestorIds = append(ancestorIds, v.inv.GetBlockAncestors(b.PrevBlockId, 4)...)
 		if ancestorIds[len(ancestorIds)-1].EqZero() {
