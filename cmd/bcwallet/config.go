@@ -152,7 +152,7 @@ func getDefaultServer(dev bool) string {
 	if dev {
 		return "http://localhost:8080"
 	} else {
-		return "http://coin.levilutz.com:80"
+		return "http://coin1.levilutz.com:80"
 	}
 }
 
