@@ -14,6 +14,7 @@ services:
     command:
       - "/bcnode"
       - "--dev"
+      - "--listen=true"
       - "--addr=node1:21720"
       - "--miners=1"
       - "--payout=eeeeeed6bdacc4d88f6e07ba9070a3bcc1d1648cb8393ecb47bbe02235e48a5a"
@@ -26,7 +27,8 @@ services:
     command:
       - "/bcnode"
       - "--dev"
-      - "--seed=node1:21720"
+      - "--listen=true"
+      - "--seeds=node1:21720"
       - "--miners=1"
       - "--payout=1111116d16df90d775cc31093d9e6f55bdbb7373b77b7d2178d78eb0a6760e20"
     
@@ -35,4 +37,5 @@ services:
     command:
       - "/bcnode"
       - "--dev"
-      - "--seed=node1:21720"
+      - "--listen=true"
+      - "--seeds=node1:21720,node2:21720"

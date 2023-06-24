@@ -42,7 +42,7 @@ type PeerFactory struct {
 	knownPeers     *set.Set[string]
 	knownPeerAddrs map[string]string // Not all knownPeers appear here
 	listenStarted  atomic.Bool
-	seedAddr       string
+	seedAddrs      []string
 	curHead        core.HashT
 }
 
@@ -65,36 +65,47 @@ func NewPeerFactory(params Params, msgBus *bus.Bus, inv inv.InvReader) *PeerFact
 		newAddrs:       syncqueue.NewSyncQueue[string](),
 		knownPeers:     set.NewSet[string](),
 		knownPeerAddrs: make(map[string]string),
-		seedAddr:       "",
+		seedAddrs:      make([]string, 0),
 		curHead:        core.HashT{},
 	}
 }
 
 // Set our seed peer. Must run before Loop.
-func (pf *PeerFactory) SetSeed(seedAddr string) {
-	pf.seedAddr = seedAddr
+func (pf *PeerFactory) SetSeeds(seedAddrs []string) {
+	pf.seedAddrs = seedAddrs
 }
 
 // Start the peer factory's loop.
 func (pf *PeerFactory) Loop() {
 	go pf.tryNewAddrs()
 
-	// Connect to seed peer
-	if pf.seedAddr != "" {
+	// Try alternating connections to each seed peer until we get success
+	if len(pf.seedAddrs) > 0 {
+		// Try to connect to any of the seed peers
 		numTries := 15
 		for i := 0; i < numTries; i++ {
-			conn, err := pf.tryConn(pf.seedAddr)
-			if err == nil {
-				pf.newConns <- conn
+			found := false
+			for _, seedAddr := range pf.seedAddrs {
+				conn, err := pf.tryConn(seedAddr)
+				if err == nil {
+					pf.newConns <- conn
+					found = true
+					fmt.Println("successfully connected to seed peer")
+					break
+				} else {
+					fmt.Printf("failed to connect to seed peer: %s\n", err.Error())
+				}
+			}
+			if found {
 				break
-			} else {
-				fmt.Printf("failed to connect to seed peer: %s\n", err.Error())
 			}
 			if i == numTries-1 {
 				panic(fmt.Sprintf("failed to reach seed peer after %d tries", numTries))
 			}
 			time.Sleep(time.Second)
 		}
+		// Queue the addrs so we can connect to the other seeds anyway
+		pf.newAddrs.Push(pf.seedAddrs...)
 	}
 
 	// Start listener if desired

@@ -59,8 +59,8 @@ func main() {
 	}
 
 	// Set seed peer
-	if flags.SeedAddr != "" {
-		peerFactory.SetSeed(flags.SeedAddr)
+	if len(flags.SeedAddrs) > 0 {
+		peerFactory.SetSeeds(flags.SeedAddrs)
 	}
 
 	// Start app components (order matters)
