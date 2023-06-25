@@ -40,7 +40,10 @@ func (c *Conn) ReadBlock(expectId core.HashT) core.Block {
 		Nonce:       c.ReadUint64(),
 		MinedTime:   c.ReadUint64(),
 	}
-	if block.Hash() != expectId {
+	if c.err != nil {
+		return core.Block{}
+	} else if block.Hash() != expectId {
+		fmt.Printf("RECEIVED: %v\n", block)
 		c.err = fmt.Errorf(
 			"block does not match expected id: %s != %s", block.Hash(), expectId,
 		)
@@ -71,7 +74,9 @@ func (c *Conn) ReadMerkle(expectId core.HashT) core.MerkleNode {
 		LChild: c.ReadHashT(),
 		RChild: c.ReadHashT(),
 	}
-	if merkle.Hash() != expectId {
+	if c.err != nil {
+		return core.MerkleNode{}
+	} else if merkle.Hash() != expectId {
 		c.err = fmt.Errorf(
 			"merkle does not match expected id: %s != %s", merkle.Hash(), expectId,
 		)
@@ -120,7 +125,9 @@ func (c *Conn) ReadTx(expectId core.HashT) core.Tx {
 			PublicKeyHash: c.ReadHashT(),
 		}
 	}
-	if tx.Hash() != expectId {
+	if c.err != nil {
+		return core.Tx{}
+	} else if tx.Hash() != expectId {
 		c.err = fmt.Errorf(
 			"tx does not match expected id: %s != %s", tx.Hash(), expectId,
 		)
