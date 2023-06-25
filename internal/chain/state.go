@@ -350,3 +350,17 @@ func (s *State) GetTxConfirms(txIds []core.HashT) map[core.HashT]uint64 {
 	}
 	return out
 }
+
+func (s *State) GetTxIncludedBlock(txIds []core.HashT) map[core.HashT]core.HashT {
+	out := make(map[core.HashT]core.HashT)
+	for _, txId := range txIds {
+		if !s.inv.HasTx(txId) {
+			continue
+		}
+		blockId, ok := s.includedTxBlocks[txId]
+		if ok {
+			out[txId] = blockId
+		}
+	}
+	return out
+}

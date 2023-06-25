@@ -145,3 +145,47 @@ func (c *WalletClient) GetTxConfirms(txIds []core.HashT) (map[core.HashT]uint64,
 	}
 	return resp.Confirms, nil
 }
+
+// Get tx confirmations.
+func (c *WalletClient) GetTxIncludedBlock(txIds []core.HashT) (map[core.HashT]core.HashT, error) {
+	txIdStrs := core.MarshalHashTSlice(txIds)
+	queryStr := fmt.Sprintf("?txId=%s", strings.Join(txIdStrs, "&txId="))
+	resp, err := GetParse[models.TxIncludedBlockResp](c.baseUrl + "tx/block" + queryStr)
+	if err != nil {
+		return nil, err
+	}
+	return resp.IncludedBlocks, nil
+}
+
+// Get tx data.
+func (c *WalletClient) GetTx(txIds []core.HashT) (map[core.HashT]core.Tx, error) {
+	txIdStrs := core.MarshalHashTSlice(txIds)
+	queryStr := fmt.Sprintf("?txId=%s", strings.Join(txIdStrs, "&txId="))
+	resp, err := GetParse[models.GetTxResp](c.baseUrl + "tx" + queryStr)
+	if err != nil {
+		return nil, err
+	}
+	return resp.Txs, nil
+}
+
+// Get merkle data.
+func (c *WalletClient) GetMerkle(merkleIds []core.HashT) (map[core.HashT]core.MerkleNode, error) {
+	merkleIdStrs := core.MarshalHashTSlice(merkleIds)
+	queryStr := fmt.Sprintf("?merkleId=%s", strings.Join(merkleIdStrs, "&merkleId="))
+	resp, err := GetParse[models.GetMerkleResp](c.baseUrl + "merkle" + queryStr)
+	if err != nil {
+		return nil, err
+	}
+	return resp.Merkles, nil
+}
+
+// Get block data.
+func (c *WalletClient) GetBlock(blockIds []core.HashT) (map[core.HashT]core.Block, error) {
+	blockIdStrs := core.MarshalHashTSlice(blockIds)
+	queryStr := fmt.Sprintf("?blockId=%s", strings.Join(blockIdStrs, "&blockId="))
+	resp, err := GetParse[models.GetBlockResp](c.baseUrl + "block" + queryStr)
+	if err != nil {
+		return nil, err
+	}
+	return resp.Blocks, nil
+}

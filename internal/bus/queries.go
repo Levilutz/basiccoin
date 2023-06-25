@@ -27,3 +27,9 @@ type TxConfirmsQuery struct {
 	Ret   chan map[core.HashT]uint64
 	TxIds []core.HashT
 }
+
+// A query for the block id a tx was included in, for each given tx.
+type TxIncludedBlockQuery struct {
+	Ret   chan map[core.HashT]core.HashT
+	TxIds []core.HashT
+}

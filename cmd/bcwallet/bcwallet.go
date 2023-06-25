@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"os"
 	"sort"
@@ -330,6 +331,129 @@ var commands = []Command{
 				if _, ok := confirms[txId]; !ok {
 					uhOh := redStr("not known")
 					fmt.Printf("%s\t%s\n", txId, uhOh)
+				}
+			}
+			return nil
+		},
+	},
+	{
+		Name:           "tx-blocks",
+		HelpText:       "Get the block each of the given tx ids was included in.",
+		ArgsUsage:      "(txId...)",
+		RequiredArgs:   1,
+		RequiresClient: true,
+		Handler: func(ctx *HandlerContext) error {
+			txIds, err := core.UnmarshalHashTSlice(ctx.Args)
+			if err != nil {
+				return err
+			}
+			includedBlocks, err := ctx.Client.GetTxIncludedBlock(txIds)
+			if err != nil {
+				return err
+			}
+			for txId, blockId := range includedBlocks {
+				fmt.Printf("%s\t%s\n", txId, greenStr(fmt.Sprint(blockId)))
+			}
+			for _, txId := range txIds {
+				if _, ok := includedBlocks[txId]; !ok {
+					uhOh := redStr("not included")
+					fmt.Printf("%s\t%s\n", txId, uhOh)
+				}
+			}
+			return nil
+		},
+	},
+	{
+		Name:           "get-tx",
+		HelpText:       "Get the data for the given txs.",
+		ArgsUsage:      "(txId...)",
+		RequiredArgs:   1,
+		RequiresClient: true,
+		Handler: func(ctx *HandlerContext) error {
+			txIds, err := core.UnmarshalHashTSlice(ctx.Args)
+			if err != nil {
+				return err
+			}
+			txs, err := ctx.Client.GetTx(txIds)
+			if err != nil {
+				return err
+			}
+			for txId, tx := range txs {
+				fmt.Printf("%s:\n", greenStr(fmt.Sprint(txId)))
+				out, err := json.MarshalIndent(tx, "", "    ")
+				if err != nil {
+					panic(err)
+				}
+				fmt.Println(string(out))
+			}
+			for _, txId := range txIds {
+				if _, ok := txs[txId]; !ok {
+					uhOh := redStr("not known")
+					fmt.Printf("%s\t%s\n", txId, uhOh)
+				}
+			}
+			return nil
+		},
+	},
+	{
+		Name:           "get-merkle",
+		HelpText:       "Get the data for the given merkles.",
+		ArgsUsage:      "(merkleId...)",
+		RequiredArgs:   1,
+		RequiresClient: true,
+		Handler: func(ctx *HandlerContext) error {
+			merkleIds, err := core.UnmarshalHashTSlice(ctx.Args)
+			if err != nil {
+				return err
+			}
+			merkles, err := ctx.Client.GetMerkle(merkleIds)
+			if err != nil {
+				return err
+			}
+			for merkleId, merkle := range merkles {
+				fmt.Printf("%s:\n", greenStr(fmt.Sprint(merkleId)))
+				out, err := json.MarshalIndent(merkle, "", "    ")
+				if err != nil {
+					panic(err)
+				}
+				fmt.Println(string(out))
+			}
+			for _, merkleId := range merkleIds {
+				if _, ok := merkles[merkleId]; !ok {
+					uhOh := redStr("not known")
+					fmt.Printf("%s\t%s\n", merkleId, uhOh)
+				}
+			}
+			return nil
+		},
+	},
+	{
+		Name:           "get-block",
+		HelpText:       "Get the data for the given blocks.",
+		ArgsUsage:      "(blockId...)",
+		RequiredArgs:   1,
+		RequiresClient: true,
+		Handler: func(ctx *HandlerContext) error {
+			blockIds, err := core.UnmarshalHashTSlice(ctx.Args)
+			if err != nil {
+				return err
+			}
+			blocks, err := ctx.Client.GetBlock(blockIds)
+			if err != nil {
+				return err
+			}
+			for blockId, block := range blocks {
+				fmt.Printf("%s:\n", greenStr(fmt.Sprint(blockId)))
+				out, err := json.MarshalIndent(block, "", "    ")
+				if err != nil {
+					panic(err)
+				}
+				fmt.Println(string(out))
+			}
+			for _, blockId := range blockIds {
+				if _, ok := blocks[blockId]; !ok {
+					uhOh := redStr("not known")
+					fmt.Printf("%s\t%s\n", blockId, uhOh)
 				}
 			}
 			return nil

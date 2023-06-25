@@ -55,7 +55,7 @@ func main() {
 	}
 	var restServer *rest.Server
 	if flags.HttpAdminEnabled || flags.HttpWalletEnabled {
-		restServer = rest.NewServer(restParams, msgBus)
+		restServer = rest.NewServer(restParams, msgBus, inv)
 	}
 
 	// Set seed peer

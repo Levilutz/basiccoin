@@ -103,3 +103,115 @@ func (r *TxConfirmsResp) UnmarshalJSON(data []byte) error {
 	r.Confirms = confirms
 	return nil
 }
+
+type TxIncludedBlockResp struct {
+	IncludedBlocks map[core.HashT]core.HashT
+}
+
+type txIncludedBlockRespJSON struct {
+	IncludedBlocks map[string]core.HashT `json:"includedBlocks"`
+}
+
+func (r TxIncludedBlockResp) MarshalJSON() ([]byte, error) {
+	return json.Marshal(txIncludedBlockRespJSON{
+		IncludedBlocks: core.MarshalHashTMap(r.IncludedBlocks),
+	})
+}
+
+func (r *TxIncludedBlockResp) UnmarshalJSON(data []byte) error {
+	raw := txIncludedBlockRespJSON{}
+	err := json.Unmarshal(data, &raw)
+	if err != nil {
+		return err
+	}
+	includedBlocks, err := core.UnmarshalHashTMap(raw.IncludedBlocks)
+	if err != nil {
+		return err
+	}
+	r.IncludedBlocks = includedBlocks
+	return nil
+}
+
+type GetTxResp struct {
+	Txs map[core.HashT]core.Tx
+}
+
+type getTxRespJSON struct {
+	Txs map[string]core.Tx `json:"txs"`
+}
+
+func (r GetTxResp) MarshalJSON() ([]byte, error) {
+	return json.Marshal(getTxRespJSON{
+		Txs: core.MarshalHashTMap(r.Txs),
+	})
+}
+
+func (r *GetTxResp) UnmarshalJSON(data []byte) error {
+	raw := getTxRespJSON{}
+	err := json.Unmarshal(data, &raw)
+	if err != nil {
+		return err
+	}
+	txs, err := core.UnmarshalHashTMap(raw.Txs)
+	if err != nil {
+		return err
+	}
+	r.Txs = txs
+	return nil
+}
+
+type GetMerkleResp struct {
+	Merkles map[core.HashT]core.MerkleNode
+}
+
+type getMerkleRespJSON struct {
+	Merkles map[string]core.MerkleNode `json:"merkles"`
+}
+
+func (r GetMerkleResp) MarshalJSON() ([]byte, error) {
+	return json.Marshal(getMerkleRespJSON{
+		Merkles: core.MarshalHashTMap(r.Merkles),
+	})
+}
+
+func (r *GetMerkleResp) UnmarshalJSON(data []byte) error {
+	raw := getMerkleRespJSON{}
+	err := json.Unmarshal(data, &raw)
+	if err != nil {
+		return err
+	}
+	merkles, err := core.UnmarshalHashTMap(raw.Merkles)
+	if err != nil {
+		return err
+	}
+	r.Merkles = merkles
+	return nil
+}
+
+type GetBlockResp struct {
+	Blocks map[core.HashT]core.Block
+}
+
+type getBlockRespJSON struct {
+	Blocks map[string]core.Block `json:"blocks"`
+}
+
+func (r GetBlockResp) MarshalJSON() ([]byte, error) {
+	return json.Marshal(getBlockRespJSON{
+		Blocks: core.MarshalHashTMap(r.Blocks),
+	})
+}
+
+func (r *GetBlockResp) UnmarshalJSON(data []byte) error {
+	raw := getBlockRespJSON{}
+	err := json.Unmarshal(data, &raw)
+	if err != nil {
+		return err
+	}
+	blocks, err := core.UnmarshalHashTMap(raw.Blocks)
+	if err != nil {
+		return err
+	}
+	r.Blocks = blocks
+	return nil
+}

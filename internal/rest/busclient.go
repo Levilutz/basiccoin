@@ -63,3 +63,12 @@ func (c *BusClient) TxConfirmsQuery(txIds []core.HashT) map[core.HashT]uint64 {
 	})
 	return <-ret
 }
+
+func (c *BusClient) TxIncludedBlockQuery(txIds []core.HashT) map[core.HashT]core.HashT {
+	ret := make(chan map[core.HashT]core.HashT)
+	c.bus.TxIncludedBlock.Pub(bus.TxIncludedBlockQuery{
+		Ret:   ret,
+		TxIds: txIds,
+	})
+	return <-ret
+}

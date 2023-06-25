@@ -17,10 +17,11 @@ type subscriptions struct {
 	CandidateTx   *topic.SubCh[bus.CandidateTxEvent]
 	PrintUpdate   *topic.SubCh[bus.PrintUpdateEvent]
 	// Queries
-	HeadHeight *topic.SubCh[bus.HeadHeightQuery]
-	PkhBalance *topic.SubCh[bus.PkhBalanceQuery]
-	PkhUtxos   *topic.SubCh[bus.PkhUtxosQuery]
-	TxConfirms *topic.SubCh[bus.TxConfirmsQuery]
+	HeadHeight      *topic.SubCh[bus.HeadHeightQuery]
+	PkhBalance      *topic.SubCh[bus.PkhBalanceQuery]
+	PkhUtxos        *topic.SubCh[bus.PkhUtxosQuery]
+	TxConfirms      *topic.SubCh[bus.TxConfirmsQuery]
+	TxIncludedBlock *topic.SubCh[bus.TxIncludedBlockQuery]
 }
 
 // A routine to manage our blockchain state and updates to it.
@@ -35,13 +36,14 @@ type Chain struct {
 // Create a new chain.
 func NewChain(msgBus *bus.Bus, inv *inv.Inv, supportMiners bool) *Chain {
 	subs := &subscriptions{
-		CandidateHead: msgBus.CandidateHead.SubCh(),
-		CandidateTx:   msgBus.CandidateTx.SubCh(),
-		PrintUpdate:   msgBus.PrintUpdate.SubCh(),
-		HeadHeight:    msgBus.HeadHeight.SubCh(),
-		PkhBalance:    msgBus.PkhBalance.SubCh(),
-		PkhUtxos:      msgBus.PkhUtxos.SubCh(),
-		TxConfirms:    msgBus.TxConfirms.SubCh(),
+		CandidateHead:   msgBus.CandidateHead.SubCh(),
+		CandidateTx:     msgBus.CandidateTx.SubCh(),
+		PrintUpdate:     msgBus.PrintUpdate.SubCh(),
+		HeadHeight:      msgBus.HeadHeight.SubCh(),
+		PkhBalance:      msgBus.PkhBalance.SubCh(),
+		PkhUtxos:        msgBus.PkhUtxos.SubCh(),
+		TxConfirms:      msgBus.TxConfirms.SubCh(),
+		TxIncludedBlock: msgBus.TxIncludedBlock.SubCh(),
 	}
 	return &Chain{
 		bus:           msgBus,
@@ -89,6 +91,9 @@ func (c *Chain) Loop() {
 
 		case query := <-c.subs.TxConfirms.C:
 			util.WriteChIfPossible(query.Ret, c.state.GetTxConfirms(query.TxIds))
+
+		case query := <-c.subs.TxIncludedBlock.C:
+			util.WriteChIfPossible(query.Ret, c.state.GetTxIncludedBlock(query.TxIds))
 		}
 	}
 }

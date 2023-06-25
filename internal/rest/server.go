@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"github.com/levilutz/basiccoin/internal/bus"
+	"github.com/levilutz/basiccoin/internal/inv"
 )
 
 var adminPrefix = "/admin"
@@ -16,12 +17,14 @@ type HttpHandler = func(http.ResponseWriter, *http.Request)
 type Server struct {
 	params    Params
 	busClient *BusClient
+	inv       inv.InvReader
 }
 
-func NewServer(params Params, msgBus *bus.Bus) *Server {
+func NewServer(params Params, msgBus *bus.Bus, inv inv.InvReader) *Server {
 	return &Server{
 		params:    params,
 		busClient: NewBusClient(msgBus),
+		inv:       inv,
 	}
 }
 
@@ -52,11 +55,24 @@ func (s *Server) Start() {
 		})
 
 		s.mountHandlers(false, walletPrefix+"/tx", map[string]HttpHandler{
+			"GET":  s.handleWalletGetTx,
 			"POST": s.handleWalletPostTx,
 		})
 
 		s.mountHandlers(false, walletPrefix+"/tx/confirms", map[string]HttpHandler{
 			"GET": s.handleWalletGetTxConfirms,
+		})
+
+		s.mountHandlers(false, walletPrefix+"/tx/block", map[string]HttpHandler{
+			"GET": s.handleWalletGetTxIncludedBlock,
+		})
+
+		s.mountHandlers(false, walletPrefix+"/merkle", map[string]HttpHandler{
+			"GET": s.handleWalletGetMerkle,
+		})
+
+		s.mountHandlers(false, walletPrefix+"/block", map[string]HttpHandler{
+			"GET": s.handleWalletGetBlock,
 		})
 	}
 
