@@ -82,9 +82,9 @@ func (p *Peer) Loop() {
 		})
 	}()
 
-	if p.conn.WeAreInitiator() {
-		p.issueCommandPrintErr(syncChainCmd, p.handleSyncChain)
-	}
+	// if p.conn.WeAreInitiator() {
+	// 	p.issueCommandPrintErr(syncChainCmd, p.handleSyncChain)
+	// }
 
 	// Loop
 	for {
