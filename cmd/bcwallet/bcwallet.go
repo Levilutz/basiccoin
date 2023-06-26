@@ -479,8 +479,12 @@ var commands = []Command{
 			} else if len(richList) == 0 {
 				return fmt.Errorf("no publicKeyHashes have balance")
 			}
-			for pkh, bal := range richList {
-				fmt.Printf("%s\t%d\n", pkh, bal)
+			pkhs := util.MapKeys(richList)
+			sort.Slice(pkhs, func(i, j int) bool {
+				return richList[pkhs[i]] > richList[pkhs[j]]
+			})
+			for _, pkh := range pkhs {
+				fmt.Printf("%s\t%d\n", pkh, richList[pkh])
 			}
 			return nil
 		},
