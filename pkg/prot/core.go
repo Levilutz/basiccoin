@@ -43,7 +43,6 @@ func (c *Conn) ReadBlock(expectId core.HashT) core.Block {
 	if c.err != nil {
 		return core.Block{}
 	} else if block.Hash() != expectId {
-		fmt.Printf("RECEIVED: %v\n", block)
 		c.err = fmt.Errorf(
 			"block does not match expected id: %s != %s", block.Hash(), expectId,
 		)
