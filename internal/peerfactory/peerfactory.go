@@ -254,12 +254,17 @@ func (pf *PeerFactory) addConn(conn *prot.Conn) {
 
 // Check if we should and can seek new peers, then do so.
 func (pf *PeerFactory) seekNewPeers() {
-	if pf.knownPeers.Size() == 0 || pf.knownPeers.Size() >= pf.params.MinPeers {
+	if pf.knownPeers.Size() >= pf.params.MaxPeers {
 		return
+	} else if pf.knownPeers.Size() == 0 {
+		// Retry seed peers
+		pf.newAddrs.Push(pf.seedAddrs...)
+	} else {
+		// Pick a random current peer and ask for their peers
+		targetInd := rand.Intn(pf.knownPeers.Size())
+		targetRuntimeId := pf.knownPeers.ToList()[targetInd]
+		pf.bus.ShouldRequestPeers.Pub(bus.ShouldRequestPeersEvent{
+			TargetRuntimeId: targetRuntimeId,
+		})
 	}
-	targetInd := rand.Intn(pf.knownPeers.Size())
-	targetRuntimeId := pf.knownPeers.ToList()[targetInd]
-	pf.bus.ShouldRequestPeers.Pub(bus.ShouldRequestPeersEvent{
-		TargetRuntimeId: targetRuntimeId,
-	})
 }
