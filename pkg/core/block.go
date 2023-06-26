@@ -7,8 +7,8 @@ import (
 )
 
 type MerkleNode struct {
-	LChild HashT
-	RChild HashT
+	LChild HashT `json:"lChild"`
+	RChild HashT `json:"rChild"`
 }
 
 func (node MerkleNode) Hash() HashT {
@@ -16,12 +16,12 @@ func (node MerkleNode) Hash() HashT {
 }
 
 type Block struct {
-	PrevBlockId HashT
-	MerkleRoot  HashT
-	Target      HashT
-	Noise       HashT
-	Nonce       uint64
-	MinedTime   uint64
+	PrevBlockId HashT  `json:"prevBlockId"`
+	MerkleRoot  HashT  `json:"merkleRoot"`
+	Target      HashT  `json:"target"`
+	Noise       HashT  `json:"noise"`
+	Nonce       uint64 `json:"nonce"`
+	MinedTime   uint64 `json:"minedTime"`
 }
 
 func (b Block) Hash() HashT {
