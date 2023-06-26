@@ -215,3 +215,31 @@ func (r *GetBlockResp) UnmarshalJSON(data []byte) error {
 	r.Blocks = blocks
 	return nil
 }
+
+type RichListResp struct {
+	RichList map[core.HashT]uint64
+}
+
+type richListRespJSON struct {
+	RichList map[string]uint64 `json:"richList"`
+}
+
+func (r RichListResp) MarshalJSON() ([]byte, error) {
+	return json.Marshal(richListRespJSON{
+		RichList: core.MarshalHashTMap(r.RichList),
+	})
+}
+
+func (r *RichListResp) UnmarshalJSON(data []byte) error {
+	raw := richListRespJSON{}
+	err := json.Unmarshal(data, &raw)
+	if err != nil {
+		return err
+	}
+	richList, err := core.UnmarshalHashTMap(raw.RichList)
+	if err != nil {
+		return err
+	}
+	r.RichList = richList
+	return nil
+}

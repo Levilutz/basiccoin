@@ -21,6 +21,12 @@ type PkhUtxosQuery struct {
 	ExcludeMempool  bool
 }
 
+// A query for the highest-balance publicKeyHashes.
+type RichListQuery struct {
+	Ret    chan map[core.HashT]uint64
+	MaxLen uint64
+}
+
 // A query for the number of confirmations for each given tx.
 // If any of the given txs aren't known, they're not returned in the output map.
 type TxConfirmsQuery struct {

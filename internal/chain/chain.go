@@ -20,6 +20,7 @@ type subscriptions struct {
 	HeadHeight      *topic.SubCh[bus.HeadHeightQuery]
 	PkhBalance      *topic.SubCh[bus.PkhBalanceQuery]
 	PkhUtxos        *topic.SubCh[bus.PkhUtxosQuery]
+	RichList        *topic.SubCh[bus.RichListQuery]
 	TxConfirms      *topic.SubCh[bus.TxConfirmsQuery]
 	TxIncludedBlock *topic.SubCh[bus.TxIncludedBlockQuery]
 }
@@ -42,6 +43,7 @@ func NewChain(msgBus *bus.Bus, inv *inv.Inv, supportMiners bool) *Chain {
 		HeadHeight:      msgBus.HeadHeight.SubCh(),
 		PkhBalance:      msgBus.PkhBalance.SubCh(),
 		PkhUtxos:        msgBus.PkhUtxos.SubCh(),
+		RichList:        msgBus.RichList.SubCh(),
 		TxConfirms:      msgBus.TxConfirms.SubCh(),
 		TxIncludedBlock: msgBus.TxIncludedBlock.SubCh(),
 	}
@@ -88,6 +90,9 @@ func (c *Chain) Loop() {
 			util.WriteChIfPossible(
 				query.Ret, c.state.GetManyPkhUtxos(query.PublicKeyHashes, query.ExcludeMempool),
 			)
+
+		case query := <-c.subs.RichList.C:
+			util.WriteChIfPossible(query.Ret, c.state.GetRichList(query.MaxLen))
 
 		case query := <-c.subs.TxConfirms.C:
 			util.WriteChIfPossible(query.Ret, c.state.GetTxConfirms(query.TxIds))

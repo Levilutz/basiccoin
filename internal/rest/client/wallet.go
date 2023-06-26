@@ -189,3 +189,13 @@ func (c *WalletClient) GetBlock(blockIds []core.HashT) (map[core.HashT]core.Bloc
 	}
 	return resp.Blocks, nil
 }
+
+// Get the richest pkhs.
+func (c *WalletClient) GetRichList(maxLen uint64) (map[core.HashT]uint64, error) {
+	queryStr := fmt.Sprintf("?maxLen=%d", maxLen)
+	resp, err := GetParse[models.RichListResp](c.baseUrl + "richlist" + queryStr)
+	if err != nil {
+		return nil, err
+	}
+	return resp.RichList, nil
+}

@@ -72,3 +72,12 @@ func (c *BusClient) TxIncludedBlockQuery(txIds []core.HashT) map[core.HashT]core
 	})
 	return <-ret
 }
+
+func (c *BusClient) RichListQuery(maxLen uint64) map[core.HashT]uint64 {
+	ret := make(chan map[core.HashT]uint64)
+	c.bus.RichList.Pub(bus.RichListQuery{
+		Ret:    ret,
+		MaxLen: maxLen,
+	})
+	return <-ret
+}

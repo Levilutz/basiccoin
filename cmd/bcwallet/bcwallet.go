@@ -459,6 +459,32 @@ var commands = []Command{
 			return nil
 		},
 	},
+	{
+		Name:           "rich-list",
+		HelpText:       "Get the current wealthiest publicKeyHashes.",
+		ArgsUsage:      "(length)",
+		RequiresClient: true,
+		Handler: func(ctx *HandlerContext) error {
+			maxLen := uint64(10)
+			var err error
+			if len(ctx.Args) > 0 {
+				maxLen, err = strconv.ParseUint(ctx.Args[0], 10, 64)
+				if err != nil {
+					return err
+				}
+			}
+			richList, err := ctx.Client.GetRichList(maxLen)
+			if err != nil {
+				return err
+			} else if len(richList) == 0 {
+				return fmt.Errorf("no publicKeyHashes have balance")
+			}
+			for pkh, bal := range richList {
+				fmt.Printf("%s\t%d\n", pkh, bal)
+			}
+			return nil
+		},
+	},
 }
 
 func main() {

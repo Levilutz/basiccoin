@@ -24,6 +24,7 @@ type Bus struct {
 	HeadHeight      *topic.Topic[HeadHeightQuery]
 	PkhBalance      *topic.Topic[PkhBalanceQuery]
 	PkhUtxos        *topic.Topic[PkhUtxosQuery]
+	RichList        *topic.Topic[RichListQuery]
 	TxConfirms      *topic.Topic[TxConfirmsQuery]
 	TxIncludedBlock *topic.Topic[TxIncludedBlockQuery]
 }
@@ -50,6 +51,7 @@ func NewBus() *Bus {
 		HeadHeight:      topic.NewTopic[HeadHeightQuery](),
 		PkhBalance:      topic.NewTopic[PkhBalanceQuery](),
 		PkhUtxos:        topic.NewTopic[PkhUtxosQuery](),
+		RichList:        topic.NewTopic[RichListQuery](),
 		TxConfirms:      topic.NewTopic[TxConfirmsQuery](),
 		TxIncludedBlock: topic.NewTopic[TxIncludedBlockQuery](),
 	}

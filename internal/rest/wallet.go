@@ -224,3 +224,27 @@ func (s *Server) handleWalletGetTxIncludedBlock(w http.ResponseWriter, r *http.R
 	}
 	w.Write(outJson)
 }
+
+func (s *Server) handleWalletGetRichList(w http.ResponseWriter, r *http.Request) {
+	maxLenStr, ok := r.URL.Query()["maxLen"]
+	var maxLen uint64
+	var err error
+	if ok {
+		maxLen, err = strconv.ParseUint(maxLenStr[0], 10, 64)
+		if err != nil {
+			write400(w, err)
+			return
+		}
+	} else {
+		maxLen = 10
+	}
+	richList := s.busClient.RichListQuery(maxLen)
+	outJson, err := json.Marshal(models.RichListResp{
+		RichList: richList,
+	})
+	if err != nil {
+		write500(w, err)
+		return
+	}
+	w.Write(outJson)
+}

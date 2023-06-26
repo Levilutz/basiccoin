@@ -74,6 +74,10 @@ func (s *Server) Start() {
 		s.mountHandlers(false, walletPrefix+"/block", map[string]HttpHandler{
 			"GET": s.handleWalletGetBlock,
 		})
+
+		s.mountHandlers(false, walletPrefix+"/richlist", map[string]HttpHandler{
+			"GET": s.handleWalletGetRichList,
+		})
 	}
 
 	portStr := fmt.Sprintf(":%d", s.params.Port)

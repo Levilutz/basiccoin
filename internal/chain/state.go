@@ -364,3 +364,25 @@ func (s *State) GetTxIncludedBlock(txIds []core.HashT) map[core.HashT]core.HashT
 	}
 	return out
 }
+
+func (s *State) GetRichList(maxLen uint64) map[core.HashT]uint64 {
+	pkhs := util.MapKeys(s.pkhUtxos)
+	pkhBals := make(map[core.HashT]uint64, len(pkhs))
+	for _, pkh := range pkhs {
+		pkhBals[pkh] = s.GetPkhBalance(pkh)
+	}
+	sort.Slice(pkhs, func(i, j int) bool {
+		// Descending
+		return pkhBals[pkhs[i]] > pkhBals[pkhs[j]]
+	})
+	// outLen = min(maxLen, len(pkhs))
+	outLen := int(maxLen)
+	if len(pkhs) < outLen {
+		outLen = len(pkhs)
+	}
+	out := make(map[core.HashT]uint64, outLen)
+	for i := 0; i < outLen; i++ {
+		out[pkhs[i]] = pkhBals[pkhs[i]]
+	}
+	return out
+}
