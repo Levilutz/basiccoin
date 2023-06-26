@@ -337,7 +337,7 @@ var commands = []Command{
 		},
 	},
 	{
-		Name:           "tx-blocks",
+		Name:           "tx-block",
 		HelpText:       "Get the block each of the given tx ids was included in.",
 		ArgsUsage:      "(txId...)",
 		RequiredArgs:   1,
@@ -352,7 +352,7 @@ var commands = []Command{
 				return err
 			}
 			for txId, blockId := range includedBlocks {
-				fmt.Printf("%s\t%s\n", txId, greenStr(fmt.Sprint(blockId)))
+				fmt.Printf("%s\n\t%s\n", txId, greenStr(fmt.Sprint(blockId)))
 			}
 			for _, txId := range txIds {
 				if _, ok := includedBlocks[txId]; !ok {

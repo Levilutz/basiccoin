@@ -3,6 +3,7 @@ package prot
 import (
 	"encoding/binary"
 	"fmt"
+	"io"
 	"net"
 	"os"
 	"time"
@@ -110,7 +111,7 @@ func (c *Conn) readRawTimeout(numBytes uint16, timeout time.Duration) []byte {
 	c.tc.SetReadDeadline(time.Now().Add(timeout))
 	defer c.tc.SetReadDeadline(time.Time{})
 	data := make([]byte, numBytes)
-	_, err := c.tc.Read(data)
+	_, err := io.ReadFull(c.tc, data)
 	if err != nil {
 		c.err = err
 		return nil
