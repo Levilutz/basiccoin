@@ -25,8 +25,8 @@ go build -o bcnode ./cmd/bcnode
 ufw allow 21720/tcp
 ufw reload
 
-nohup ./bcnode --new-network=true --listen=true --addr=coin1.levilutz.com:21720 --miners=1 --payout=eeeeeed6bdacc4d88f6e07ba9070a3bcc1d1648cb8393ecb47bbe02235e48a5a --http-wallet > ~/basiccoin.out 2> ~/basiccoin.err &
-# nohup ./bcnode --listen=true --addr=coin2.levilutz.com:21720 --miners=1 --payout=eeeeeed6bdacc4d88f6e07ba9070a3bcc1d1648cb8393ecb47bbe02235e48a5a > ~/basiccoin.out 2> ~/basiccoin.err &
-# nohup ./bcnode --listen=true --addr=coin3.levilutz.com:21720 --miners=1 --payout=eeeeeed6bdacc4d88f6e07ba9070a3bcc1d1648cb8393ecb47bbe02235e48a5a > ~/basiccoin.out 2> ~/basiccoin.err &
+nohup ./bcnode --new-network=true --listen=true --addr=coin1.levilutz.com:21720 --miners=1 --payout=eeeeeed6bdacc4d88f6e07ba9070a3bcc1d1648cb8393ecb47bbe02235e48a5a --http-wallet --save-dir=/root/chain > ~/basiccoin.out 2> ~/basiccoin.err &
+# nohup ./bcnode --listen=true --addr=coin2.levilutz.com:21720 --miners=1 --payout=eeeeeed6bdacc4d88f6e07ba9070a3bcc1d1648cb8393ecb47bbe02235e48a5a --save-dir=/root/chain > ~/basiccoin.out 2> ~/basiccoin.err &
+# nohup ./bcnode --listen=true --addr=coin3.levilutz.com:21720 --miners=1 --payout=eeeeeed6bdacc4d88f6e07ba9070a3bcc1d1648cb8393ecb47bbe02235e48a5a --save-dir=/root/chain > ~/basiccoin.out 2> ~/basiccoin.err &
 
 tail --follow ~/basiccoin.out
