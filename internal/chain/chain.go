@@ -2,9 +2,12 @@ package chain
 
 import (
 	"fmt"
+	"os"
+	"strings"
 
 	"github.com/levilutz/basiccoin/internal/bus"
 	"github.com/levilutz/basiccoin/internal/inv"
+	"github.com/levilutz/basiccoin/pkg/core"
 	"github.com/levilutz/basiccoin/pkg/topic"
 	"github.com/levilutz/basiccoin/pkg/util"
 )
@@ -32,10 +35,18 @@ type Chain struct {
 	subs          *subscriptions
 	state         *State
 	supportMiners bool
+	saveDir       *string
 }
 
 // Create a new chain.
-func NewChain(msgBus *bus.Bus, inv *inv.Inv, supportMiners bool) *Chain {
+func NewChain(
+	msgBus *bus.Bus, inv *inv.Inv, supportMiners bool, saveDir *string,
+) *Chain {
+	if saveDir != nil {
+		if err := os.MkdirAll(*saveDir, 0750); err != nil {
+			panic(fmt.Sprintf("failed to make chain save dir: %s", err))
+		}
+	}
 	subs := &subscriptions{
 		CandidateHead:   msgBus.CandidateHead.SubCh(),
 		CandidateTx:     msgBus.CandidateTx.SubCh(),
@@ -47,12 +58,28 @@ func NewChain(msgBus *bus.Bus, inv *inv.Inv, supportMiners bool) *Chain {
 		TxConfirms:      msgBus.TxConfirms.SubCh(),
 		TxIncludedBlock: msgBus.TxIncludedBlock.SubCh(),
 	}
+	if saveDir != nil {
+		head, err := loadHeadFromFile(saveDir)
+		if err != nil {
+			fmt.Printf("failed to load previous head from file: %s\n", err)
+		} else {
+			msgBus.CandidateHead.Pub(bus.CandidateHeadEvent{
+				Head:    *head,
+				Blocks:  []core.Block{},
+				Merkles: []core.MerkleNode{},
+				Txs:     []core.Tx{},
+				// This is necessary, as mempool is empty on first startup
+				AutoAddMempoolInsecure: true,
+			})
+		}
+	}
 	return &Chain{
 		bus:           msgBus,
 		inv:           inv,
 		subs:          subs,
 		state:         NewState(inv),
 		supportMiners: supportMiners,
+		saveDir:       saveDir,
 	}
 }
 
@@ -151,15 +178,24 @@ func (c *Chain) handleCandidateHead(event bus.CandidateHeadEvent) error {
 	newBlocks := c.inv.GetBlockAncestorsUntil(event.Head, lcaId)
 	// Advance through intermediate blocks, then the new head
 	for i := len(newBlocks) - 1; i >= 0; i-- {
-		if err := newState.Advance(newBlocks[i]); err != nil {
+		if err := newState.Advance(
+			newBlocks[i], event.AutoAddMempoolInsecure,
+		); err != nil {
 			return fmt.Errorf("failed to advance to block: %s", err.Error())
 		}
 	}
-	if err := newState.Advance(event.Head); err != nil {
+	if err := newState.Advance(event.Head, event.AutoAddMempoolInsecure); err != nil {
 		return fmt.Errorf("failed to advance to block: %s", err.Error())
 	}
 	// Shift to new head - don't return error after here or state will get corrupted
 	c.state = newState
+	// Save to file
+	if c.saveDir != nil {
+		err := c.saveHeadToFile(c.state.head)
+		if err != nil {
+			fmt.Printf("failed to save head to file: %s\n", err)
+		}
+	}
 	// Publish events
 	c.bus.ValidatedHead.Pub(bus.ValidatedHeadEvent{
 		Head: event.Head,
@@ -187,4 +223,28 @@ func (c *Chain) handleCandidateTx(event bus.CandidateTxEvent) error {
 		c.CreateMiningTarget()
 	}
 	return nil
+}
+
+func (c *Chain) saveHeadToFile(head core.HashT) error {
+	return os.WriteFile(*c.saveDir+"/head", []byte(head.String()), 0666)
+}
+
+func loadHeadFromFile(saveDir *string) (head *core.HashT, err error) {
+	if saveDir == nil {
+		return nil, fmt.Errorf("was not configured with a save dir")
+	}
+	path := *saveDir + "/head"
+	if _, err := os.Stat(path); err != nil {
+		return nil, err
+	}
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+	rawS := strings.Trim(string(raw), "\n")
+	headD, err := core.NewHashTFromString(rawS)
+	if err != nil {
+		return nil, err
+	}
+	return &headD, nil
 }

@@ -2,6 +2,8 @@ package main
 
 import (
 	"flag"
+	"fmt"
+	"os"
 	"strings"
 
 	"github.com/levilutz/basiccoin/pkg/core"
@@ -18,6 +20,7 @@ type Flags struct {
 	HttpAdminEnabled  bool
 	HttpWalletEnabled bool
 	HttpAdminPw       string
+	SaveDir           *string
 }
 
 func ParseFlags() Flags {
@@ -33,6 +36,7 @@ func ParseFlags() Flags {
 	httpAdmin := flag.Bool("http-admin", false, "Whether to enable the admin http server")
 	httpWallet := flag.Bool("http-wallet", false, "Whether to enable the wallet http server")
 	httpAdminPw := flag.String("admin-pw", "", "Password for the admin http endpoints")
+	saveDir := flag.String("save-dir", "", "Directory to save the chain")
 
 	flag.Parse()
 
@@ -60,6 +64,16 @@ func ParseFlags() Flags {
 		}
 	}
 
+	var saveDirReal *string
+	if *saveDir != "" {
+		if err := os.MkdirAll(*saveDir, 0750); err != nil {
+			panic(fmt.Sprintf("failed to create save dir: %s", err))
+		}
+		saveDirReal = saveDir
+	} else {
+		saveDirReal = nil
+	}
+
 	return Flags{
 		Dev:               *dev,
 		Listen:            *listen,
@@ -71,5 +85,6 @@ func ParseFlags() Flags {
 		HttpAdminEnabled:  *httpAdmin,
 		HttpWalletEnabled: *httpWallet,
 		HttpAdminPw:       *httpAdminPw,
+		SaveDir:           saveDirReal,
 	}
 }

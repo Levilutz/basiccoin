@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/levilutz/basiccoin/pkg/core"
+	"github.com/levilutz/basiccoin/pkg/disksyncmap"
 	"github.com/levilutz/basiccoin/pkg/queue"
 	"github.com/levilutz/basiccoin/pkg/syncmap"
 )
@@ -36,20 +37,31 @@ type InvReader interface {
 	HasTxOut(txId core.HashT, ind uint64) bool
 }
 
-type blockRecord struct {
-	block     core.Block
-	height    uint64
-	totalWork core.HashT
+type comparableStringer interface {
+	comparable
+	fmt.Stringer
 }
 
-type merkleRecord struct {
-	merkle core.MerkleNode
-	vSize  uint64
+type SomeSyncMap[K comparableStringer, V fmt.Stringer] interface {
+	Has(key K) bool
+	Get(key K) V
+	Store(key K, val V)
 }
 
-type txRecord struct {
-	tx    core.Tx
-	vSize uint64
+type BlockRecord struct {
+	Block     core.Block
+	Height    uint64
+	TotalWork core.HashT
+}
+
+type MerkleRecord struct {
+	Merkle core.MerkleNode
+	VSize  uint64
+}
+
+type TxRecord struct {
+	Tx    core.Tx
+	VSize uint64
 }
 
 // A shared inventory of various entities.
@@ -58,23 +70,38 @@ type Inv struct {
 	coreParams core.Params
 	verifier   *core.Verifier
 	// Main inventory
-	blocks  *syncmap.SyncMap[core.HashT, blockRecord]
-	merkles *syncmap.SyncMap[core.HashT, merkleRecord]
-	txs     *syncmap.SyncMap[core.HashT, txRecord]
+	blocks  SomeSyncMap[core.HashT, BlockRecord]
+	merkles SomeSyncMap[core.HashT, MerkleRecord]
+	txs     SomeSyncMap[core.HashT, TxRecord]
+	// Save dir
+	saveDir *string
 }
 
-func NewInv(coreParams core.Params) *Inv {
+func NewInv(coreParams core.Params, saveDir *string) *Inv {
 	inv := &Inv{
 		coreParams: coreParams,
-		blocks:     syncmap.NewSyncMap[core.HashT, blockRecord](),
-		merkles:    syncmap.NewSyncMap[core.HashT, merkleRecord](),
-		txs:        syncmap.NewSyncMap[core.HashT, txRecord](),
+		saveDir:    saveDir,
+	}
+	if saveDir != nil {
+		inv.blocks = disksyncmap.NewDiskSyncMap[core.HashT, BlockRecord](
+			*saveDir+"/blocks", BlockRecordFromString,
+		)
+		inv.merkles = disksyncmap.NewDiskSyncMap[core.HashT, MerkleRecord](
+			*saveDir+"/merkles", MerkleRecordFromString,
+		)
+		inv.txs = disksyncmap.NewDiskSyncMap[core.HashT, TxRecord](
+			*saveDir+"/txs", TxRecordFromString,
+		)
+	} else {
+		inv.blocks = syncmap.NewSyncMap[core.HashT, BlockRecord]()
+		inv.merkles = syncmap.NewSyncMap[core.HashT, MerkleRecord]()
+		inv.txs = syncmap.NewSyncMap[core.HashT, TxRecord]()
 	}
 	inv.verifier = core.NewVerifier(coreParams, inv)
-	inv.blocks.Store(core.HashT{}, blockRecord{
-		block:     core.Block{},
-		height:    0,
-		totalWork: core.HashT{},
+	inv.blocks.Store(core.HashT{}, BlockRecord{
+		Block:     core.Block{},
+		Height:    0,
+		TotalWork: core.HashT{},
 	})
 	return inv
 }
@@ -100,17 +127,17 @@ func (inv *Inv) HasAnyBlock(blockIds []core.HashT) (core.HashT, bool) {
 
 // Get a block, panic if it doesn't exist.
 func (inv *Inv) GetBlock(blockId core.HashT) core.Block {
-	return inv.blocks.Get(blockId).block
+	return inv.blocks.Get(blockId).Block
 }
 
 // Get a block's height (0x0 is height 0, origin block is height 1).
 func (inv *Inv) GetBlockHeight(blockId core.HashT) uint64 {
-	return inv.blocks.Get(blockId).height
+	return inv.blocks.Get(blockId).Height
 }
 
 // Get total work along chain terminating with this block.
 func (inv *Inv) GetBlockTotalWork(blockId core.HashT) core.HashT {
-	return inv.blocks.Get(blockId).totalWork
+	return inv.blocks.Get(blockId).TotalWork
 }
 
 func (inv *Inv) GetBlockParentId(blockId core.HashT) core.HashT {
@@ -210,12 +237,12 @@ func (inv *Inv) HasMerkle(nodeId core.HashT) bool {
 
 // Get a merkle, panic if it doesn't exist.
 func (inv *Inv) GetMerkle(merkleId core.HashT) core.MerkleNode {
-	return inv.merkles.Get(merkleId).merkle
+	return inv.merkles.Get(merkleId).Merkle
 }
 
 // Get the vSize of all txs descended from a merkle node, panic if it doesn't exist.
 func (inv *Inv) GetMerkleVSize(merkleId core.HashT) uint64 {
-	return inv.merkles.Get(merkleId).vSize
+	return inv.merkles.Get(merkleId).VSize
 }
 
 // Load ids of all txs descended from a merkle node.
@@ -259,12 +286,12 @@ func (inv *Inv) HasTx(txId core.HashT) bool {
 
 // Get a tx, panic if it doesn't exist.
 func (inv *Inv) GetTx(txId core.HashT) core.Tx {
-	return inv.txs.Get(txId).tx
+	return inv.txs.Get(txId).Tx
 }
 
 // Get a tx's vSize, panic if it doesn't exist.
 func (inv *Inv) GetTxVSize(txId core.HashT) uint64 {
-	return inv.txs.Get(txId).vSize
+	return inv.txs.Get(txId).VSize
 }
 
 // Return whether the given tx has the given output index.
@@ -308,10 +335,10 @@ func (inv *Inv) StoreBlock(block core.Block) error {
 		return err
 	}
 	prevWork := inv.GetBlockTotalWork(block.PrevBlockId)
-	inv.blocks.Store(blockId, blockRecord{
-		block:     block,
-		height:    inv.GetBlockHeight(block.PrevBlockId) + 1,
-		totalWork: prevWork.WorkAppendTarget(block.Target),
+	inv.blocks.Store(blockId, BlockRecord{
+		Block:     block,
+		Height:    inv.GetBlockHeight(block.PrevBlockId) + 1,
+		TotalWork: prevWork.WorkAppendTarget(block.Target),
 	})
 	return nil
 }
@@ -329,9 +356,9 @@ func (inv *Inv) StoreMerkle(merkle core.MerkleNode) error {
 	if merkle.RChild != merkle.LChild {
 		totalSize += inv.GetEntityVSize(merkle.RChild)
 	}
-	inv.merkles.Store(nodeId, merkleRecord{
-		merkle: merkle,
-		vSize:  totalSize,
+	inv.merkles.Store(nodeId, MerkleRecord{
+		Merkle: merkle,
+		VSize:  totalSize,
 	})
 	return nil
 }
@@ -345,9 +372,9 @@ func (inv *Inv) StoreTx(tx core.Tx) error {
 	if err := inv.verifier.VerifyTx(tx); err != nil {
 		return err
 	}
-	inv.txs.Store(txId, txRecord{
-		tx:    tx,
-		vSize: tx.VSize(),
+	inv.txs.Store(txId, TxRecord{
+		Tx:    tx,
+		VSize: tx.VSize(),
 	})
 	return nil
 }

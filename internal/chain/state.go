@@ -142,7 +142,7 @@ func (s *State) RewindUntil(blockId core.HashT) {
 
 // Advance a state to a given next block.
 // If this fails state will be corrupted, so copy before if necessary.
-func (s *State) Advance(nextBlockId core.HashT) error {
+func (s *State) Advance(nextBlockId core.HashT, autoAddMempoolInsecure bool) error {
 	if !s.inv.HasBlock(nextBlockId) {
 		return fmt.Errorf("cannot advance, block unknown: %s", nextBlockId)
 	}
@@ -155,7 +155,7 @@ func (s *State) Advance(nextBlockId core.HashT) error {
 	}
 	for _, tx := range nTxs {
 		txId := tx.Hash()
-		err := s.VerifyTxIncludable(txId)
+		err := s.VerifyTxIncludable(txId, autoAddMempoolInsecure)
 		if err != nil {
 			return fmt.Errorf("tx not includable: %s", err.Error())
 		}
@@ -172,7 +172,9 @@ func (s *State) Advance(nextBlockId core.HashT) error {
 		for _, utxo := range tx.GetConsumedUtxos() {
 			txIds, ok := s.mempoolUtxoSpends[utxo]
 			if !ok {
-				return fmt.Errorf("state corrupt - missing mempool utxo set for %v", utxo)
+				return fmt.Errorf(
+					"state corrupt - %s missing mempool utxo set for %v", txId, utxo,
+				)
 			}
 			if !txIds.Remove(txId) {
 				return fmt.Errorf("state corrupt - mempool utxo set missing tx %s", txId)
@@ -212,7 +214,7 @@ func (s *State) Advance(nextBlockId core.HashT) error {
 }
 
 // Check whether a tx can be included in a new block based on this head.
-func (s *State) VerifyTxIncludable(txId core.HashT) error {
+func (s *State) VerifyTxIncludable(txId core.HashT, autoAddMempoolInsecure bool) error {
 	if !s.inv.HasTx(txId) {
 		return fmt.Errorf("tx unknown: %s", txId)
 	}
@@ -222,7 +224,11 @@ func (s *State) VerifyTxIncludable(txId core.HashT) error {
 		return fmt.Errorf("tx cannot be included in block - too low")
 	}
 	if !s.mempool.Includes(txId) {
-		return fmt.Errorf("tx does not exist in mempool")
+		if autoAddMempoolInsecure {
+			s.AddMempoolTx(txId)
+		} else {
+			return fmt.Errorf("tx does not exist in mempool")
+		}
 	}
 	// Verify each tx input's claimed utxo is available
 	// This guards against double-spends
@@ -238,7 +244,7 @@ func (s *State) VerifyTxIncludable(txId core.HashT) error {
 func (s *State) GetSortedIncludableMempool() []core.HashT {
 	mem := s.mempool.Copy()
 	mem.Filter(func(txId core.HashT) bool {
-		return s.VerifyTxIncludable(txId) == nil && s.inv.GetTx(txId).HasSurplus()
+		return s.VerifyTxIncludable(txId, false) == nil && s.inv.GetTx(txId).HasSurplus()
 	})
 	memL := mem.ToList()
 	sort.Slice(memL, func(i, j int) bool {

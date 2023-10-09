@@ -44,10 +44,10 @@ func main() {
 
 	// Make the event bus and shared inventory
 	msgBus := bus.NewBus()
-	inv := inv.NewInv(coreParams)
+	inv := inv.NewInv(coreParams, flags.SaveDir)
 
 	// Create app components
-	chain := chain.NewChain(msgBus, inv, flags.Miners > 0)
+	chain := chain.NewChain(msgBus, inv, flags.Miners > 0, flags.SaveDir)
 	peerFactory := peerfactory.NewPeerFactory(peerFactoryParams, msgBus, inv)
 	miners := make([]*miner.Miner, flags.Miners)
 	for i := 0; i < flags.Miners; i++ {
@@ -62,6 +62,8 @@ func main() {
 	if len(flags.SeedAddrs) > 0 {
 		peerFactory.SetSeeds(flags.SeedAddrs)
 	}
+
+	// Load the saved head and all txs if necessary
 
 	// Start app components (order matters)
 	for i := 0; i < flags.Miners; i++ {

@@ -8,6 +8,10 @@ type CandidateHeadEvent struct {
 	Blocks  []core.Block
 	Merkles []core.MerkleNode
 	Txs     []core.Tx
+
+	// If set to true, all txs referenced in this chain will be added to the mempool as discovered.
+	// This could double-spend, so only use when tx source is trusted (e.g. loading from disk).
+	AutoAddMempoolInsecure bool
 }
 
 // When we have a new potential tx for the chain to validate.

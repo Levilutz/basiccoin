@@ -142,9 +142,10 @@ func (m *Miner) mine(rounds uint64) {
 func (m *Miner) publishSolution() {
 	fmt.Println("!!! mined solution")
 	m.bus.CandidateHead.Pub(bus.CandidateHeadEvent{
-		Head:    m.template.Hash(),
-		Blocks:  []core.Block{*m.template},
-		Merkles: util.CopyList(m.outMerkles),
-		Txs:     []core.Tx{*m.outCoinbase},
+		Head:                   m.template.Hash(),
+		Blocks:                 []core.Block{*m.template},
+		Merkles:                util.CopyList(m.outMerkles),
+		Txs:                    []core.Tx{*m.outCoinbase},
+		AutoAddMempoolInsecure: false,
 	})
 }

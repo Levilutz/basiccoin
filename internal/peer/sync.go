@@ -185,10 +185,11 @@ func (p *Peer) handleInboundSyncChain() error {
 	}
 	// Send the new entities to the head (reversed so they're inserted in correct order)
 	p.bus.CandidateHead.Pub(bus.CandidateHeadEvent{
-		Head:    newHead,
-		Blocks:  util.Reverse(newBlocks),
-		Merkles: util.Reverse(newMerkles),
-		Txs:     util.Reverse(newTxs),
+		Head:                   newHead,
+		Blocks:                 util.Reverse(newBlocks),
+		Merkles:                util.Reverse(newMerkles),
+		Txs:                    util.Reverse(newTxs),
+		AutoAddMempoolInsecure: false,
 	})
 	return nil
 }
